@@ -164,6 +164,9 @@ rule Step_pure/ref.is_null-false:
   val REF.IS_NULL  ~>  (CONST I32 0)
   -- otherwise
 
+rule Step_pure/v128.any_true:
+  (VVCONST V128 c_1) (V128.ANY_TRUE) ~> (CONST I32 i)
+  -- if i = $ine_128(c_1, 0)
 
 rule Step_read/local.get:
   z; (LOCAL.GET x)  ~>  $local(z, x)

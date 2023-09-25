@@ -11,3 +11,5 @@ def $cvtop(numtype, cvtop, numtype, sx?, c) : c_numtype* hint(show $ext_(%,%)^%(
 def $wrap_((nat, nat), c) : nat
 
 def $bytes_(nat, c) : byte*
+
+def $ine_128(vv_1, vv_2) : nat

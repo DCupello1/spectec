@@ -87,11 +87,13 @@ syntax sx hint(desc "signedness") = | U | S
 
 syntax unop_IXX = | CLZ | CTZ | POPCNT
 syntax unop_FXX = | ABS | NEG | SQRT | CEIL | FLOOR | TRUNC | NEAREST
+syntax unop_VXX = |
 
 syntax binop_IXX =
   | ADD | SUB | MUL | DIV sx hint(show DIV_#%) | REM sx hint(show REM_#%)
   | AND | OR | XOR | SHL | SHR sx hint(show SHR_#%) | ROTL | ROTR
 syntax binop_FXX = | ADD | SUB | MUL | DIV | MIN | MAX | COPYSIGN
+syntax binop_VXX = |       ;; uninhabited
 
 syntax testop_IXX = | EQZ
 syntax testop_FXX = |      ;; uninhabited
@@ -106,17 +108,24 @@ syntax testop_numtype = | _I testop_IXX | _F testop_FXX
 syntax relop_numtype = | _I relop_IXX | _F relop_FXX
 syntax cvtop = | CONVERT | REINTERPRET
 
+syntax unop_vectype = | _V unop_VXX
+syntax binop_vectype = | _V binop_VXX
+
 var unop : unop_numtype
 var binop : binop_numtype
 var testop : testop_numtype
 var relop : relop_numtype
 
+var vvunop : unop_vectype
+var vvbinop : binop_vectype
 
 ;; Instructions
 
 syntax c_numtype = nat  ;; TODO
 syntax c_vectype = nat  ;; TODO
 var c : c_numtype
+
+var cv : c_vectype
 
 syntax blocktype hint(desc "block type") = functype  ;; TODO
 var bt : blocktype
@@ -145,6 +154,13 @@ syntax instr/numeric hint(desc "numeric instruction") = ...
   | RELOP numtype relop_numtype      hint(show %.%)
   | EXTEND numtype n                 hint(show %.EXTEND#%)
   | CVTOP numtype cvtop numtype sx?  hint(show %.%#_#%#_#%)
+  | ...
+
+syntax instr/vector hint(desc "vector instruction") = ...
+  | VVCONST vectype c_vectype        hint(show %.CONST %)
+  | VVUNOP vectype unop_vectype      hint(show %.%)
+  | VVBINOP vectype binop_vectype    hint(show %.%)
+  | V128.ANY_TRUE
   | ...
 
 syntax instr/reference hint(desc "reference instruction") = ...

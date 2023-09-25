@@ -335,7 +335,9 @@ warning: syntax `addr` was never spliced
 warning: syntax `admininstr` was never spliced
 warning: syntax `binop_FXX` was never spliced
 warning: syntax `binop_IXX` was never spliced
+warning: syntax `binop_VXX` was never spliced
 warning: syntax `binop_numtype` was never spliced
+warning: syntax `binop_vectype` was never spliced
 warning: syntax `blocktype` was never spliced
 warning: syntax `byte` was never spliced
 warning: syntax `c_numtype` was never spliced
@@ -373,6 +375,7 @@ warning: syntax `hostaddr` was never spliced
 warning: syntax `idx` was never spliced
 warning: syntax `import` was never spliced
 warning: syntax `in` was never spliced
+warning: syntax `instr/vector` was never spliced
 warning: syntax `labeladdr` was never spliced
 warning: syntax `labelidx` was never spliced
 warning: syntax `localidx` was never spliced
@@ -404,7 +407,9 @@ warning: syntax `testop_numtype` was never spliced
 warning: syntax `u32` was never spliced
 warning: syntax `unop_FXX` was never spliced
 warning: syntax `unop_IXX` was never spliced
+warning: syntax `unop_VXX` was never spliced
 warning: syntax `unop_numtype` was never spliced
+warning: syntax `unop_vectype` was never spliced
 warning: syntax `val` was never spliced
 warning: rule `Blocktype_ok` was never spliced
 warning: rule `Data_ok` was never spliced
@@ -532,6 +537,7 @@ warning: rule `Step_pure/cvtop-val` was never spliced
 warning: rule `Step_pure/cvtop-trap` was never spliced
 warning: rule `Step_pure/ref.is_null-true` was never spliced
 warning: rule `Step_pure/ref.is_null-false` was never spliced
+warning: rule `Step_pure/v128.any_true` was never spliced
 warning: rule `Step_pure/local.tee` was never spliced
 warning: rule `Step_read/call` was never spliced
 warning: rule `Step_read/call_indirect-call` was never spliced
@@ -602,6 +608,7 @@ warning: definition `globalinst` was never spliced
 warning: definition `globals` was never spliced
 warning: definition `grow_memory` was never spliced
 warning: definition `grow_table` was never spliced
+warning: definition `ine_128` was never spliced
 warning: definition `instantiation` was never spliced
 warning: definition `instexport` was never spliced
 warning: definition `invocation` was never spliced

@@ -813,6 +813,12 @@ execution_of_REF.IS_NULL
 4. Else:
   a. Push (I32.CONST 1) to the stack.
 
+execution_of_V128.ANY_TRUE
+1. Assert: Due to validation, a value is on the top of the stack.
+2. Pop (VVCONST V128 c_1) from the stack.
+3. Let i be $ine_128(c_1, 0).
+4. Push (I32.CONST i) to the stack.
+
 execution_of_LOCAL.TEE x
 1. Assert: Due to validation, a value is on the top of the stack.
 2. Pop val from the stack.
