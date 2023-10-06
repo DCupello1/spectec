@@ -164,9 +164,24 @@ rule Step_pure/ref.is_null-false:
   val REF.IS_NULL  ~>  (CONST I32 0)
   -- otherwise
 
+
+rule Step_pure/vvunop:
+  (VVCONST V128 cv_1) (VVUNOP V128 vvunop)  ~>  (VVCONST V128 cv)
+  -- if $vvunop(vvunop, vt, cv_1) = cv ;; TODO
+
+rule Step_pure/vvbinop:
+  (VVCONST V128 cv_1) (VVCONST V128 cv_2) (VVBINOP V128 vvbinop)  ~>  (VVCONST V128 cv)
+  -- if $vvbinop(vvbinop, vt, cv_1, cv_2) = cv ;; TODO
+
+rule Step_pure/vvternop:
+  (VVCONST V128 cv_1) (VVCONST V128 cv_2) (VVCONST V128 cv_3) (VVTERNOP V128 vvternop)  ~>  (VVCONST V128 cv)
+  -- if $vvternop(vvternop, vt, cv_1, cv_2, cv_3) = cv ;; TODO
+
+
 rule Step_pure/v128.any_true:
-  (VVCONST V128 c_1) (V128.ANY_TRUE) ~> (CONST I32 i)
-  -- if i = $ine_128(c_1, 0)
+  (VVCONST V128 cv_1) (V128.ANY_TRUE) ~> (CONST I32 i)
+  -- if i = $ine_128(cv_1, 0)
+
 
 rule Step_read/local.get:
   z; (LOCAL.GET x)  ~>  $local(z, x)

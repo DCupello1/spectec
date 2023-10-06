@@ -401,6 +401,8 @@ warning: syntax `table` was never spliced
 warning: syntax `tableaddr` was never spliced
 warning: syntax `tableidx` was never spliced
 warning: syntax `tableinst` was never spliced
+warning: syntax `ternop_VXX` was never spliced
+warning: syntax `ternop_vectype` was never spliced
 warning: syntax `testop_FXX` was never spliced
 warning: syntax `testop_IXX` was never spliced
 warning: syntax `testop_numtype` was never spliced
@@ -537,6 +539,7 @@ warning: rule `Step_pure/cvtop-val` was never spliced
 warning: rule `Step_pure/cvtop-trap` was never spliced
 warning: rule `Step_pure/ref.is_null-true` was never spliced
 warning: rule `Step_pure/ref.is_null-false` was never spliced
+warning: rule `Step_pure/v128.vvunop` was never spliced
 warning: rule `Step_pure/v128.any_true` was never spliced
 warning: rule `Step_pure/local.tee` was never spliced
 warning: rule `Step_read/call` was never spliced
@@ -624,6 +627,9 @@ warning: definition `tableinst` was never spliced
 warning: definition `tables` was never spliced
 warning: definition `testop` was never spliced
 warning: definition `unop` was never spliced
+warning: definition `vvbinop` was never spliced
+warning: definition `vvternop` was never spliced
+warning: definition `vvunop` was never spliced
 warning: definition `with_data` was never spliced
 warning: definition `with_elem` was never spliced
 warning: definition `with_global` was never spliced

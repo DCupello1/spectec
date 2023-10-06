@@ -73,15 +73,16 @@ $$
 \mbox{(signedness)} & \mathit{sx} &::=& \mathsf{u} ~|~ \mathsf{s} \\
 & \mathit{unop}_{\mathsf{ixx}} &::=& \mathsf{clz} ~|~ \mathsf{ctz} ~|~ \mathsf{popcnt} \\
 & \mathit{unop}_{\mathsf{fxx}} &::=& \mathsf{abs} ~|~ \mathsf{neg} ~|~ \mathsf{sqrt} ~|~ \mathsf{ceil} ~|~ \mathsf{floor} ~|~ \mathsf{trunc} ~|~ \mathsf{nearest} \\
-& \mathit{unop}_{\mathsf{vxx}} &::=& \mathsf{not} \\
+& \mathit{unop}_{\mathsf{vxx}} &::=&  \\
 & \mathit{binop}_{\mathsf{ixx}} &::=& \mathsf{add} ~|~ \mathsf{sub} ~|~ \mathsf{mul} ~|~ {\mathsf{div\_}}{\mathit{sx}} ~|~ {\mathsf{rem\_}}{\mathit{sx}} \\ &&|&
 \mathsf{and} ~|~ \mathsf{or} ~|~ \mathsf{xor} ~|~ \mathsf{shl} ~|~ {\mathsf{shr\_}}{\mathit{sx}} ~|~ \mathsf{rotl} ~|~ \mathsf{rotr} \\
 & \mathit{binop}_{\mathsf{fxx}} &::=& \mathsf{add} ~|~ \mathsf{sub} ~|~ \mathsf{mul} ~|~ \mathsf{div} ~|~ \mathsf{min} ~|~ \mathsf{max} ~|~ \mathsf{copysign} \\
-& \mathit{binop}_{\mathsf{vxx}} &::=& \mathsf{and} ~|~ \mathsf{andnot} ~|~ \mathsf{or} ~|~ \mathsf{xor} \\
+& \mathit{binop}_{\mathsf{vxx}} &::=&  \\
 & \mathit{testop}_{\mathsf{ixx}} &::=& \mathsf{eqz} \\
 & \mathit{testop}_{\mathsf{fxx}} &::=&  \\
 & \mathit{relop}_{\mathsf{ixx}} &::=& \mathsf{eq} ~|~ \mathsf{ne} ~|~ {\mathsf{lt\_}}{\mathit{sx}} ~|~ {\mathsf{gt\_}}{\mathit{sx}} ~|~ {\mathsf{le\_}}{\mathit{sx}} ~|~ {\mathsf{ge\_}}{\mathit{sx}} \\
 & \mathit{relop}_{\mathsf{fxx}} &::=& \mathsf{eq} ~|~ \mathsf{ne} ~|~ \mathsf{lt} ~|~ \mathsf{gt} ~|~ \mathsf{le} ~|~ \mathsf{ge} \\
+& \mathit{ternop}_{\mathsf{vxx}} &::=&  \\
 & \mathit{unop}_{\mathit{numtype}} &::=& \mathit{unop}_{\mathsf{ixx}} ~|~ \mathit{unop}_{\mathsf{fxx}} \\
 & \mathit{binop}_{\mathit{numtype}} &::=& \mathit{binop}_{\mathsf{ixx}} ~|~ \mathit{binop}_{\mathsf{fxx}} \\
 & \mathit{testop}_{\mathit{numtype}} &::=& \mathit{testop}_{\mathsf{ixx}} ~|~ \mathit{testop}_{\mathsf{fxx}} \\
@@ -89,6 +90,7 @@ $$
 & \mathit{cvtop} &::=& \mathsf{convert} ~|~ \mathsf{reinterpret} \\
 & \mathit{unop}_{\mathit{vectype}} &::=& \mathit{unop}_{\mathsf{vxx}} \\
 & \mathit{binop}_{\mathit{vectype}} &::=& \mathit{binop}_{\mathsf{vxx}} \\
+& \mathit{ternop}_{\mathit{vectype}} &::=& \mathit{ternop}_{\mathsf{vxx}} \\
 \end{array}
 $$
 
@@ -127,10 +129,12 @@ $$
 \mathit{numtype} . \mathit{relop}_{\mathit{numtype}} \\ &&|&
 {\mathit{numtype}.\mathsf{extend}}{\mathit{n}} \\ &&|&
 \mathit{numtype} . {{{{\mathit{cvtop}}{\mathsf{\_}}}{\mathit{numtype}}}{\mathsf{\_}}}{{\mathit{sx}^?}} \\ &&|&
-\mathsf{v{\scriptstyle128}.any\_true} \\ &&|&
 \mathit{vectype}.\mathsf{const}~\mathit{c}_{\mathit{vectype}} \\ &&|&
 \mathit{vectype} . \mathit{unop}_{\mathit{vectype}} \\ &&|&
 \mathit{vectype} . \mathit{binop}_{\mathit{vectype}} \\ &&|&
+\mathit{vectype} . \mathit{ternop}_{\mathit{vectype}} \\ &&|&
+\mathsf{v{\scriptstyle128}.any\_true} \\ &&|&
+\mathsf{i{\scriptstyle8}x{\scriptstyle16}.swizzle} \\ &&|&
 \mathsf{ref.null}~\mathit{reftype} \\ &&|&
 \mathsf{ref.func}~\mathit{funcidx} \\ &&|&
 \mathsf{ref.is\_null} \\ &&|&
@@ -1952,12 +1956,19 @@ $$
 
 \vspace{1ex}
 
+$$
+\begin{array}{@{}l@{}lcl@{}l@{}}
+{[\textsc{\scriptsize E{-}v128.vvunop}]} \quad & (\mathsf{v{\scriptstyle128}}.\mathsf{const}~\mathit{cv}_{1})~(\mathsf{v{\scriptstyle128}} . \mathit{vvunop}) &\hookrightarrow& (\mathsf{v{\scriptstyle128}}.\mathsf{const}~\mathit{cv}) &\quad
+  \mbox{if}~{{{\mathit{vvunop}}{}}_{\mathit{vt}}}{(\mathit{cv}_{1})} = \mathit{cv} \\
+\end{array}
+$$
+
 \vspace{1ex}
 
 $$
 \begin{array}{@{}l@{}lcl@{}l@{}}
-{[\textsc{\scriptsize E{-}v128.any\_true}]} \quad & (\mathsf{v{\scriptstyle128}}.\mathsf{const}~\mathit{c}_{1})~(\mathsf{v{\scriptstyle128}.any\_true}) &\hookrightarrow& (\mathsf{i{\scriptstyle32}}.\mathsf{const}~\mathit{i}) &\quad
-  \mbox{if}~\mathit{i} = \mathrm{ine}_{128}(\mathit{c}_{1},\, 0) \\
+{[\textsc{\scriptsize E{-}v128.any\_true}]} \quad & (\mathsf{v{\scriptstyle128}}.\mathsf{const}~\mathit{cv}_{1})~(\mathsf{v{\scriptstyle128}.any\_true}) &\hookrightarrow& (\mathsf{i{\scriptstyle32}}.\mathsf{const}~\mathit{i}) &\quad
+  \mbox{if}~\mathit{i} = \mathrm{ine}_{128}(\mathit{cv}_{1},\, 0) \\
 \end{array}
 $$
 

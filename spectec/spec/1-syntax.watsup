@@ -102,6 +102,8 @@ syntax relop_IXX =
   | EQ | NE | LT sx hint(show LT_#%) | GT sx hint(show GT_#%) | LE sx hint(show LE_#%) | GE sx hint(show GE_#%)
 syntax relop_FXX = | EQ | NE | LT | GT | LE | GE
 
+syntax ternop_VXX = |       ;; uninhabited
+
 syntax unop_numtype = | _I unop_IXX | _F unop_FXX
 syntax binop_numtype = | _I binop_IXX | _F binop_FXX
 syntax testop_numtype = | _I testop_IXX | _F testop_FXX
@@ -110,6 +112,7 @@ syntax cvtop = | CONVERT | REINTERPRET
 
 syntax unop_vectype = | _V unop_VXX
 syntax binop_vectype = | _V binop_VXX
+syntax ternop_vectype = | _V ternop_VXX
 
 var unop : unop_numtype
 var binop : binop_numtype
@@ -118,13 +121,13 @@ var relop : relop_numtype
 
 var vvunop : unop_vectype
 var vvbinop : binop_vectype
+var vvternop : ternop_vectype
 
 ;; Instructions
 
 syntax c_numtype = nat  ;; TODO
 syntax c_vectype = nat  ;; TODO
 var c : c_numtype
-
 var cv : c_vectype
 
 syntax blocktype hint(desc "block type") = functype  ;; TODO
@@ -160,7 +163,9 @@ syntax instr/vector hint(desc "vector instruction") = ...
   | VVCONST vectype c_vectype        hint(show %.CONST %)
   | VVUNOP vectype unop_vectype      hint(show %.%)
   | VVBINOP vectype binop_vectype    hint(show %.%)
+  | VVTERNOP vectype ternop_vectype  hint(show %.%)
   | V128.ANY_TRUE
+  | I8X16.SWIZZLE
   | ...
 
 syntax instr/reference hint(desc "reference instruction") = ...
