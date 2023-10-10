@@ -13,6 +13,7 @@ def $wrap_((nat, nat), c) : nat
 def $bytes_(nat, c) : byte*
 
 def $ine_128(cv_1, cv_2) : nat
-def $vvunop(vvunop, vectype, cv) : c_vectype         hint(show %#_%#((%)))
-def $vvbinop(vvbinop, vectype, cv, cv) : c_vectype*         hint(show %#_%#((%)))
-def $vvternop(vvternop, vectype, cv, cv, cv) : c_vectype*         hint(show %#_%#((%)))
+
+def $vvunop(vvunop, vectype, cv) : c_vectype                hint(show %#_%#((%)))
+def $vvbinop(vvbinop, vectype, cv, cv) : c_vectype*         hint(show %#_%#(%, %))
+def $vvternop(vvternop, vectype, cv, cv, cv) : c_vectype*   hint(show %#_%#(%, %, %))

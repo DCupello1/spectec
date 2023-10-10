@@ -69,6 +69,35 @@ $${rule+: Step_pure/ref.is_null-*}
 
 $${rule+: Step_read/ref.func}
 
+.. _exec-instructions-vector:
+
+Vector Instructions
+~~~~~~~~~~~~~~~~~~~~
+
+.. _exec-VVUNOP:
+
+%{prose-algo: VVUNOP}
+
+\
+
+$${rule+: Step_pure/vvunop}
+
+.. _exec-VVBINOP:
+
+%{prose-algo: VVBINOP}
+
+\
+
+$${rule+: Step_pure/vvbinop}
+
+.. _exec-VVTERNOP:
+
+%{prose-algo: VVTERNOP}
+
+\
+
+$${rule+: Step_pure/vvternop}
+
 .. _exec-instructions-parametric:
 
 Parametric Instructions

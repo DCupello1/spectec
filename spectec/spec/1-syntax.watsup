@@ -87,13 +87,13 @@ syntax sx hint(desc "signedness") = | U | S
 
 syntax unop_IXX = | CLZ | CTZ | POPCNT
 syntax unop_FXX = | ABS | NEG | SQRT | CEIL | FLOOR | TRUNC | NEAREST
-syntax unop_VXX = |
+syntax unop_VXX = | NOT
 
 syntax binop_IXX =
   | ADD | SUB | MUL | DIV sx hint(show DIV_#%) | REM sx hint(show REM_#%)
   | AND | OR | XOR | SHL | SHR sx hint(show SHR_#%) | ROTL | ROTR
 syntax binop_FXX = | ADD | SUB | MUL | DIV | MIN | MAX | COPYSIGN
-syntax binop_VXX = |       ;; uninhabited
+syntax binop_VXX = | AND | ANDNOT | OR | XOR
 
 syntax testop_IXX = | EQZ
 syntax testop_FXX = |      ;; uninhabited
@@ -102,7 +102,7 @@ syntax relop_IXX =
   | EQ | NE | LT sx hint(show LT_#%) | GT sx hint(show GT_#%) | LE sx hint(show LE_#%) | GE sx hint(show GE_#%)
 syntax relop_FXX = | EQ | NE | LT | GT | LE | GE
 
-syntax ternop_VXX = |       ;; uninhabited
+syntax ternop_VXX = | BITSELECT
 
 syntax unop_numtype = | _I unop_IXX | _F unop_FXX
 syntax binop_numtype = | _I binop_IXX | _F binop_FXX
@@ -127,7 +127,8 @@ var vvternop : ternop_vectype
 
 syntax c_numtype = nat  ;; TODO
 syntax c_vectype = nat  ;; TODO
-var c : c_numtype
+
+var c  : c_numtype
 var cv : c_vectype
 
 syntax blocktype hint(desc "block type") = functype  ;; TODO
