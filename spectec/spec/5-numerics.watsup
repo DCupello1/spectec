@@ -13,6 +13,15 @@ def $wrap_((nat, nat), c) : nat
 def $bytes_(nat, c) : byte*
 
 def $ine_128(cv_1, cv_2) : nat
+def $unpacked(sh) : numtype
+def $exp(c_1, i) : nat                        hint(show %^%)
+def $dim(sh) : nat
+def $lanes(sh, cv_1) : nat
+def $concat(i, j) : nat                         hint(show % %)
+def $index(i*, j) : nat                         hint(show %[%])
+def $fromto(i, j) : nat                         hint(show %...%)
+def $shapeof(i, j) : shape                      hint(show %X%)
+def $extend(i, numtype, sx?, j) : c_numtype    hint(show $ext_(%,%)^%(%))
 
 def $vvunop(vvunop, vectype, cv) : c_vectype                hint(show %#_%#((%)))
 def $vvbinop(vvbinop, vectype, cv, cv) : c_vectype*         hint(show %#_%#(%, %))

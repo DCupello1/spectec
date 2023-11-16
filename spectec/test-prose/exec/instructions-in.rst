@@ -98,6 +98,38 @@ $${rule+: Step_pure/vvbinop}
 
 $${rule+: Step_pure/vvternop}
 
+.. _exec-I8X16.SWIZZLE:
+
+%{prose-algo: I8X16.SWIZZLE}
+
+\
+
+$${rule+: Step_pure/i8x16.swizzle}
+
+.. _exec-V128.ANY_TRUE:
+
+%{prose-algo: V128.ANY_TRUE}
+
+\
+
+$${rule+: Step_pure/v128.any_true}
+
+.. _exec-SPLAT:
+
+%{prose-algo: SPLAT}
+
+\
+
+$${rule+: Step_pure/splat}
+
+.. _exec-EXTRACT_LANE:
+
+%{prose-algo: EXTRACT_LANE}
+
+\
+
+$${rule+: Step_pure/extract_lane}
+
 .. _exec-instructions-parametric:
 
 Parametric Instructions

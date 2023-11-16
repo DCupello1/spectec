@@ -133,11 +133,7 @@ syntax unop_FXX =
   | TRUNC
   | NEAREST
 
-;; 1-syntax.watsup:90.1-90.20
-syntax unop_VXX =
-  |
-
-;; 1-syntax.watsup:92.1-94.62
+;; 1-syntax.watsup:91.1-93.62
 syntax binop_IXX =
   | ADD
   | SUB
@@ -152,7 +148,7 @@ syntax binop_IXX =
   | ROTL
   | ROTR
 
-;; 1-syntax.watsup:95.1-95.66
+;; 1-syntax.watsup:94.1-94.66
 syntax binop_FXX =
   | ADD
   | SUB
@@ -162,19 +158,15 @@ syntax binop_FXX =
   | MAX
   | COPYSIGN
 
-;; 1-syntax.watsup:96.1-96.21
-syntax binop_VXX =
-  |
-
-;; 1-syntax.watsup:98.1-98.26
+;; 1-syntax.watsup:96.1-96.26
 syntax testop_IXX =
   | EQZ
 
-;; 1-syntax.watsup:99.1-99.22
+;; 1-syntax.watsup:97.1-97.22
 syntax testop_FXX =
   |
 
-;; 1-syntax.watsup:101.1-102.108
+;; 1-syntax.watsup:99.1-100.108
 syntax relop_IXX =
   | EQ
   | NE
@@ -183,7 +175,7 @@ syntax relop_IXX =
   | LE(sx)
   | GE(sx)
 
-;; 1-syntax.watsup:103.1-103.49
+;; 1-syntax.watsup:101.1-101.49
 syntax relop_FXX =
   | EQ
   | NE
@@ -192,60 +184,92 @@ syntax relop_FXX =
   | LE
   | GE
 
-;; 1-syntax.watsup:105.1-105.22
-syntax ternop_VXX =
-  |
-
-;; 1-syntax.watsup:107.1-107.50
+;; 1-syntax.watsup:103.1-103.50
 syntax unop_numtype =
   | _I(unop_IXX)
   | _F(unop_FXX)
 
-;; 1-syntax.watsup:108.1-108.53
+;; 1-syntax.watsup:104.1-104.53
 syntax binop_numtype =
   | _I(binop_IXX)
   | _F(binop_FXX)
 
-;; 1-syntax.watsup:109.1-109.56
+;; 1-syntax.watsup:105.1-105.56
 syntax testop_numtype =
   | _I(testop_IXX)
   | _F(testop_FXX)
 
-;; 1-syntax.watsup:110.1-110.53
+;; 1-syntax.watsup:106.1-106.53
 syntax relop_numtype =
   | _I(relop_IXX)
   | _F(relop_FXX)
 
-;; 1-syntax.watsup:111.1-111.39
+;; 1-syntax.watsup:107.1-107.39
 syntax cvtop =
   | CONVERT
   | REINTERPRET
 
-;; 1-syntax.watsup:113.1-113.36
+;; 1-syntax.watsup:114.1-115.30
+syntax ishape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+
+;; 1-syntax.watsup:116.1-117.14
+syntax fshape =
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:118.1-119.16
+syntax shape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:123.1-123.24
+syntax unop_VXX =
+  | NOT
+
+;; 1-syntax.watsup:124.1-124.45
+syntax binop_VXX =
+  | AND
+  | ANDNOT
+  | OR
+  | XOR
+
+;; 1-syntax.watsup:125.1-125.32
+syntax ternop_VXX =
+  | BITSELECT
+
+;; 1-syntax.watsup:126.1-126.36
 syntax unop_vectype =
   | _V(unop_VXX)
 
-;; 1-syntax.watsup:114.1-114.38
+;; 1-syntax.watsup:127.1-127.38
 syntax binop_vectype =
   | _V(binop_VXX)
 
-;; 1-syntax.watsup:115.1-115.40
+;; 1-syntax.watsup:128.1-128.40
 syntax ternop_vectype =
   | _V(ternop_VXX)
 
-;; 1-syntax.watsup:128.1-128.23
+;; 1-syntax.watsup:136.1-136.23
 syntax c_numtype = nat
 
-;; 1-syntax.watsup:129.1-129.23
+;; 1-syntax.watsup:137.1-137.23
 syntax c_vectype = nat
 
-;; 1-syntax.watsup:133.1-133.52
+;; 1-syntax.watsup:142.1-142.52
 syntax blocktype = functype
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 rec {
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 syntax instr =
   | UNREACHABLE
   | NOP
@@ -272,7 +296,8 @@ syntax instr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -299,53 +324,53 @@ syntax instr =
   | STORE(numtype, n?, u32, u32)
 }
 
-;; 1-syntax.watsup:200.1-201.9
+;; 1-syntax.watsup:210.1-211.9
 syntax expr = instr*
 
-;; 1-syntax.watsup:208.1-208.50
+;; 1-syntax.watsup:218.1-218.50
 syntax elemmode =
   | TABLE(tableidx, expr)
   | DECLARE
 
-;; 1-syntax.watsup:209.1-209.39
+;; 1-syntax.watsup:219.1-219.39
 syntax datamode =
   | MEMORY(memidx, expr)
 
-;; 1-syntax.watsup:211.1-212.30
+;; 1-syntax.watsup:221.1-222.30
 syntax func = `FUNC%%*%`(functype, valtype*, expr)
 
-;; 1-syntax.watsup:213.1-214.25
+;; 1-syntax.watsup:223.1-224.25
 syntax global = GLOBAL(globaltype, expr)
 
-;; 1-syntax.watsup:215.1-216.18
+;; 1-syntax.watsup:225.1-226.18
 syntax table = TABLE(tabletype)
 
-;; 1-syntax.watsup:217.1-218.17
+;; 1-syntax.watsup:227.1-228.17
 syntax mem = MEMORY(memtype)
 
-;; 1-syntax.watsup:219.1-220.31
+;; 1-syntax.watsup:229.1-230.31
 syntax elem = `ELEM%%*%?`(reftype, expr*, elemmode?)
 
-;; 1-syntax.watsup:221.1-222.23
+;; 1-syntax.watsup:231.1-232.23
 syntax data = `DATA%*%?`(byte*, datamode?)
 
-;; 1-syntax.watsup:223.1-224.16
+;; 1-syntax.watsup:233.1-234.16
 syntax start = START(funcidx)
 
-;; 1-syntax.watsup:226.1-227.62
+;; 1-syntax.watsup:236.1-237.62
 syntax externuse =
   | FUNC(funcidx)
   | GLOBAL(globalidx)
   | TABLE(tableidx)
   | MEM(memidx)
 
-;; 1-syntax.watsup:228.1-229.24
+;; 1-syntax.watsup:238.1-239.24
 syntax export = EXPORT(name, externuse)
 
-;; 1-syntax.watsup:230.1-231.30
+;; 1-syntax.watsup:240.1-241.30
 syntax import = IMPORT(name, name, externtype)
 
-;; 1-syntax.watsup:233.1-234.70
+;; 1-syntax.watsup:243.1-244.70
 syntax module = `MODULE%*%*%*%*%*%*%*%?%*`(import*, func*, global*, table*, mem*, elem*, data*, start?, export*)
 
 ;; 2-aux.watsup:3.1-3.14
@@ -1111,7 +1136,8 @@ syntax admininstr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -1312,13 +1338,25 @@ def bytes_ : (nat, c_numtype) -> byte*
 ;; 5-numerics.watsup:15.1-15.31
 def ine_128 : (c_vectype, c_vectype) -> nat
 
-;; 5-numerics.watsup:16.1-16.75
+;; 5-numerics.watsup:16.1-16.28
+def unpacked : shape -> numtype
+
+;; 5-numerics.watsup:17.1-17.67
+def exp : (c_numtype, nat) -> numtype
+
+;; 5-numerics.watsup:18.1-18.19
+def dim : shape -> nat
+
+;; 5-numerics.watsup:19.1-19.31
+def lanes : (shape, c_vectype) -> numtype
+
+;; 5-numerics.watsup:21.1-21.82
 def vvunop : (unop_vectype, vectype, c_vectype) -> c_vectype
 
-;; 5-numerics.watsup:17.1-17.82
+;; 5-numerics.watsup:22.1-22.83
 def vvbinop : (binop_vectype, vectype, c_vectype, c_vectype) -> c_vectype*
 
-;; 5-numerics.watsup:18.1-18.88
+;; 5-numerics.watsup:23.1-23.86
 def vvternop : (ternop_vectype, vectype, c_vectype, c_vectype, c_vectype) -> c_vectype*
 
 ;; 6-reduction.watsup:4.1-4.63
@@ -1463,17 +1501,33 @@ relation Step_pure: `%*~>%*`(admininstr*, admininstr*)
     `%*~>%*`([(val <: admininstr) REF.IS_NULL_admininstr], [CONST_admininstr(I32_numtype, 0)])
     -- otherwise
 
-  ;; 6-reduction.watsup:168.1-170.39
-  rule v128.vvunop {cv : c_vectype, cv_1 : c_vectype, vt : vectype, vvunop : unop_vectype}:
+  ;; 6-reduction.watsup:168.1-170.41
+  rule vvunop {cv : c_vectype, cv_1 : c_vectype, vvunop : unop_vectype}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVUNOP_admininstr(V128_vectype, vvunop)], [VVCONST_admininstr(V128_vectype, cv)])
-    -- if ($vvunop(vvunop, vt, cv_1) = cv)
+    -- if ($vvunop(vvunop, V128_vectype, cv_1) = cv)
 
-  ;; 6-reduction.watsup:173.1-175.30
+  ;; 6-reduction.watsup:173.1-175.49
+  rule vvbinop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, vvbinop : binop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVBINOP_admininstr(V128_vectype, vvbinop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvbinop(vvbinop, V128_vectype, cv_1, cv_2) = [cv])
+
+  ;; 6-reduction.watsup:178.1-180.57
+  rule vvternop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, cv_3 : c_vectype, vvternop : ternop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVCONST_admininstr(V128_vectype, cv_3) VVTERNOP_admininstr(V128_vectype, vvternop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvternop(vvternop, V128_vectype, cv_1, cv_2, cv_3) = [cv])
+
+  ;; 6-reduction.watsup:183.1-185.30
   rule v128.any_true {cv_1 : c_vectype, i : nat}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) V128.ANY_TRUE_admininstr], [CONST_admininstr(I32_numtype, i)])
     -- if (i = $ine_128(cv_1, 0))
 
-  ;; 6-reduction.watsup:184.1-185.47
+  ;; 6-reduction.watsup:188.1-191.50
+  rule splat {c : c_numtype, c_1 : c_numtype, nt : numtype, shape : shape}:
+    `%*~>%*`([CONST_admininstr(nt, c_1) SPLAT_admininstr(shape)], [VVCONST_admininstr(V128_vectype, c)])
+    -- if (nt = $unpacked(shape))
+    -- if ($lanes(shape, c) = $exp(c_1, $dim(shape)))
+
+  ;; 6-reduction.watsup:200.1-201.47
   rule local.tee {val : val, x : idx}:
     `%*~>%*`([(val <: admininstr) LOCAL.TEE_admininstr(x)], [(val <: admininstr) (val <: admininstr) LOCAL.SET_admininstr(x)])
 
@@ -1506,158 +1560,158 @@ relation Step_read: `%~>%*`(config, admininstr*)
   rule ref.func {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [REF.FUNC_admininstr(x)]), [REF.FUNC_ADDR_admininstr($funcaddr(z)[x])])
 
-  ;; 6-reduction.watsup:178.1-179.37
+  ;; 6-reduction.watsup:194.1-195.37
   rule local.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [LOCAL.GET_admininstr(x)]), [($local(z, x) <: admininstr)])
 
-  ;; 6-reduction.watsup:188.1-189.45
+  ;; 6-reduction.watsup:204.1-205.45
   rule global.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [GLOBAL.GET_admininstr(x)]), [($global(z, x).VALUE_globalinst <: admininstr)])
 
-  ;; 6-reduction.watsup:195.1-197.33
+  ;; 6-reduction.watsup:211.1-213.33
   rule table.get-trap {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [TRAP_admininstr])
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:199.1-201.32
+  ;; 6-reduction.watsup:215.1-217.32
   rule table.get-val {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [($table(z, x).ELEM_tableinst[i] <: admininstr)])
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:212.1-214.32
+  ;; 6-reduction.watsup:228.1-230.32
   rule table.size {n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [TABLE.SIZE_admininstr(x)]), [CONST_admininstr(I32_numtype, n)])
     -- if (|$table(z, x).ELEM_tableinst| = n)
 
-  ;; 6-reduction.watsup:225.1-227.39
+  ;; 6-reduction.watsup:241.1-243.39
   rule table.fill-trap {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) (val <: admininstr) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [TRAP_admininstr])
     -- if ((i + n) > |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:229.1-232.14
+  ;; 6-reduction.watsup:245.1-248.14
   rule table.fill-zero {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) (val <: admininstr) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:234.1-238.15
+  ;; 6-reduction.watsup:250.1-254.15
   rule table.fill-succ {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) (val <: admininstr) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [CONST_admininstr(I32_numtype, i) (val <: admininstr) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (i + 1)) (val <: admininstr) CONST_admininstr(I32_numtype, (n - 1)) TABLE.FILL_admininstr(x)])
     -- otherwise
 
-  ;; 6-reduction.watsup:241.1-243.73
+  ;; 6-reduction.watsup:257.1-259.73
   rule table.copy-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$table(z, y).ELEM_tableinst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:245.1-248.14
+  ;; 6-reduction.watsup:261.1-264.14
   rule table.copy-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:250.1-255.15
+  ;; 6-reduction.watsup:266.1-271.15
   rule table.copy-le {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:257.1-261.15
+  ;; 6-reduction.watsup:273.1-277.15
   rule table.copy-gt {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:264.1-266.72
+  ;; 6-reduction.watsup:280.1-282.72
   rule table.init-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$elem(z, y).ELEM_eleminst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:268.1-271.14
+  ;; 6-reduction.watsup:284.1-287.14
   rule table.init-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:273.1-277.15
+  ;; 6-reduction.watsup:289.1-293.15
   rule table.init-succ {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) ($elem(z, y).ELEM_eleminst[i] <: admininstr) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.INIT_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:284.1-286.53
+  ;; 6-reduction.watsup:300.1-302.53
   rule load-num-trap {i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + ($size(nt <: valtype) / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:288.1-290.71
+  ;; 6-reduction.watsup:304.1-306.71
   rule load-num-val {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [CONST_admininstr(nt, c)])
     -- if ($bytes_($size(nt <: valtype), c) = $mem(z, 0).DATA_meminst[(i + n_O) : ($size(nt <: valtype) / 8)])
 
-  ;; 6-reduction.watsup:292.1-294.45
+  ;; 6-reduction.watsup:308.1-310.45
   rule load-pack-trap {i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:296.1-298.55
+  ;; 6-reduction.watsup:312.1-314.55
   rule load-pack-val {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [CONST_admininstr(nt, $ext(n, $size(nt <: valtype), sx, c))])
     -- if ($bytes_(n, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (n / 8)])
 
-  ;; 6-reduction.watsup:318.1-320.44
+  ;; 6-reduction.watsup:334.1-336.44
   rule memory.size {n : n, z : state}:
     `%~>%*`(`%;%*`(z, [MEMORY.SIZE_admininstr]), [CONST_admininstr(I32_numtype, n)])
     -- if (((n * 64) * $Ki) = |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:331.1-333.37
+  ;; 6-reduction.watsup:347.1-349.37
   rule memory.fill-trap {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) (val <: admininstr) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [TRAP_admininstr])
     -- if ((i + n) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:335.1-338.14
+  ;; 6-reduction.watsup:351.1-354.14
   rule memory.fill-zero {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) (val <: admininstr) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:340.1-344.15
+  ;; 6-reduction.watsup:356.1-360.15
   rule memory.fill-succ {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) (val <: admininstr) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [CONST_admininstr(I32_numtype, i) (val <: admininstr) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (i + 1)) (val <: admininstr) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.FILL_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:347.1-349.69
+  ;; 6-reduction.watsup:363.1-365.69
   rule memory.copy-trap {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [TRAP_admininstr])
     -- if (((i + n) > |$mem(z, 0).DATA_meminst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:351.1-354.14
+  ;; 6-reduction.watsup:367.1-370.14
   rule memory.copy-zero {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:356.1-361.15
+  ;; 6-reduction.watsup:372.1-377.15
   rule memory.copy-le {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:363.1-367.15
+  ;; 6-reduction.watsup:379.1-383.15
   rule memory.copy-gt {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:370.1-372.70
+  ;; 6-reduction.watsup:386.1-388.70
   rule memory.init-trap {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [TRAP_admininstr])
     -- if (((i + n) > |$data(z, x).DATA_datainst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:374.1-377.14
+  ;; 6-reduction.watsup:390.1-393.14
   rule memory.init-zero {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:379.1-383.15
+  ;; 6-reduction.watsup:395.1-399.15
   rule memory.init-succ {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, $data(z, x).DATA_datainst[i]) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.INIT_admininstr(x)])
     -- otherwise
@@ -1674,67 +1728,67 @@ relation Step: `%~>%`(config, config)
     `%~>%`(`%;%*`(z, (instr <: admininstr)*{instr}), `%;%*`(z, (instr' <: admininstr)*{instr'}))
     -- Step_read: `%~>%*`(`%;%*`(z, (instr <: admininstr)*{instr}), (instr' <: admininstr)*{instr'})
 
-  ;; 6-reduction.watsup:181.1-182.60
+  ;; 6-reduction.watsup:197.1-198.60
   rule local.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [(val <: admininstr) LOCAL.SET_admininstr(x)]), `%;%*`($with_local(z, x, val), []))
 
-  ;; 6-reduction.watsup:191.1-192.62
+  ;; 6-reduction.watsup:207.1-208.62
   rule global.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [(val <: admininstr) GLOBAL.SET_admininstr(x)]), `%;%*`($with_global(z, x, val), []))
 
-  ;; 6-reduction.watsup:203.1-205.33
+  ;; 6-reduction.watsup:219.1-221.33
   rule table.set-trap {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) (ref <: admininstr) TABLE.SET_admininstr(x)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:207.1-209.32
+  ;; 6-reduction.watsup:223.1-225.32
   rule table.set-val {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) (ref <: admininstr) TABLE.SET_admininstr(x)]), `%;%*`($with_table(z, x, i, ref), []))
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:217.1-219.47
+  ;; 6-reduction.watsup:233.1-235.47
   rule table.grow-succeed {n : n, ref : ref, ti : tableinst, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [(ref <: admininstr) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`($with_tableinst(z, x, ti), [CONST_admininstr(I32_numtype, |$table(z, x).ELEM_tableinst|)]))
     -- if ($grow_table($table(z, x), n, ref) = ti)
 
-  ;; 6-reduction.watsup:221.1-222.64
+  ;; 6-reduction.watsup:237.1-238.64
   rule table.grow-fail {n : n, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [(ref <: admininstr) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:280.1-281.59
+  ;; 6-reduction.watsup:296.1-297.59
   rule elem.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [ELEM.DROP_admininstr(x)]), `%;%*`($with_elem(z, x, []), []))
 
-  ;; 6-reduction.watsup:301.1-303.53
+  ;; 6-reduction.watsup:317.1-319.53
   rule store-num-trap {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + ($size(nt <: valtype) / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:305.1-307.35
+  ;; 6-reduction.watsup:321.1-323.35
   rule store-num-val {b* : byte*, c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), ($size(nt <: valtype) / 8), b*{b}), []))
     -- if (b*{b} = $bytes_($size(nt <: valtype), c))
 
-  ;; 6-reduction.watsup:309.1-311.45
+  ;; 6-reduction.watsup:325.1-327.45
   rule store-pack-trap {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:313.1-315.50
+  ;; 6-reduction.watsup:329.1-331.50
   rule store-pack-val {b* : byte*, c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (n / 8), b*{b}), []))
     -- if (b*{b} = $bytes_(n, $wrap_(($size(nt <: valtype), n), c)))
 
-  ;; 6-reduction.watsup:323.1-325.41
+  ;; 6-reduction.watsup:339.1-341.41
   rule memory.grow-succeed {mi : meminst, n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`($with_meminst(z, 0, mi), [CONST_admininstr(I32_numtype, (|$mem(z, 0).DATA_meminst| / (64 * $Ki)))]))
     -- if ($grow_memory($mem(z, 0), n) = mi)
 
-  ;; 6-reduction.watsup:327.1-328.59
+  ;; 6-reduction.watsup:343.1-344.59
   rule memory.grow-fail {n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:386.1-387.59
+  ;; 6-reduction.watsup:402.1-403.59
   rule data.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [DATA.DROP_admininstr(x)]), `%;%*`($with_data(z, x, []), []))
 
@@ -2163,11 +2217,7 @@ syntax unop_FXX =
   | TRUNC
   | NEAREST
 
-;; 1-syntax.watsup:90.1-90.20
-syntax unop_VXX =
-  |
-
-;; 1-syntax.watsup:92.1-94.62
+;; 1-syntax.watsup:91.1-93.62
 syntax binop_IXX =
   | ADD
   | SUB
@@ -2182,7 +2232,7 @@ syntax binop_IXX =
   | ROTL
   | ROTR
 
-;; 1-syntax.watsup:95.1-95.66
+;; 1-syntax.watsup:94.1-94.66
 syntax binop_FXX =
   | ADD
   | SUB
@@ -2192,19 +2242,15 @@ syntax binop_FXX =
   | MAX
   | COPYSIGN
 
-;; 1-syntax.watsup:96.1-96.21
-syntax binop_VXX =
-  |
-
-;; 1-syntax.watsup:98.1-98.26
+;; 1-syntax.watsup:96.1-96.26
 syntax testop_IXX =
   | EQZ
 
-;; 1-syntax.watsup:99.1-99.22
+;; 1-syntax.watsup:97.1-97.22
 syntax testop_FXX =
   |
 
-;; 1-syntax.watsup:101.1-102.108
+;; 1-syntax.watsup:99.1-100.108
 syntax relop_IXX =
   | EQ
   | NE
@@ -2213,7 +2259,7 @@ syntax relop_IXX =
   | LE(sx)
   | GE(sx)
 
-;; 1-syntax.watsup:103.1-103.49
+;; 1-syntax.watsup:101.1-101.49
 syntax relop_FXX =
   | EQ
   | NE
@@ -2222,60 +2268,92 @@ syntax relop_FXX =
   | LE
   | GE
 
-;; 1-syntax.watsup:105.1-105.22
-syntax ternop_VXX =
-  |
-
-;; 1-syntax.watsup:107.1-107.50
+;; 1-syntax.watsup:103.1-103.50
 syntax unop_numtype =
   | _I(unop_IXX)
   | _F(unop_FXX)
 
-;; 1-syntax.watsup:108.1-108.53
+;; 1-syntax.watsup:104.1-104.53
 syntax binop_numtype =
   | _I(binop_IXX)
   | _F(binop_FXX)
 
-;; 1-syntax.watsup:109.1-109.56
+;; 1-syntax.watsup:105.1-105.56
 syntax testop_numtype =
   | _I(testop_IXX)
   | _F(testop_FXX)
 
-;; 1-syntax.watsup:110.1-110.53
+;; 1-syntax.watsup:106.1-106.53
 syntax relop_numtype =
   | _I(relop_IXX)
   | _F(relop_FXX)
 
-;; 1-syntax.watsup:111.1-111.39
+;; 1-syntax.watsup:107.1-107.39
 syntax cvtop =
   | CONVERT
   | REINTERPRET
 
-;; 1-syntax.watsup:113.1-113.36
+;; 1-syntax.watsup:114.1-115.30
+syntax ishape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+
+;; 1-syntax.watsup:116.1-117.14
+syntax fshape =
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:118.1-119.16
+syntax shape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:123.1-123.24
+syntax unop_VXX =
+  | NOT
+
+;; 1-syntax.watsup:124.1-124.45
+syntax binop_VXX =
+  | AND
+  | ANDNOT
+  | OR
+  | XOR
+
+;; 1-syntax.watsup:125.1-125.32
+syntax ternop_VXX =
+  | BITSELECT
+
+;; 1-syntax.watsup:126.1-126.36
 syntax unop_vectype =
   | _V(unop_VXX)
 
-;; 1-syntax.watsup:114.1-114.38
+;; 1-syntax.watsup:127.1-127.38
 syntax binop_vectype =
   | _V(binop_VXX)
 
-;; 1-syntax.watsup:115.1-115.40
+;; 1-syntax.watsup:128.1-128.40
 syntax ternop_vectype =
   | _V(ternop_VXX)
 
-;; 1-syntax.watsup:128.1-128.23
+;; 1-syntax.watsup:136.1-136.23
 syntax c_numtype = nat
 
-;; 1-syntax.watsup:129.1-129.23
+;; 1-syntax.watsup:137.1-137.23
 syntax c_vectype = nat
 
-;; 1-syntax.watsup:133.1-133.52
+;; 1-syntax.watsup:142.1-142.52
 syntax blocktype = functype
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 rec {
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 syntax instr =
   | UNREACHABLE
   | NOP
@@ -2302,7 +2380,8 @@ syntax instr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -2329,53 +2408,53 @@ syntax instr =
   | STORE(numtype, n?, u32, u32)
 }
 
-;; 1-syntax.watsup:200.1-201.9
+;; 1-syntax.watsup:210.1-211.9
 syntax expr = instr*
 
-;; 1-syntax.watsup:208.1-208.50
+;; 1-syntax.watsup:218.1-218.50
 syntax elemmode =
   | TABLE(tableidx, expr)
   | DECLARE
 
-;; 1-syntax.watsup:209.1-209.39
+;; 1-syntax.watsup:219.1-219.39
 syntax datamode =
   | MEMORY(memidx, expr)
 
-;; 1-syntax.watsup:211.1-212.30
+;; 1-syntax.watsup:221.1-222.30
 syntax func = `FUNC%%*%`(functype, valtype*, expr)
 
-;; 1-syntax.watsup:213.1-214.25
+;; 1-syntax.watsup:223.1-224.25
 syntax global = GLOBAL(globaltype, expr)
 
-;; 1-syntax.watsup:215.1-216.18
+;; 1-syntax.watsup:225.1-226.18
 syntax table = TABLE(tabletype)
 
-;; 1-syntax.watsup:217.1-218.17
+;; 1-syntax.watsup:227.1-228.17
 syntax mem = MEMORY(memtype)
 
-;; 1-syntax.watsup:219.1-220.31
+;; 1-syntax.watsup:229.1-230.31
 syntax elem = `ELEM%%*%?`(reftype, expr*, elemmode?)
 
-;; 1-syntax.watsup:221.1-222.23
+;; 1-syntax.watsup:231.1-232.23
 syntax data = `DATA%*%?`(byte*, datamode?)
 
-;; 1-syntax.watsup:223.1-224.16
+;; 1-syntax.watsup:233.1-234.16
 syntax start = START(funcidx)
 
-;; 1-syntax.watsup:226.1-227.62
+;; 1-syntax.watsup:236.1-237.62
 syntax externuse =
   | FUNC(funcidx)
   | GLOBAL(globalidx)
   | TABLE(tableidx)
   | MEM(memidx)
 
-;; 1-syntax.watsup:228.1-229.24
+;; 1-syntax.watsup:238.1-239.24
 syntax export = EXPORT(name, externuse)
 
-;; 1-syntax.watsup:230.1-231.30
+;; 1-syntax.watsup:240.1-241.30
 syntax import = IMPORT(name, name, externtype)
 
-;; 1-syntax.watsup:233.1-234.70
+;; 1-syntax.watsup:243.1-244.70
 syntax module = `MODULE%*%*%*%*%*%*%*%?%*`(import*, func*, global*, table*, mem*, elem*, data*, start?, export*)
 
 ;; 2-aux.watsup:3.1-3.14
@@ -3146,7 +3225,8 @@ syntax admininstr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -3205,7 +3285,8 @@ def admininstr_instr : instr -> admininstr
   def {x0 : vectype, x1 : binop_vectype} admininstr_instr(VVBINOP_instr(x0, x1)) = VVBINOP_admininstr(x0, x1)
   def {x0 : vectype, x1 : ternop_vectype} admininstr_instr(VVTERNOP_instr(x0, x1)) = VVTERNOP_admininstr(x0, x1)
   def admininstr_instr(V128.ANY_TRUE_instr) = V128.ANY_TRUE_admininstr
-  def admininstr_instr(I8X16.SWIZZLE_instr) = I8X16.SWIZZLE_admininstr
+  def admininstr_instr(I8x16.SWIZZLE_instr) = I8x16.SWIZZLE_admininstr
+  def {x : shape} admininstr_instr(SPLAT_instr(x)) = SPLAT_admininstr(x)
   def {x : reftype} admininstr_instr(REF.NULL_instr(x)) = REF.NULL_admininstr(x)
   def {x : funcidx} admininstr_instr(REF.FUNC_instr(x)) = REF.FUNC_admininstr(x)
   def admininstr_instr(REF.IS_NULL_instr) = REF.IS_NULL_admininstr
@@ -3410,13 +3491,25 @@ def bytes_ : (nat, c_numtype) -> byte*
 ;; 5-numerics.watsup:15.1-15.31
 def ine_128 : (c_vectype, c_vectype) -> nat
 
-;; 5-numerics.watsup:16.1-16.75
+;; 5-numerics.watsup:16.1-16.28
+def unpacked : shape -> numtype
+
+;; 5-numerics.watsup:17.1-17.67
+def exp : (c_numtype, nat) -> numtype
+
+;; 5-numerics.watsup:18.1-18.19
+def dim : shape -> nat
+
+;; 5-numerics.watsup:19.1-19.31
+def lanes : (shape, c_vectype) -> numtype
+
+;; 5-numerics.watsup:21.1-21.82
 def vvunop : (unop_vectype, vectype, c_vectype) -> c_vectype
 
-;; 5-numerics.watsup:17.1-17.82
+;; 5-numerics.watsup:22.1-22.83
 def vvbinop : (binop_vectype, vectype, c_vectype, c_vectype) -> c_vectype*
 
-;; 5-numerics.watsup:18.1-18.88
+;; 5-numerics.watsup:23.1-23.86
 def vvternop : (ternop_vectype, vectype, c_vectype, c_vectype, c_vectype) -> c_vectype*
 
 ;; 6-reduction.watsup:4.1-4.63
@@ -3561,17 +3654,33 @@ relation Step_pure: `%*~>%*`(admininstr*, admininstr*)
     `%*~>%*`([$admininstr_val(val) REF.IS_NULL_admininstr], [CONST_admininstr(I32_numtype, 0)])
     -- otherwise
 
-  ;; 6-reduction.watsup:168.1-170.39
-  rule v128.vvunop {cv : c_vectype, cv_1 : c_vectype, vt : vectype, vvunop : unop_vectype}:
+  ;; 6-reduction.watsup:168.1-170.41
+  rule vvunop {cv : c_vectype, cv_1 : c_vectype, vvunop : unop_vectype}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVUNOP_admininstr(V128_vectype, vvunop)], [VVCONST_admininstr(V128_vectype, cv)])
-    -- if ($vvunop(vvunop, vt, cv_1) = cv)
+    -- if ($vvunop(vvunop, V128_vectype, cv_1) = cv)
 
-  ;; 6-reduction.watsup:173.1-175.30
+  ;; 6-reduction.watsup:173.1-175.49
+  rule vvbinop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, vvbinop : binop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVBINOP_admininstr(V128_vectype, vvbinop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvbinop(vvbinop, V128_vectype, cv_1, cv_2) = [cv])
+
+  ;; 6-reduction.watsup:178.1-180.57
+  rule vvternop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, cv_3 : c_vectype, vvternop : ternop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVCONST_admininstr(V128_vectype, cv_3) VVTERNOP_admininstr(V128_vectype, vvternop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvternop(vvternop, V128_vectype, cv_1, cv_2, cv_3) = [cv])
+
+  ;; 6-reduction.watsup:183.1-185.30
   rule v128.any_true {cv_1 : c_vectype, i : nat}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) V128.ANY_TRUE_admininstr], [CONST_admininstr(I32_numtype, i)])
     -- if (i = $ine_128(cv_1, 0))
 
-  ;; 6-reduction.watsup:184.1-185.47
+  ;; 6-reduction.watsup:188.1-191.50
+  rule splat {c : c_numtype, c_1 : c_numtype, nt : numtype, shape : shape}:
+    `%*~>%*`([CONST_admininstr(nt, c_1) SPLAT_admininstr(shape)], [VVCONST_admininstr(V128_vectype, c)])
+    -- if (nt = $unpacked(shape))
+    -- if ($lanes(shape, c) = $exp(c_1, $dim(shape)))
+
+  ;; 6-reduction.watsup:200.1-201.47
   rule local.tee {val : val, x : idx}:
     `%*~>%*`([$admininstr_val(val) LOCAL.TEE_admininstr(x)], [$admininstr_val(val) $admininstr_val(val) LOCAL.SET_admininstr(x)])
 
@@ -3604,158 +3713,158 @@ relation Step_read: `%~>%*`(config, admininstr*)
   rule ref.func {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [REF.FUNC_admininstr(x)]), [REF.FUNC_ADDR_admininstr($funcaddr(z)[x])])
 
-  ;; 6-reduction.watsup:178.1-179.37
+  ;; 6-reduction.watsup:194.1-195.37
   rule local.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [LOCAL.GET_admininstr(x)]), [$admininstr_val($local(z, x))])
 
-  ;; 6-reduction.watsup:188.1-189.45
+  ;; 6-reduction.watsup:204.1-205.45
   rule global.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [GLOBAL.GET_admininstr(x)]), [$admininstr_val($global(z, x).VALUE_globalinst)])
 
-  ;; 6-reduction.watsup:195.1-197.33
+  ;; 6-reduction.watsup:211.1-213.33
   rule table.get-trap {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [TRAP_admininstr])
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:199.1-201.32
+  ;; 6-reduction.watsup:215.1-217.32
   rule table.get-val {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [$admininstr_ref($table(z, x).ELEM_tableinst[i])])
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:212.1-214.32
+  ;; 6-reduction.watsup:228.1-230.32
   rule table.size {n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [TABLE.SIZE_admininstr(x)]), [CONST_admininstr(I32_numtype, n)])
     -- if (|$table(z, x).ELEM_tableinst| = n)
 
-  ;; 6-reduction.watsup:225.1-227.39
+  ;; 6-reduction.watsup:241.1-243.39
   rule table.fill-trap {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [TRAP_admininstr])
     -- if ((i + n) > |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:229.1-232.14
+  ;; 6-reduction.watsup:245.1-248.14
   rule table.fill-zero {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:234.1-238.15
+  ;; 6-reduction.watsup:250.1-254.15
   rule table.fill-succ {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) TABLE.FILL_admininstr(x)])
     -- otherwise
 
-  ;; 6-reduction.watsup:241.1-243.73
+  ;; 6-reduction.watsup:257.1-259.73
   rule table.copy-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$table(z, y).ELEM_tableinst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:245.1-248.14
+  ;; 6-reduction.watsup:261.1-264.14
   rule table.copy-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:250.1-255.15
+  ;; 6-reduction.watsup:266.1-271.15
   rule table.copy-le {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:257.1-261.15
+  ;; 6-reduction.watsup:273.1-277.15
   rule table.copy-gt {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:264.1-266.72
+  ;; 6-reduction.watsup:280.1-282.72
   rule table.init-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$elem(z, y).ELEM_eleminst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:268.1-271.14
+  ;; 6-reduction.watsup:284.1-287.14
   rule table.init-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:273.1-277.15
+  ;; 6-reduction.watsup:289.1-293.15
   rule table.init-succ {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) $admininstr_ref($elem(z, y).ELEM_eleminst[i]) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.INIT_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:284.1-286.53
+  ;; 6-reduction.watsup:300.1-302.53
   rule load-num-trap {i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + ($size($valtype_numtype(nt)) / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:288.1-290.71
+  ;; 6-reduction.watsup:304.1-306.71
   rule load-num-val {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [CONST_admininstr(nt, c)])
     -- if ($bytes_($size($valtype_numtype(nt)), c) = $mem(z, 0).DATA_meminst[(i + n_O) : ($size($valtype_numtype(nt)) / 8)])
 
-  ;; 6-reduction.watsup:292.1-294.45
+  ;; 6-reduction.watsup:308.1-310.45
   rule load-pack-trap {i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:296.1-298.55
+  ;; 6-reduction.watsup:312.1-314.55
   rule load-pack-val {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [CONST_admininstr(nt, $ext(n, $size($valtype_numtype(nt)), sx, c))])
     -- if ($bytes_(n, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (n / 8)])
 
-  ;; 6-reduction.watsup:318.1-320.44
+  ;; 6-reduction.watsup:334.1-336.44
   rule memory.size {n : n, z : state}:
     `%~>%*`(`%;%*`(z, [MEMORY.SIZE_admininstr]), [CONST_admininstr(I32_numtype, n)])
     -- if (((n * 64) * $Ki) = |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:331.1-333.37
+  ;; 6-reduction.watsup:347.1-349.37
   rule memory.fill-trap {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [TRAP_admininstr])
     -- if ((i + n) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:335.1-338.14
+  ;; 6-reduction.watsup:351.1-354.14
   rule memory.fill-zero {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:340.1-344.15
+  ;; 6-reduction.watsup:356.1-360.15
   rule memory.fill-succ {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.FILL_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:347.1-349.69
+  ;; 6-reduction.watsup:363.1-365.69
   rule memory.copy-trap {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [TRAP_admininstr])
     -- if (((i + n) > |$mem(z, 0).DATA_meminst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:351.1-354.14
+  ;; 6-reduction.watsup:367.1-370.14
   rule memory.copy-zero {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:356.1-361.15
+  ;; 6-reduction.watsup:372.1-377.15
   rule memory.copy-le {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:363.1-367.15
+  ;; 6-reduction.watsup:379.1-383.15
   rule memory.copy-gt {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:370.1-372.70
+  ;; 6-reduction.watsup:386.1-388.70
   rule memory.init-trap {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [TRAP_admininstr])
     -- if (((i + n) > |$data(z, x).DATA_datainst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:374.1-377.14
+  ;; 6-reduction.watsup:390.1-393.14
   rule memory.init-zero {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:379.1-383.15
+  ;; 6-reduction.watsup:395.1-399.15
   rule memory.init-succ {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, $data(z, x).DATA_datainst[i]) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.INIT_admininstr(x)])
     -- otherwise
@@ -3772,67 +3881,67 @@ relation Step: `%~>%`(config, config)
     `%~>%`(`%;%*`(z, $admininstr_instr(instr)*{instr}), `%;%*`(z, $admininstr_instr(instr')*{instr'}))
     -- Step_read: `%~>%*`(`%;%*`(z, $admininstr_instr(instr)*{instr}), $admininstr_instr(instr')*{instr'})
 
-  ;; 6-reduction.watsup:181.1-182.60
+  ;; 6-reduction.watsup:197.1-198.60
   rule local.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) LOCAL.SET_admininstr(x)]), `%;%*`($with_local(z, x, val), []))
 
-  ;; 6-reduction.watsup:191.1-192.62
+  ;; 6-reduction.watsup:207.1-208.62
   rule global.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) GLOBAL.SET_admininstr(x)]), `%;%*`($with_global(z, x, val), []))
 
-  ;; 6-reduction.watsup:203.1-205.33
+  ;; 6-reduction.watsup:219.1-221.33
   rule table.set-trap {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:207.1-209.32
+  ;; 6-reduction.watsup:223.1-225.32
   rule table.set-val {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`($with_table(z, x, i, ref), []))
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:217.1-219.47
+  ;; 6-reduction.watsup:233.1-235.47
   rule table.grow-succeed {n : n, ref : ref, ti : tableinst, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`($with_tableinst(z, x, ti), [CONST_admininstr(I32_numtype, |$table(z, x).ELEM_tableinst|)]))
     -- if ($grow_table($table(z, x), n, ref) = ti)
 
-  ;; 6-reduction.watsup:221.1-222.64
+  ;; 6-reduction.watsup:237.1-238.64
   rule table.grow-fail {n : n, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:280.1-281.59
+  ;; 6-reduction.watsup:296.1-297.59
   rule elem.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [ELEM.DROP_admininstr(x)]), `%;%*`($with_elem(z, x, []), []))
 
-  ;; 6-reduction.watsup:301.1-303.53
+  ;; 6-reduction.watsup:317.1-319.53
   rule store-num-trap {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + ($size($valtype_numtype(nt)) / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:305.1-307.35
+  ;; 6-reduction.watsup:321.1-323.35
   rule store-num-val {b* : byte*, c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), ($size($valtype_numtype(nt)) / 8), b*{b}), []))
     -- if (b*{b} = $bytes_($size($valtype_numtype(nt)), c))
 
-  ;; 6-reduction.watsup:309.1-311.45
+  ;; 6-reduction.watsup:325.1-327.45
   rule store-pack-trap {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:313.1-315.50
+  ;; 6-reduction.watsup:329.1-331.50
   rule store-pack-val {b* : byte*, c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (n / 8), b*{b}), []))
     -- if (b*{b} = $bytes_(n, $wrap_(($size($valtype_numtype(nt)), n), c)))
 
-  ;; 6-reduction.watsup:323.1-325.41
+  ;; 6-reduction.watsup:339.1-341.41
   rule memory.grow-succeed {mi : meminst, n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`($with_meminst(z, 0, mi), [CONST_admininstr(I32_numtype, (|$mem(z, 0).DATA_meminst| / (64 * $Ki)))]))
     -- if ($grow_memory($mem(z, 0), n) = mi)
 
-  ;; 6-reduction.watsup:327.1-328.59
+  ;; 6-reduction.watsup:343.1-344.59
   rule memory.grow-fail {n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:386.1-387.59
+  ;; 6-reduction.watsup:402.1-403.59
   rule data.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [DATA.DROP_admininstr(x)]), `%;%*`($with_data(z, x, []), []))
 
@@ -4261,11 +4370,7 @@ syntax unop_FXX =
   | TRUNC
   | NEAREST
 
-;; 1-syntax.watsup:90.1-90.20
-syntax unop_VXX =
-  |
-
-;; 1-syntax.watsup:92.1-94.62
+;; 1-syntax.watsup:91.1-93.62
 syntax binop_IXX =
   | ADD
   | SUB
@@ -4280,7 +4385,7 @@ syntax binop_IXX =
   | ROTL
   | ROTR
 
-;; 1-syntax.watsup:95.1-95.66
+;; 1-syntax.watsup:94.1-94.66
 syntax binop_FXX =
   | ADD
   | SUB
@@ -4290,19 +4395,15 @@ syntax binop_FXX =
   | MAX
   | COPYSIGN
 
-;; 1-syntax.watsup:96.1-96.21
-syntax binop_VXX =
-  |
-
-;; 1-syntax.watsup:98.1-98.26
+;; 1-syntax.watsup:96.1-96.26
 syntax testop_IXX =
   | EQZ
 
-;; 1-syntax.watsup:99.1-99.22
+;; 1-syntax.watsup:97.1-97.22
 syntax testop_FXX =
   |
 
-;; 1-syntax.watsup:101.1-102.108
+;; 1-syntax.watsup:99.1-100.108
 syntax relop_IXX =
   | EQ
   | NE
@@ -4311,7 +4412,7 @@ syntax relop_IXX =
   | LE(sx)
   | GE(sx)
 
-;; 1-syntax.watsup:103.1-103.49
+;; 1-syntax.watsup:101.1-101.49
 syntax relop_FXX =
   | EQ
   | NE
@@ -4320,60 +4421,92 @@ syntax relop_FXX =
   | LE
   | GE
 
-;; 1-syntax.watsup:105.1-105.22
-syntax ternop_VXX =
-  |
-
-;; 1-syntax.watsup:107.1-107.50
+;; 1-syntax.watsup:103.1-103.50
 syntax unop_numtype =
   | _I(unop_IXX)
   | _F(unop_FXX)
 
-;; 1-syntax.watsup:108.1-108.53
+;; 1-syntax.watsup:104.1-104.53
 syntax binop_numtype =
   | _I(binop_IXX)
   | _F(binop_FXX)
 
-;; 1-syntax.watsup:109.1-109.56
+;; 1-syntax.watsup:105.1-105.56
 syntax testop_numtype =
   | _I(testop_IXX)
   | _F(testop_FXX)
 
-;; 1-syntax.watsup:110.1-110.53
+;; 1-syntax.watsup:106.1-106.53
 syntax relop_numtype =
   | _I(relop_IXX)
   | _F(relop_FXX)
 
-;; 1-syntax.watsup:111.1-111.39
+;; 1-syntax.watsup:107.1-107.39
 syntax cvtop =
   | CONVERT
   | REINTERPRET
 
-;; 1-syntax.watsup:113.1-113.36
+;; 1-syntax.watsup:114.1-115.30
+syntax ishape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+
+;; 1-syntax.watsup:116.1-117.14
+syntax fshape =
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:118.1-119.16
+syntax shape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:123.1-123.24
+syntax unop_VXX =
+  | NOT
+
+;; 1-syntax.watsup:124.1-124.45
+syntax binop_VXX =
+  | AND
+  | ANDNOT
+  | OR
+  | XOR
+
+;; 1-syntax.watsup:125.1-125.32
+syntax ternop_VXX =
+  | BITSELECT
+
+;; 1-syntax.watsup:126.1-126.36
 syntax unop_vectype =
   | _V(unop_VXX)
 
-;; 1-syntax.watsup:114.1-114.38
+;; 1-syntax.watsup:127.1-127.38
 syntax binop_vectype =
   | _V(binop_VXX)
 
-;; 1-syntax.watsup:115.1-115.40
+;; 1-syntax.watsup:128.1-128.40
 syntax ternop_vectype =
   | _V(ternop_VXX)
 
-;; 1-syntax.watsup:128.1-128.23
+;; 1-syntax.watsup:136.1-136.23
 syntax c_numtype = nat
 
-;; 1-syntax.watsup:129.1-129.23
+;; 1-syntax.watsup:137.1-137.23
 syntax c_vectype = nat
 
-;; 1-syntax.watsup:133.1-133.52
+;; 1-syntax.watsup:142.1-142.52
 syntax blocktype = functype
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 rec {
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 syntax instr =
   | UNREACHABLE
   | NOP
@@ -4400,7 +4533,8 @@ syntax instr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -4427,53 +4561,53 @@ syntax instr =
   | STORE(numtype, n?, u32, u32)
 }
 
-;; 1-syntax.watsup:200.1-201.9
+;; 1-syntax.watsup:210.1-211.9
 syntax expr = instr*
 
-;; 1-syntax.watsup:208.1-208.50
+;; 1-syntax.watsup:218.1-218.50
 syntax elemmode =
   | TABLE(tableidx, expr)
   | DECLARE
 
-;; 1-syntax.watsup:209.1-209.39
+;; 1-syntax.watsup:219.1-219.39
 syntax datamode =
   | MEMORY(memidx, expr)
 
-;; 1-syntax.watsup:211.1-212.30
+;; 1-syntax.watsup:221.1-222.30
 syntax func = `FUNC%%*%`(functype, valtype*, expr)
 
-;; 1-syntax.watsup:213.1-214.25
+;; 1-syntax.watsup:223.1-224.25
 syntax global = GLOBAL(globaltype, expr)
 
-;; 1-syntax.watsup:215.1-216.18
+;; 1-syntax.watsup:225.1-226.18
 syntax table = TABLE(tabletype)
 
-;; 1-syntax.watsup:217.1-218.17
+;; 1-syntax.watsup:227.1-228.17
 syntax mem = MEMORY(memtype)
 
-;; 1-syntax.watsup:219.1-220.31
+;; 1-syntax.watsup:229.1-230.31
 syntax elem = `ELEM%%*%?`(reftype, expr*, elemmode?)
 
-;; 1-syntax.watsup:221.1-222.23
+;; 1-syntax.watsup:231.1-232.23
 syntax data = `DATA%*%?`(byte*, datamode?)
 
-;; 1-syntax.watsup:223.1-224.16
+;; 1-syntax.watsup:233.1-234.16
 syntax start = START(funcidx)
 
-;; 1-syntax.watsup:226.1-227.62
+;; 1-syntax.watsup:236.1-237.62
 syntax externuse =
   | FUNC(funcidx)
   | GLOBAL(globalidx)
   | TABLE(tableidx)
   | MEM(memidx)
 
-;; 1-syntax.watsup:228.1-229.24
+;; 1-syntax.watsup:238.1-239.24
 syntax export = EXPORT(name, externuse)
 
-;; 1-syntax.watsup:230.1-231.30
+;; 1-syntax.watsup:240.1-241.30
 syntax import = IMPORT(name, name, externtype)
 
-;; 1-syntax.watsup:233.1-234.70
+;; 1-syntax.watsup:243.1-244.70
 syntax module = `MODULE%*%*%*%*%*%*%*%?%*`(import*, func*, global*, table*, mem*, elem*, data*, start?, export*)
 
 ;; 2-aux.watsup:3.1-3.14
@@ -5246,7 +5380,8 @@ syntax admininstr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -5305,7 +5440,8 @@ def admininstr_instr : instr -> admininstr
   def {x0 : vectype, x1 : binop_vectype} admininstr_instr(VVBINOP_instr(x0, x1)) = VVBINOP_admininstr(x0, x1)
   def {x0 : vectype, x1 : ternop_vectype} admininstr_instr(VVTERNOP_instr(x0, x1)) = VVTERNOP_admininstr(x0, x1)
   def admininstr_instr(V128.ANY_TRUE_instr) = V128.ANY_TRUE_admininstr
-  def admininstr_instr(I8X16.SWIZZLE_instr) = I8X16.SWIZZLE_admininstr
+  def admininstr_instr(I8x16.SWIZZLE_instr) = I8x16.SWIZZLE_admininstr
+  def {x : shape} admininstr_instr(SPLAT_instr(x)) = SPLAT_admininstr(x)
   def {x : reftype} admininstr_instr(REF.NULL_instr(x)) = REF.NULL_admininstr(x)
   def {x : funcidx} admininstr_instr(REF.FUNC_instr(x)) = REF.FUNC_admininstr(x)
   def admininstr_instr(REF.IS_NULL_instr) = REF.IS_NULL_admininstr
@@ -5512,13 +5648,25 @@ def bytes_ : (nat, c_numtype) -> byte*
 ;; 5-numerics.watsup:15.1-15.31
 def ine_128 : (c_vectype, c_vectype) -> nat
 
-;; 5-numerics.watsup:16.1-16.75
+;; 5-numerics.watsup:16.1-16.28
+def unpacked : shape -> numtype
+
+;; 5-numerics.watsup:17.1-17.67
+def exp : (c_numtype, nat) -> numtype
+
+;; 5-numerics.watsup:18.1-18.19
+def dim : shape -> nat
+
+;; 5-numerics.watsup:19.1-19.31
+def lanes : (shape, c_vectype) -> numtype
+
+;; 5-numerics.watsup:21.1-21.82
 def vvunop : (unop_vectype, vectype, c_vectype) -> c_vectype
 
-;; 5-numerics.watsup:17.1-17.82
+;; 5-numerics.watsup:22.1-22.83
 def vvbinop : (binop_vectype, vectype, c_vectype, c_vectype) -> c_vectype*
 
-;; 5-numerics.watsup:18.1-18.88
+;; 5-numerics.watsup:23.1-23.86
 def vvternop : (ternop_vectype, vectype, c_vectype, c_vectype, c_vectype) -> c_vectype*
 
 ;; 6-reduction.watsup:4.1-4.63
@@ -5663,17 +5811,33 @@ relation Step_pure: `%*~>%*`(admininstr*, admininstr*)
     `%*~>%*`([$admininstr_val(val) REF.IS_NULL_admininstr], [CONST_admininstr(I32_numtype, 0)])
     -- otherwise
 
-  ;; 6-reduction.watsup:168.1-170.39
-  rule v128.vvunop {cv : c_vectype, cv_1 : c_vectype, vt : vectype, vvunop : unop_vectype}:
+  ;; 6-reduction.watsup:168.1-170.41
+  rule vvunop {cv : c_vectype, cv_1 : c_vectype, vvunop : unop_vectype}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVUNOP_admininstr(V128_vectype, vvunop)], [VVCONST_admininstr(V128_vectype, cv)])
-    -- if ($vvunop(vvunop, vt, cv_1) = cv)
+    -- if ($vvunop(vvunop, V128_vectype, cv_1) = cv)
 
-  ;; 6-reduction.watsup:173.1-175.30
+  ;; 6-reduction.watsup:173.1-175.49
+  rule vvbinop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, vvbinop : binop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVBINOP_admininstr(V128_vectype, vvbinop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvbinop(vvbinop, V128_vectype, cv_1, cv_2) = [cv])
+
+  ;; 6-reduction.watsup:178.1-180.57
+  rule vvternop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, cv_3 : c_vectype, vvternop : ternop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVCONST_admininstr(V128_vectype, cv_3) VVTERNOP_admininstr(V128_vectype, vvternop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvternop(vvternop, V128_vectype, cv_1, cv_2, cv_3) = [cv])
+
+  ;; 6-reduction.watsup:183.1-185.30
   rule v128.any_true {cv_1 : c_vectype, i : nat}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) V128.ANY_TRUE_admininstr], [CONST_admininstr(I32_numtype, i)])
     -- if (i = $ine_128(cv_1, 0))
 
-  ;; 6-reduction.watsup:184.1-185.47
+  ;; 6-reduction.watsup:188.1-191.50
+  rule splat {c : c_numtype, c_1 : c_numtype, nt : numtype, shape : shape}:
+    `%*~>%*`([CONST_admininstr(nt, c_1) SPLAT_admininstr(shape)], [VVCONST_admininstr(V128_vectype, c)])
+    -- if (nt = $unpacked(shape))
+    -- if ($lanes(shape, c) = $exp(c_1, $dim(shape)))
+
+  ;; 6-reduction.watsup:200.1-201.47
   rule local.tee {val : val, x : idx}:
     `%*~>%*`([$admininstr_val(val) LOCAL.TEE_admininstr(x)], [$admininstr_val(val) $admininstr_val(val) LOCAL.SET_admininstr(x)])
 
@@ -5706,158 +5870,158 @@ relation Step_read: `%~>%*`(config, admininstr*)
   rule ref.func {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [REF.FUNC_admininstr(x)]), [REF.FUNC_ADDR_admininstr($funcaddr(z)[x])])
 
-  ;; 6-reduction.watsup:178.1-179.37
+  ;; 6-reduction.watsup:194.1-195.37
   rule local.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [LOCAL.GET_admininstr(x)]), [$admininstr_val($local(z, x))])
 
-  ;; 6-reduction.watsup:188.1-189.45
+  ;; 6-reduction.watsup:204.1-205.45
   rule global.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [GLOBAL.GET_admininstr(x)]), [$admininstr_val($global(z, x).VALUE_globalinst)])
 
-  ;; 6-reduction.watsup:195.1-197.33
+  ;; 6-reduction.watsup:211.1-213.33
   rule table.get-trap {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [TRAP_admininstr])
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:199.1-201.32
+  ;; 6-reduction.watsup:215.1-217.32
   rule table.get-val {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [$admininstr_ref($table(z, x).ELEM_tableinst[i])])
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:212.1-214.32
+  ;; 6-reduction.watsup:228.1-230.32
   rule table.size {n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [TABLE.SIZE_admininstr(x)]), [CONST_admininstr(I32_numtype, n)])
     -- if (|$table(z, x).ELEM_tableinst| = n)
 
-  ;; 6-reduction.watsup:225.1-227.39
+  ;; 6-reduction.watsup:241.1-243.39
   rule table.fill-trap {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [TRAP_admininstr])
     -- if ((i + n) > |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:229.1-232.14
+  ;; 6-reduction.watsup:245.1-248.14
   rule table.fill-zero {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:234.1-238.15
+  ;; 6-reduction.watsup:250.1-254.15
   rule table.fill-succ {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) TABLE.FILL_admininstr(x)])
     -- otherwise
 
-  ;; 6-reduction.watsup:241.1-243.73
+  ;; 6-reduction.watsup:257.1-259.73
   rule table.copy-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$table(z, y).ELEM_tableinst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:245.1-248.14
+  ;; 6-reduction.watsup:261.1-264.14
   rule table.copy-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:250.1-255.15
+  ;; 6-reduction.watsup:266.1-271.15
   rule table.copy-le {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:257.1-261.15
+  ;; 6-reduction.watsup:273.1-277.15
   rule table.copy-gt {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:264.1-266.72
+  ;; 6-reduction.watsup:280.1-282.72
   rule table.init-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$elem(z, y).ELEM_eleminst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:268.1-271.14
+  ;; 6-reduction.watsup:284.1-287.14
   rule table.init-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:273.1-277.15
+  ;; 6-reduction.watsup:289.1-293.15
   rule table.init-succ {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) $admininstr_ref($elem(z, y).ELEM_eleminst[i]) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.INIT_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:284.1-286.53
+  ;; 6-reduction.watsup:300.1-302.53
   rule load-num-trap {i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + (!($size($valtype_numtype(nt))) / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:288.1-290.71
+  ;; 6-reduction.watsup:304.1-306.71
   rule load-num-val {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [CONST_admininstr(nt, c)])
     -- if ($bytes_(!($size($valtype_numtype(nt))), c) = $mem(z, 0).DATA_meminst[(i + n_O) : (!($size($valtype_numtype(nt))) / 8)])
 
-  ;; 6-reduction.watsup:292.1-294.45
+  ;; 6-reduction.watsup:308.1-310.45
   rule load-pack-trap {i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:296.1-298.55
+  ;; 6-reduction.watsup:312.1-314.55
   rule load-pack-val {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [CONST_admininstr(nt, $ext(n, !($size($valtype_numtype(nt))), sx, c))])
     -- if ($bytes_(n, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (n / 8)])
 
-  ;; 6-reduction.watsup:318.1-320.44
+  ;; 6-reduction.watsup:334.1-336.44
   rule memory.size {n : n, z : state}:
     `%~>%*`(`%;%*`(z, [MEMORY.SIZE_admininstr]), [CONST_admininstr(I32_numtype, n)])
     -- if (((n * 64) * $Ki) = |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:331.1-333.37
+  ;; 6-reduction.watsup:347.1-349.37
   rule memory.fill-trap {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [TRAP_admininstr])
     -- if ((i + n) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:335.1-338.14
+  ;; 6-reduction.watsup:351.1-354.14
   rule memory.fill-zero {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:340.1-344.15
+  ;; 6-reduction.watsup:356.1-360.15
   rule memory.fill-succ {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.FILL_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:347.1-349.69
+  ;; 6-reduction.watsup:363.1-365.69
   rule memory.copy-trap {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [TRAP_admininstr])
     -- if (((i + n) > |$mem(z, 0).DATA_meminst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:351.1-354.14
+  ;; 6-reduction.watsup:367.1-370.14
   rule memory.copy-zero {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:356.1-361.15
+  ;; 6-reduction.watsup:372.1-377.15
   rule memory.copy-le {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:363.1-367.15
+  ;; 6-reduction.watsup:379.1-383.15
   rule memory.copy-gt {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:370.1-372.70
+  ;; 6-reduction.watsup:386.1-388.70
   rule memory.init-trap {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [TRAP_admininstr])
     -- if (((i + n) > |$data(z, x).DATA_datainst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:374.1-377.14
+  ;; 6-reduction.watsup:390.1-393.14
   rule memory.init-zero {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:379.1-383.15
+  ;; 6-reduction.watsup:395.1-399.15
   rule memory.init-succ {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, $data(z, x).DATA_datainst[i]) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.INIT_admininstr(x)])
     -- otherwise
@@ -5874,67 +6038,67 @@ relation Step: `%~>%`(config, config)
     `%~>%`(`%;%*`(z, $admininstr_instr(instr)*{instr}), `%;%*`(z, $admininstr_instr(instr')*{instr'}))
     -- Step_read: `%~>%*`(`%;%*`(z, $admininstr_instr(instr)*{instr}), $admininstr_instr(instr')*{instr'})
 
-  ;; 6-reduction.watsup:181.1-182.60
+  ;; 6-reduction.watsup:197.1-198.60
   rule local.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) LOCAL.SET_admininstr(x)]), `%;%*`($with_local(z, x, val), []))
 
-  ;; 6-reduction.watsup:191.1-192.62
+  ;; 6-reduction.watsup:207.1-208.62
   rule global.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) GLOBAL.SET_admininstr(x)]), `%;%*`($with_global(z, x, val), []))
 
-  ;; 6-reduction.watsup:203.1-205.33
+  ;; 6-reduction.watsup:219.1-221.33
   rule table.set-trap {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:207.1-209.32
+  ;; 6-reduction.watsup:223.1-225.32
   rule table.set-val {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`($with_table(z, x, i, ref), []))
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:217.1-219.47
+  ;; 6-reduction.watsup:233.1-235.47
   rule table.grow-succeed {n : n, ref : ref, ti : tableinst, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`($with_tableinst(z, x, ti), [CONST_admininstr(I32_numtype, |$table(z, x).ELEM_tableinst|)]))
     -- if (!($grow_table($table(z, x), n, ref)) = ti)
 
-  ;; 6-reduction.watsup:221.1-222.64
+  ;; 6-reduction.watsup:237.1-238.64
   rule table.grow-fail {n : n, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:280.1-281.59
+  ;; 6-reduction.watsup:296.1-297.59
   rule elem.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [ELEM.DROP_admininstr(x)]), `%;%*`($with_elem(z, x, []), []))
 
-  ;; 6-reduction.watsup:301.1-303.53
+  ;; 6-reduction.watsup:317.1-319.53
   rule store-num-trap {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + (!($size($valtype_numtype(nt))) / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:305.1-307.35
+  ;; 6-reduction.watsup:321.1-323.35
   rule store-num-val {b* : byte*, c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (!($size($valtype_numtype(nt))) / 8), b*{b}), []))
     -- if (b*{b} = $bytes_(!($size($valtype_numtype(nt))), c))
 
-  ;; 6-reduction.watsup:309.1-311.45
+  ;; 6-reduction.watsup:325.1-327.45
   rule store-pack-trap {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:313.1-315.50
+  ;; 6-reduction.watsup:329.1-331.50
   rule store-pack-val {b* : byte*, c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (n / 8), b*{b}), []))
     -- if (b*{b} = $bytes_(n, $wrap_((!($size($valtype_numtype(nt))), n), c)))
 
-  ;; 6-reduction.watsup:323.1-325.41
+  ;; 6-reduction.watsup:339.1-341.41
   rule memory.grow-succeed {mi : meminst, n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`($with_meminst(z, 0, mi), [CONST_admininstr(I32_numtype, (|$mem(z, 0).DATA_meminst| / (64 * $Ki)))]))
     -- if (!($grow_memory($mem(z, 0), n)) = mi)
 
-  ;; 6-reduction.watsup:327.1-328.59
+  ;; 6-reduction.watsup:343.1-344.59
   rule memory.grow-fail {n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:386.1-387.59
+  ;; 6-reduction.watsup:402.1-403.59
   rule data.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [DATA.DROP_admininstr(x)]), `%;%*`($with_data(z, x, []), []))
 
@@ -6363,11 +6527,7 @@ syntax unop_FXX =
   | TRUNC
   | NEAREST
 
-;; 1-syntax.watsup:90.1-90.20
-syntax unop_VXX =
-  |
-
-;; 1-syntax.watsup:92.1-94.62
+;; 1-syntax.watsup:91.1-93.62
 syntax binop_IXX =
   | ADD
   | SUB
@@ -6382,7 +6542,7 @@ syntax binop_IXX =
   | ROTL
   | ROTR
 
-;; 1-syntax.watsup:95.1-95.66
+;; 1-syntax.watsup:94.1-94.66
 syntax binop_FXX =
   | ADD
   | SUB
@@ -6392,19 +6552,15 @@ syntax binop_FXX =
   | MAX
   | COPYSIGN
 
-;; 1-syntax.watsup:96.1-96.21
-syntax binop_VXX =
-  |
-
-;; 1-syntax.watsup:98.1-98.26
+;; 1-syntax.watsup:96.1-96.26
 syntax testop_IXX =
   | EQZ
 
-;; 1-syntax.watsup:99.1-99.22
+;; 1-syntax.watsup:97.1-97.22
 syntax testop_FXX =
   |
 
-;; 1-syntax.watsup:101.1-102.108
+;; 1-syntax.watsup:99.1-100.108
 syntax relop_IXX =
   | EQ
   | NE
@@ -6413,7 +6569,7 @@ syntax relop_IXX =
   | LE(sx)
   | GE(sx)
 
-;; 1-syntax.watsup:103.1-103.49
+;; 1-syntax.watsup:101.1-101.49
 syntax relop_FXX =
   | EQ
   | NE
@@ -6422,60 +6578,92 @@ syntax relop_FXX =
   | LE
   | GE
 
-;; 1-syntax.watsup:105.1-105.22
-syntax ternop_VXX =
-  |
-
-;; 1-syntax.watsup:107.1-107.50
+;; 1-syntax.watsup:103.1-103.50
 syntax unop_numtype =
   | _I(unop_IXX)
   | _F(unop_FXX)
 
-;; 1-syntax.watsup:108.1-108.53
+;; 1-syntax.watsup:104.1-104.53
 syntax binop_numtype =
   | _I(binop_IXX)
   | _F(binop_FXX)
 
-;; 1-syntax.watsup:109.1-109.56
+;; 1-syntax.watsup:105.1-105.56
 syntax testop_numtype =
   | _I(testop_IXX)
   | _F(testop_FXX)
 
-;; 1-syntax.watsup:110.1-110.53
+;; 1-syntax.watsup:106.1-106.53
 syntax relop_numtype =
   | _I(relop_IXX)
   | _F(relop_FXX)
 
-;; 1-syntax.watsup:111.1-111.39
+;; 1-syntax.watsup:107.1-107.39
 syntax cvtop =
   | CONVERT
   | REINTERPRET
 
-;; 1-syntax.watsup:113.1-113.36
+;; 1-syntax.watsup:114.1-115.30
+syntax ishape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+
+;; 1-syntax.watsup:116.1-117.14
+syntax fshape =
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:118.1-119.16
+syntax shape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:123.1-123.24
+syntax unop_VXX =
+  | NOT
+
+;; 1-syntax.watsup:124.1-124.45
+syntax binop_VXX =
+  | AND
+  | ANDNOT
+  | OR
+  | XOR
+
+;; 1-syntax.watsup:125.1-125.32
+syntax ternop_VXX =
+  | BITSELECT
+
+;; 1-syntax.watsup:126.1-126.36
 syntax unop_vectype =
   | _V(unop_VXX)
 
-;; 1-syntax.watsup:114.1-114.38
+;; 1-syntax.watsup:127.1-127.38
 syntax binop_vectype =
   | _V(binop_VXX)
 
-;; 1-syntax.watsup:115.1-115.40
+;; 1-syntax.watsup:128.1-128.40
 syntax ternop_vectype =
   | _V(ternop_VXX)
 
-;; 1-syntax.watsup:128.1-128.23
+;; 1-syntax.watsup:136.1-136.23
 syntax c_numtype = nat
 
-;; 1-syntax.watsup:129.1-129.23
+;; 1-syntax.watsup:137.1-137.23
 syntax c_vectype = nat
 
-;; 1-syntax.watsup:133.1-133.52
+;; 1-syntax.watsup:142.1-142.52
 syntax blocktype = functype
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 rec {
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 syntax instr =
   | UNREACHABLE
   | NOP
@@ -6502,7 +6690,8 @@ syntax instr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -6529,53 +6718,53 @@ syntax instr =
   | STORE(numtype, n?, u32, u32)
 }
 
-;; 1-syntax.watsup:200.1-201.9
+;; 1-syntax.watsup:210.1-211.9
 syntax expr = instr*
 
-;; 1-syntax.watsup:208.1-208.50
+;; 1-syntax.watsup:218.1-218.50
 syntax elemmode =
   | TABLE(tableidx, expr)
   | DECLARE
 
-;; 1-syntax.watsup:209.1-209.39
+;; 1-syntax.watsup:219.1-219.39
 syntax datamode =
   | MEMORY(memidx, expr)
 
-;; 1-syntax.watsup:211.1-212.30
+;; 1-syntax.watsup:221.1-222.30
 syntax func = `FUNC%%*%`(functype, valtype*, expr)
 
-;; 1-syntax.watsup:213.1-214.25
+;; 1-syntax.watsup:223.1-224.25
 syntax global = GLOBAL(globaltype, expr)
 
-;; 1-syntax.watsup:215.1-216.18
+;; 1-syntax.watsup:225.1-226.18
 syntax table = TABLE(tabletype)
 
-;; 1-syntax.watsup:217.1-218.17
+;; 1-syntax.watsup:227.1-228.17
 syntax mem = MEMORY(memtype)
 
-;; 1-syntax.watsup:219.1-220.31
+;; 1-syntax.watsup:229.1-230.31
 syntax elem = `ELEM%%*%?`(reftype, expr*, elemmode?)
 
-;; 1-syntax.watsup:221.1-222.23
+;; 1-syntax.watsup:231.1-232.23
 syntax data = `DATA%*%?`(byte*, datamode?)
 
-;; 1-syntax.watsup:223.1-224.16
+;; 1-syntax.watsup:233.1-234.16
 syntax start = START(funcidx)
 
-;; 1-syntax.watsup:226.1-227.62
+;; 1-syntax.watsup:236.1-237.62
 syntax externuse =
   | FUNC(funcidx)
   | GLOBAL(globalidx)
   | TABLE(tableidx)
   | MEM(memidx)
 
-;; 1-syntax.watsup:228.1-229.24
+;; 1-syntax.watsup:238.1-239.24
 syntax export = EXPORT(name, externuse)
 
-;; 1-syntax.watsup:230.1-231.30
+;; 1-syntax.watsup:240.1-241.30
 syntax import = IMPORT(name, name, externtype)
 
-;; 1-syntax.watsup:233.1-234.70
+;; 1-syntax.watsup:243.1-244.70
 syntax module = `MODULE%*%*%*%*%*%*%*%?%*`(import*, func*, global*, table*, mem*, elem*, data*, start?, export*)
 
 ;; 2-aux.watsup:3.1-3.14
@@ -7357,7 +7546,8 @@ syntax admininstr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -7416,7 +7606,8 @@ def admininstr_instr : instr -> admininstr
   def {x0 : vectype, x1 : binop_vectype} admininstr_instr(VVBINOP_instr(x0, x1)) = VVBINOP_admininstr(x0, x1)
   def {x0 : vectype, x1 : ternop_vectype} admininstr_instr(VVTERNOP_instr(x0, x1)) = VVTERNOP_admininstr(x0, x1)
   def admininstr_instr(V128.ANY_TRUE_instr) = V128.ANY_TRUE_admininstr
-  def admininstr_instr(I8X16.SWIZZLE_instr) = I8X16.SWIZZLE_admininstr
+  def admininstr_instr(I8x16.SWIZZLE_instr) = I8x16.SWIZZLE_admininstr
+  def {x : shape} admininstr_instr(SPLAT_instr(x)) = SPLAT_admininstr(x)
   def {x : reftype} admininstr_instr(REF.NULL_instr(x)) = REF.NULL_admininstr(x)
   def {x : funcidx} admininstr_instr(REF.FUNC_instr(x)) = REF.FUNC_admininstr(x)
   def admininstr_instr(REF.IS_NULL_instr) = REF.IS_NULL_admininstr
@@ -7623,13 +7814,25 @@ def bytes_ : (nat, c_numtype) -> byte*
 ;; 5-numerics.watsup:15.1-15.31
 def ine_128 : (c_vectype, c_vectype) -> nat
 
-;; 5-numerics.watsup:16.1-16.75
+;; 5-numerics.watsup:16.1-16.28
+def unpacked : shape -> numtype
+
+;; 5-numerics.watsup:17.1-17.67
+def exp : (c_numtype, nat) -> numtype
+
+;; 5-numerics.watsup:18.1-18.19
+def dim : shape -> nat
+
+;; 5-numerics.watsup:19.1-19.31
+def lanes : (shape, c_vectype) -> numtype
+
+;; 5-numerics.watsup:21.1-21.82
 def vvunop : (unop_vectype, vectype, c_vectype) -> c_vectype
 
-;; 5-numerics.watsup:17.1-17.82
+;; 5-numerics.watsup:22.1-22.83
 def vvbinop : (binop_vectype, vectype, c_vectype, c_vectype) -> c_vectype*
 
-;; 5-numerics.watsup:18.1-18.88
+;; 5-numerics.watsup:23.1-23.86
 def vvternop : (ternop_vectype, vectype, c_vectype, c_vectype, c_vectype) -> c_vectype*
 
 ;; 6-reduction.watsup:4.1-4.63
@@ -7775,17 +7978,33 @@ relation Step_pure: `%*~>%*`(admininstr*, admininstr*)
     `%*~>%*`([$admininstr_val(val) REF.IS_NULL_admininstr], [CONST_admininstr(I32_numtype, 0)])
     -- otherwise
 
-  ;; 6-reduction.watsup:168.1-170.39
-  rule v128.vvunop {cv : c_vectype, cv_1 : c_vectype, vt : vectype, vvunop : unop_vectype}:
+  ;; 6-reduction.watsup:168.1-170.41
+  rule vvunop {cv : c_vectype, cv_1 : c_vectype, vvunop : unop_vectype}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVUNOP_admininstr(V128_vectype, vvunop)], [VVCONST_admininstr(V128_vectype, cv)])
-    -- if ($vvunop(vvunop, vt, cv_1) = cv)
+    -- if ($vvunop(vvunop, V128_vectype, cv_1) = cv)
 
-  ;; 6-reduction.watsup:173.1-175.30
+  ;; 6-reduction.watsup:173.1-175.49
+  rule vvbinop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, vvbinop : binop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVBINOP_admininstr(V128_vectype, vvbinop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvbinop(vvbinop, V128_vectype, cv_1, cv_2) = [cv])
+
+  ;; 6-reduction.watsup:178.1-180.57
+  rule vvternop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, cv_3 : c_vectype, vvternop : ternop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVCONST_admininstr(V128_vectype, cv_3) VVTERNOP_admininstr(V128_vectype, vvternop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvternop(vvternop, V128_vectype, cv_1, cv_2, cv_3) = [cv])
+
+  ;; 6-reduction.watsup:183.1-185.30
   rule v128.any_true {cv_1 : c_vectype, i : nat}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) V128.ANY_TRUE_admininstr], [CONST_admininstr(I32_numtype, i)])
     -- if (i = $ine_128(cv_1, 0))
 
-  ;; 6-reduction.watsup:184.1-185.47
+  ;; 6-reduction.watsup:188.1-191.50
+  rule splat {c : c_numtype, c_1 : c_numtype, nt : numtype, shape : shape}:
+    `%*~>%*`([CONST_admininstr(nt, c_1) SPLAT_admininstr(shape)], [VVCONST_admininstr(V128_vectype, c)])
+    -- if (nt = $unpacked(shape))
+    -- if ($lanes(shape, c) = $exp(c_1, $dim(shape)))
+
+  ;; 6-reduction.watsup:200.1-201.47
   rule local.tee {val : val, x : idx}:
     `%*~>%*`([$admininstr_val(val) LOCAL.TEE_admininstr(x)], [$admininstr_val(val) $admininstr_val(val) LOCAL.SET_admininstr(x)])
 
@@ -7819,162 +8038,162 @@ relation Step_read: `%~>%*`(config, admininstr*)
   rule ref.func {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [REF.FUNC_admininstr(x)]), [REF.FUNC_ADDR_admininstr($funcaddr(z)[x])])
 
-  ;; 6-reduction.watsup:178.1-179.37
+  ;; 6-reduction.watsup:194.1-195.37
   rule local.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [LOCAL.GET_admininstr(x)]), [$admininstr_val($local(z, x))])
 
-  ;; 6-reduction.watsup:188.1-189.45
+  ;; 6-reduction.watsup:204.1-205.45
   rule global.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [GLOBAL.GET_admininstr(x)]), [$admininstr_val($global(z, x).VALUE_globalinst)])
 
-  ;; 6-reduction.watsup:195.1-197.33
+  ;; 6-reduction.watsup:211.1-213.33
   rule table.get-trap {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [TRAP_admininstr])
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:199.1-201.32
+  ;; 6-reduction.watsup:215.1-217.32
   rule table.get-val {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [$admininstr_ref($table(z, x).ELEM_tableinst[i])])
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:212.1-214.32
+  ;; 6-reduction.watsup:228.1-230.32
   rule table.size {n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [TABLE.SIZE_admininstr(x)]), [CONST_admininstr(I32_numtype, n)])
     -- if (|$table(z, x).ELEM_tableinst| = n)
 
-  ;; 6-reduction.watsup:225.1-227.39
+  ;; 6-reduction.watsup:241.1-243.39
   rule table.fill-trap {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [TRAP_admininstr])
     -- if ((i + n) > |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:229.1-232.14
+  ;; 6-reduction.watsup:245.1-248.14
   rule table.fill-zero {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:234.1-238.15
+  ;; 6-reduction.watsup:250.1-254.15
   rule table.fill-succ {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) TABLE.FILL_admininstr(x)])
     -- otherwise
 
-  ;; 6-reduction.watsup:241.1-243.73
+  ;; 6-reduction.watsup:257.1-259.73
   rule table.copy-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$table(z, y).ELEM_tableinst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:245.1-248.14
+  ;; 6-reduction.watsup:261.1-264.14
   rule table.copy-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:250.1-255.15
+  ;; 6-reduction.watsup:266.1-271.15
   rule table.copy-le {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:257.1-261.15
+  ;; 6-reduction.watsup:273.1-277.15
   rule table.copy-gt {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:264.1-266.72
+  ;; 6-reduction.watsup:280.1-282.72
   rule table.init-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$elem(z, y).ELEM_eleminst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:268.1-271.14
+  ;; 6-reduction.watsup:284.1-287.14
   rule table.init-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:273.1-277.15
+  ;; 6-reduction.watsup:289.1-293.15
   rule table.init-succ {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) $admininstr_ref($elem(z, y).ELEM_eleminst[i]) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.INIT_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:284.1-286.53
+  ;; 6-reduction.watsup:300.1-302.53
   rule load-num-trap {i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [TRAP_admininstr])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (((i + n_O) + (o0 / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:288.1-290.71
+  ;; 6-reduction.watsup:304.1-306.71
   rule load-num-val {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat, o1 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [CONST_admininstr(nt, c)])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($size($valtype_numtype(nt)) = ?(o1))
     -- if ($bytes_(o0, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (o1 / 8)])
 
-  ;; 6-reduction.watsup:292.1-294.45
+  ;; 6-reduction.watsup:308.1-310.45
   rule load-pack-trap {i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:296.1-298.55
+  ;; 6-reduction.watsup:312.1-314.55
   rule load-pack-val {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state, o0 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [CONST_admininstr(nt, $ext(n, o0, sx, c))])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($bytes_(n, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (n / 8)])
 
-  ;; 6-reduction.watsup:318.1-320.44
+  ;; 6-reduction.watsup:334.1-336.44
   rule memory.size {n : n, z : state}:
     `%~>%*`(`%;%*`(z, [MEMORY.SIZE_admininstr]), [CONST_admininstr(I32_numtype, n)])
     -- if (((n * 64) * $Ki) = |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:331.1-333.37
+  ;; 6-reduction.watsup:347.1-349.37
   rule memory.fill-trap {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [TRAP_admininstr])
     -- if ((i + n) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:335.1-338.14
+  ;; 6-reduction.watsup:351.1-354.14
   rule memory.fill-zero {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:340.1-344.15
+  ;; 6-reduction.watsup:356.1-360.15
   rule memory.fill-succ {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.FILL_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:347.1-349.69
+  ;; 6-reduction.watsup:363.1-365.69
   rule memory.copy-trap {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [TRAP_admininstr])
     -- if (((i + n) > |$mem(z, 0).DATA_meminst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:351.1-354.14
+  ;; 6-reduction.watsup:367.1-370.14
   rule memory.copy-zero {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:356.1-361.15
+  ;; 6-reduction.watsup:372.1-377.15
   rule memory.copy-le {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:363.1-367.15
+  ;; 6-reduction.watsup:379.1-383.15
   rule memory.copy-gt {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:370.1-372.70
+  ;; 6-reduction.watsup:386.1-388.70
   rule memory.init-trap {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [TRAP_admininstr])
     -- if (((i + n) > |$data(z, x).DATA_datainst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:374.1-377.14
+  ;; 6-reduction.watsup:390.1-393.14
   rule memory.init-zero {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:379.1-383.15
+  ;; 6-reduction.watsup:395.1-399.15
   rule memory.init-succ {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, $data(z, x).DATA_datainst[i]) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.INIT_admininstr(x)])
     -- otherwise
@@ -7991,73 +8210,73 @@ relation Step: `%~>%`(config, config)
     `%~>%`(`%;%*`(z, $admininstr_instr(instr)*{instr}), `%;%*`(z, $admininstr_instr(instr')*{instr'}))
     -- Step_read: `%~>%*`(`%;%*`(z, $admininstr_instr(instr)*{instr}), $admininstr_instr(instr')*{instr'})
 
-  ;; 6-reduction.watsup:181.1-182.60
+  ;; 6-reduction.watsup:197.1-198.60
   rule local.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) LOCAL.SET_admininstr(x)]), `%;%*`($with_local(z, x, val), []))
 
-  ;; 6-reduction.watsup:191.1-192.62
+  ;; 6-reduction.watsup:207.1-208.62
   rule global.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) GLOBAL.SET_admininstr(x)]), `%;%*`($with_global(z, x, val), []))
 
-  ;; 6-reduction.watsup:203.1-205.33
+  ;; 6-reduction.watsup:219.1-221.33
   rule table.set-trap {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:207.1-209.32
+  ;; 6-reduction.watsup:223.1-225.32
   rule table.set-val {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`($with_table(z, x, i, ref), []))
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:217.1-219.47
+  ;; 6-reduction.watsup:233.1-235.47
   rule table.grow-succeed {n : n, ref : ref, ti : tableinst, x : idx, z : state, o0 : tableinst}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`($with_tableinst(z, x, ti), [CONST_admininstr(I32_numtype, |$table(z, x).ELEM_tableinst|)]))
     -- if ($grow_table($table(z, x), n, ref) = ?(o0))
     -- if (o0 = ti)
 
-  ;; 6-reduction.watsup:221.1-222.64
+  ;; 6-reduction.watsup:237.1-238.64
   rule table.grow-fail {n : n, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:280.1-281.59
+  ;; 6-reduction.watsup:296.1-297.59
   rule elem.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [ELEM.DROP_admininstr(x)]), `%;%*`($with_elem(z, x, []), []))
 
-  ;; 6-reduction.watsup:301.1-303.53
+  ;; 6-reduction.watsup:317.1-319.53
   rule store-num-trap {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (((i + n_O) + (o0 / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:305.1-307.35
+  ;; 6-reduction.watsup:321.1-323.35
   rule store-num-val {b* : byte*, c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat, o1 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (o0 / 8), b*{b}), []))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($size($valtype_numtype(nt)) = ?(o1))
     -- if (b*{b} = $bytes_(o1, c))
 
-  ;; 6-reduction.watsup:309.1-311.45
+  ;; 6-reduction.watsup:325.1-327.45
   rule store-pack-trap {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:313.1-315.50
+  ;; 6-reduction.watsup:329.1-331.50
   rule store-pack-val {b* : byte*, c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (n / 8), b*{b}), []))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (b*{b} = $bytes_(n, $wrap_((o0, n), c)))
 
-  ;; 6-reduction.watsup:323.1-325.41
+  ;; 6-reduction.watsup:339.1-341.41
   rule memory.grow-succeed {mi : meminst, n : n, z : state, o0 : meminst}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`($with_meminst(z, 0, mi), [CONST_admininstr(I32_numtype, (|$mem(z, 0).DATA_meminst| / (64 * $Ki)))]))
     -- if ($grow_memory($mem(z, 0), n) = ?(o0))
     -- if (o0 = mi)
 
-  ;; 6-reduction.watsup:327.1-328.59
+  ;; 6-reduction.watsup:343.1-344.59
   rule memory.grow-fail {n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:386.1-387.59
+  ;; 6-reduction.watsup:402.1-403.59
   rule data.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [DATA.DROP_admininstr(x)]), `%;%*`($with_data(z, x, []), []))
 
@@ -8486,11 +8705,7 @@ syntax unop_FXX =
   | TRUNC
   | NEAREST
 
-;; 1-syntax.watsup:90.1-90.20
-syntax unop_VXX =
-  |
-
-;; 1-syntax.watsup:92.1-94.62
+;; 1-syntax.watsup:91.1-93.62
 syntax binop_IXX =
   | ADD
   | SUB
@@ -8505,7 +8720,7 @@ syntax binop_IXX =
   | ROTL
   | ROTR
 
-;; 1-syntax.watsup:95.1-95.66
+;; 1-syntax.watsup:94.1-94.66
 syntax binop_FXX =
   | ADD
   | SUB
@@ -8515,19 +8730,15 @@ syntax binop_FXX =
   | MAX
   | COPYSIGN
 
-;; 1-syntax.watsup:96.1-96.21
-syntax binop_VXX =
-  |
-
-;; 1-syntax.watsup:98.1-98.26
+;; 1-syntax.watsup:96.1-96.26
 syntax testop_IXX =
   | EQZ
 
-;; 1-syntax.watsup:99.1-99.22
+;; 1-syntax.watsup:97.1-97.22
 syntax testop_FXX =
   |
 
-;; 1-syntax.watsup:101.1-102.108
+;; 1-syntax.watsup:99.1-100.108
 syntax relop_IXX =
   | EQ
   | NE
@@ -8536,7 +8747,7 @@ syntax relop_IXX =
   | LE(sx)
   | GE(sx)
 
-;; 1-syntax.watsup:103.1-103.49
+;; 1-syntax.watsup:101.1-101.49
 syntax relop_FXX =
   | EQ
   | NE
@@ -8545,60 +8756,92 @@ syntax relop_FXX =
   | LE
   | GE
 
-;; 1-syntax.watsup:105.1-105.22
-syntax ternop_VXX =
-  |
-
-;; 1-syntax.watsup:107.1-107.50
+;; 1-syntax.watsup:103.1-103.50
 syntax unop_numtype =
   | _I(unop_IXX)
   | _F(unop_FXX)
 
-;; 1-syntax.watsup:108.1-108.53
+;; 1-syntax.watsup:104.1-104.53
 syntax binop_numtype =
   | _I(binop_IXX)
   | _F(binop_FXX)
 
-;; 1-syntax.watsup:109.1-109.56
+;; 1-syntax.watsup:105.1-105.56
 syntax testop_numtype =
   | _I(testop_IXX)
   | _F(testop_FXX)
 
-;; 1-syntax.watsup:110.1-110.53
+;; 1-syntax.watsup:106.1-106.53
 syntax relop_numtype =
   | _I(relop_IXX)
   | _F(relop_FXX)
 
-;; 1-syntax.watsup:111.1-111.39
+;; 1-syntax.watsup:107.1-107.39
 syntax cvtop =
   | CONVERT
   | REINTERPRET
 
-;; 1-syntax.watsup:113.1-113.36
+;; 1-syntax.watsup:114.1-115.30
+syntax ishape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+
+;; 1-syntax.watsup:116.1-117.14
+syntax fshape =
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:118.1-119.16
+syntax shape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:123.1-123.24
+syntax unop_VXX =
+  | NOT
+
+;; 1-syntax.watsup:124.1-124.45
+syntax binop_VXX =
+  | AND
+  | ANDNOT
+  | OR
+  | XOR
+
+;; 1-syntax.watsup:125.1-125.32
+syntax ternop_VXX =
+  | BITSELECT
+
+;; 1-syntax.watsup:126.1-126.36
 syntax unop_vectype =
   | _V(unop_VXX)
 
-;; 1-syntax.watsup:114.1-114.38
+;; 1-syntax.watsup:127.1-127.38
 syntax binop_vectype =
   | _V(binop_VXX)
 
-;; 1-syntax.watsup:115.1-115.40
+;; 1-syntax.watsup:128.1-128.40
 syntax ternop_vectype =
   | _V(ternop_VXX)
 
-;; 1-syntax.watsup:128.1-128.23
+;; 1-syntax.watsup:136.1-136.23
 syntax c_numtype = nat
 
-;; 1-syntax.watsup:129.1-129.23
+;; 1-syntax.watsup:137.1-137.23
 syntax c_vectype = nat
 
-;; 1-syntax.watsup:133.1-133.52
+;; 1-syntax.watsup:142.1-142.52
 syntax blocktype = functype
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 rec {
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 syntax instr =
   | UNREACHABLE
   | NOP
@@ -8625,7 +8868,8 @@ syntax instr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -8652,53 +8896,53 @@ syntax instr =
   | STORE(numtype, n?, u32, u32)
 }
 
-;; 1-syntax.watsup:200.1-201.9
+;; 1-syntax.watsup:210.1-211.9
 syntax expr = instr*
 
-;; 1-syntax.watsup:208.1-208.50
+;; 1-syntax.watsup:218.1-218.50
 syntax elemmode =
   | TABLE(tableidx, expr)
   | DECLARE
 
-;; 1-syntax.watsup:209.1-209.39
+;; 1-syntax.watsup:219.1-219.39
 syntax datamode =
   | MEMORY(memidx, expr)
 
-;; 1-syntax.watsup:211.1-212.30
+;; 1-syntax.watsup:221.1-222.30
 syntax func = `FUNC%%*%`(functype, valtype*, expr)
 
-;; 1-syntax.watsup:213.1-214.25
+;; 1-syntax.watsup:223.1-224.25
 syntax global = GLOBAL(globaltype, expr)
 
-;; 1-syntax.watsup:215.1-216.18
+;; 1-syntax.watsup:225.1-226.18
 syntax table = TABLE(tabletype)
 
-;; 1-syntax.watsup:217.1-218.17
+;; 1-syntax.watsup:227.1-228.17
 syntax mem = MEMORY(memtype)
 
-;; 1-syntax.watsup:219.1-220.31
+;; 1-syntax.watsup:229.1-230.31
 syntax elem = `ELEM%%*%?`(reftype, expr*, elemmode?)
 
-;; 1-syntax.watsup:221.1-222.23
+;; 1-syntax.watsup:231.1-232.23
 syntax data = `DATA%*%?`(byte*, datamode?)
 
-;; 1-syntax.watsup:223.1-224.16
+;; 1-syntax.watsup:233.1-234.16
 syntax start = START(funcidx)
 
-;; 1-syntax.watsup:226.1-227.62
+;; 1-syntax.watsup:236.1-237.62
 syntax externuse =
   | FUNC(funcidx)
   | GLOBAL(globalidx)
   | TABLE(tableidx)
   | MEM(memidx)
 
-;; 1-syntax.watsup:228.1-229.24
+;; 1-syntax.watsup:238.1-239.24
 syntax export = EXPORT(name, externuse)
 
-;; 1-syntax.watsup:230.1-231.30
+;; 1-syntax.watsup:240.1-241.30
 syntax import = IMPORT(name, name, externtype)
 
-;; 1-syntax.watsup:233.1-234.70
+;; 1-syntax.watsup:243.1-244.70
 syntax module = `MODULE%*%*%*%*%*%*%*%?%*`(import*, func*, global*, table*, mem*, elem*, data*, start?, export*)
 
 ;; 2-aux.watsup:3.1-3.14
@@ -9480,7 +9724,8 @@ syntax admininstr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -9539,7 +9784,8 @@ def admininstr_instr : instr -> admininstr
   def {x0 : vectype, x1 : binop_vectype} admininstr_instr(VVBINOP_instr(x0, x1)) = VVBINOP_admininstr(x0, x1)
   def {x0 : vectype, x1 : ternop_vectype} admininstr_instr(VVTERNOP_instr(x0, x1)) = VVTERNOP_admininstr(x0, x1)
   def admininstr_instr(V128.ANY_TRUE_instr) = V128.ANY_TRUE_admininstr
-  def admininstr_instr(I8X16.SWIZZLE_instr) = I8X16.SWIZZLE_admininstr
+  def admininstr_instr(I8x16.SWIZZLE_instr) = I8x16.SWIZZLE_admininstr
+  def {x : shape} admininstr_instr(SPLAT_instr(x)) = SPLAT_admininstr(x)
   def {x : reftype} admininstr_instr(REF.NULL_instr(x)) = REF.NULL_admininstr(x)
   def {x : funcidx} admininstr_instr(REF.FUNC_instr(x)) = REF.FUNC_admininstr(x)
   def admininstr_instr(REF.IS_NULL_instr) = REF.IS_NULL_admininstr
@@ -9746,13 +9992,25 @@ def bytes_ : (nat, c_numtype) -> byte*
 ;; 5-numerics.watsup:15.1-15.31
 def ine_128 : (c_vectype, c_vectype) -> nat
 
-;; 5-numerics.watsup:16.1-16.75
+;; 5-numerics.watsup:16.1-16.28
+def unpacked : shape -> numtype
+
+;; 5-numerics.watsup:17.1-17.67
+def exp : (c_numtype, nat) -> numtype
+
+;; 5-numerics.watsup:18.1-18.19
+def dim : shape -> nat
+
+;; 5-numerics.watsup:19.1-19.31
+def lanes : (shape, c_vectype) -> numtype
+
+;; 5-numerics.watsup:21.1-21.82
 def vvunop : (unop_vectype, vectype, c_vectype) -> c_vectype
 
-;; 5-numerics.watsup:17.1-17.82
+;; 5-numerics.watsup:22.1-22.83
 def vvbinop : (binop_vectype, vectype, c_vectype, c_vectype) -> c_vectype*
 
-;; 5-numerics.watsup:18.1-18.88
+;; 5-numerics.watsup:23.1-23.86
 def vvternop : (ternop_vectype, vectype, c_vectype, c_vectype, c_vectype) -> c_vectype*
 
 ;; 6-reduction.watsup:4.1-4.63
@@ -9898,17 +10156,33 @@ relation Step_pure: `%*~>%*`(admininstr*, admininstr*)
     `%*~>%*`([$admininstr_val(val) REF.IS_NULL_admininstr], [CONST_admininstr(I32_numtype, 0)])
     -- otherwise
 
-  ;; 6-reduction.watsup:168.1-170.39
-  rule v128.vvunop {cv : c_vectype, cv_1 : c_vectype, vt : vectype, vvunop : unop_vectype}:
+  ;; 6-reduction.watsup:168.1-170.41
+  rule vvunop {cv : c_vectype, cv_1 : c_vectype, vvunop : unop_vectype}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVUNOP_admininstr(V128_vectype, vvunop)], [VVCONST_admininstr(V128_vectype, cv)])
-    -- if ($vvunop(vvunop, vt, cv_1) = cv)
+    -- if ($vvunop(vvunop, V128_vectype, cv_1) = cv)
 
-  ;; 6-reduction.watsup:173.1-175.30
+  ;; 6-reduction.watsup:173.1-175.49
+  rule vvbinop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, vvbinop : binop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVBINOP_admininstr(V128_vectype, vvbinop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvbinop(vvbinop, V128_vectype, cv_1, cv_2) = [cv])
+
+  ;; 6-reduction.watsup:178.1-180.57
+  rule vvternop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, cv_3 : c_vectype, vvternop : ternop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVCONST_admininstr(V128_vectype, cv_3) VVTERNOP_admininstr(V128_vectype, vvternop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvternop(vvternop, V128_vectype, cv_1, cv_2, cv_3) = [cv])
+
+  ;; 6-reduction.watsup:183.1-185.30
   rule v128.any_true {cv_1 : c_vectype, i : nat}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) V128.ANY_TRUE_admininstr], [CONST_admininstr(I32_numtype, i)])
     -- if (i = $ine_128(cv_1, 0))
 
-  ;; 6-reduction.watsup:184.1-185.47
+  ;; 6-reduction.watsup:188.1-191.50
+  rule splat {c : c_numtype, c_1 : c_numtype, nt : numtype, shape : shape}:
+    `%*~>%*`([CONST_admininstr(nt, c_1) SPLAT_admininstr(shape)], [VVCONST_admininstr(V128_vectype, c)])
+    -- if (nt = $unpacked(shape))
+    -- if ($lanes(shape, c) = $exp(c_1, $dim(shape)))
+
+  ;; 6-reduction.watsup:200.1-201.47
   rule local.tee {val : val, x : idx}:
     `%*~>%*`([$admininstr_val(val) LOCAL.TEE_admininstr(x)], [$admininstr_val(val) $admininstr_val(val) LOCAL.SET_admininstr(x)])
 
@@ -9942,162 +10216,162 @@ relation Step_read: `%~>%*`(config, admininstr*)
   rule ref.func {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [REF.FUNC_admininstr(x)]), [REF.FUNC_ADDR_admininstr($funcaddr(z)[x])])
 
-  ;; 6-reduction.watsup:178.1-179.37
+  ;; 6-reduction.watsup:194.1-195.37
   rule local.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [LOCAL.GET_admininstr(x)]), [$admininstr_val($local(z, x))])
 
-  ;; 6-reduction.watsup:188.1-189.45
+  ;; 6-reduction.watsup:204.1-205.45
   rule global.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [GLOBAL.GET_admininstr(x)]), [$admininstr_val($global(z, x).VALUE_globalinst)])
 
-  ;; 6-reduction.watsup:195.1-197.33
+  ;; 6-reduction.watsup:211.1-213.33
   rule table.get-trap {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [TRAP_admininstr])
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:199.1-201.32
+  ;; 6-reduction.watsup:215.1-217.32
   rule table.get-val {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [$admininstr_ref($table(z, x).ELEM_tableinst[i])])
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:212.1-214.32
+  ;; 6-reduction.watsup:228.1-230.32
   rule table.size {n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [TABLE.SIZE_admininstr(x)]), [CONST_admininstr(I32_numtype, n)])
     -- if (|$table(z, x).ELEM_tableinst| = n)
 
-  ;; 6-reduction.watsup:225.1-227.39
+  ;; 6-reduction.watsup:241.1-243.39
   rule table.fill-trap {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [TRAP_admininstr])
     -- if ((i + n) > |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:229.1-232.14
+  ;; 6-reduction.watsup:245.1-248.14
   rule table.fill-zero {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:234.1-238.15
+  ;; 6-reduction.watsup:250.1-254.15
   rule table.fill-succ {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) TABLE.FILL_admininstr(x)])
     -- otherwise
 
-  ;; 6-reduction.watsup:241.1-243.73
+  ;; 6-reduction.watsup:257.1-259.73
   rule table.copy-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$table(z, y).ELEM_tableinst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:245.1-248.14
+  ;; 6-reduction.watsup:261.1-264.14
   rule table.copy-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:250.1-255.15
+  ;; 6-reduction.watsup:266.1-271.15
   rule table.copy-le {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:257.1-261.15
+  ;; 6-reduction.watsup:273.1-277.15
   rule table.copy-gt {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:264.1-266.72
+  ;; 6-reduction.watsup:280.1-282.72
   rule table.init-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$elem(z, y).ELEM_eleminst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:268.1-271.14
+  ;; 6-reduction.watsup:284.1-287.14
   rule table.init-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:273.1-277.15
+  ;; 6-reduction.watsup:289.1-293.15
   rule table.init-succ {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) $admininstr_ref($elem(z, y).ELEM_eleminst[i]) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.INIT_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:284.1-286.53
+  ;; 6-reduction.watsup:300.1-302.53
   rule load-num-trap {i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [TRAP_admininstr])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (((i + n_O) + (o0 / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:288.1-290.71
+  ;; 6-reduction.watsup:304.1-306.71
   rule load-num-val {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat, o1 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [CONST_admininstr(nt, c)])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($size($valtype_numtype(nt)) = ?(o1))
     -- if ($bytes_(o0, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (o1 / 8)])
 
-  ;; 6-reduction.watsup:292.1-294.45
+  ;; 6-reduction.watsup:308.1-310.45
   rule load-pack-trap {i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:296.1-298.55
+  ;; 6-reduction.watsup:312.1-314.55
   rule load-pack-val {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state, o0 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [CONST_admininstr(nt, $ext(n, o0, sx, c))])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($bytes_(n, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (n / 8)])
 
-  ;; 6-reduction.watsup:318.1-320.44
+  ;; 6-reduction.watsup:334.1-336.44
   rule memory.size {n : n, z : state}:
     `%~>%*`(`%;%*`(z, [MEMORY.SIZE_admininstr]), [CONST_admininstr(I32_numtype, n)])
     -- if (((n * 64) * $Ki) = |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:331.1-333.37
+  ;; 6-reduction.watsup:347.1-349.37
   rule memory.fill-trap {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [TRAP_admininstr])
     -- if ((i + n) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:335.1-338.14
+  ;; 6-reduction.watsup:351.1-354.14
   rule memory.fill-zero {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:340.1-344.15
+  ;; 6-reduction.watsup:356.1-360.15
   rule memory.fill-succ {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.FILL_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:347.1-349.69
+  ;; 6-reduction.watsup:363.1-365.69
   rule memory.copy-trap {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [TRAP_admininstr])
     -- if (((i + n) > |$mem(z, 0).DATA_meminst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:351.1-354.14
+  ;; 6-reduction.watsup:367.1-370.14
   rule memory.copy-zero {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:356.1-361.15
+  ;; 6-reduction.watsup:372.1-377.15
   rule memory.copy-le {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:363.1-367.15
+  ;; 6-reduction.watsup:379.1-383.15
   rule memory.copy-gt {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:370.1-372.70
+  ;; 6-reduction.watsup:386.1-388.70
   rule memory.init-trap {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [TRAP_admininstr])
     -- if (((i + n) > |$data(z, x).DATA_datainst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:374.1-377.14
+  ;; 6-reduction.watsup:390.1-393.14
   rule memory.init-zero {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:379.1-383.15
+  ;; 6-reduction.watsup:395.1-399.15
   rule memory.init-succ {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, $data(z, x).DATA_datainst[i]) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.INIT_admininstr(x)])
     -- otherwise
@@ -10114,73 +10388,73 @@ relation Step: `%~>%`(config, config)
     `%~>%`(`%;%*`(z, $admininstr_instr(instr)*{instr}), `%;%*`(z, $admininstr_instr(instr')*{instr'}))
     -- Step_read: `%~>%*`(`%;%*`(z, $admininstr_instr(instr)*{instr}), $admininstr_instr(instr')*{instr'})
 
-  ;; 6-reduction.watsup:181.1-182.60
+  ;; 6-reduction.watsup:197.1-198.60
   rule local.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) LOCAL.SET_admininstr(x)]), `%;%*`($with_local(z, x, val), []))
 
-  ;; 6-reduction.watsup:191.1-192.62
+  ;; 6-reduction.watsup:207.1-208.62
   rule global.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) GLOBAL.SET_admininstr(x)]), `%;%*`($with_global(z, x, val), []))
 
-  ;; 6-reduction.watsup:203.1-205.33
+  ;; 6-reduction.watsup:219.1-221.33
   rule table.set-trap {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:207.1-209.32
+  ;; 6-reduction.watsup:223.1-225.32
   rule table.set-val {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`($with_table(z, x, i, ref), []))
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:217.1-219.47
+  ;; 6-reduction.watsup:233.1-235.47
   rule table.grow-succeed {n : n, ref : ref, ti : tableinst, x : idx, z : state, o0 : tableinst}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`($with_tableinst(z, x, ti), [CONST_admininstr(I32_numtype, |$table(z, x).ELEM_tableinst|)]))
     -- if ($grow_table($table(z, x), n, ref) = ?(o0))
     -- if (o0 = ti)
 
-  ;; 6-reduction.watsup:221.1-222.64
+  ;; 6-reduction.watsup:237.1-238.64
   rule table.grow-fail {n : n, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:280.1-281.59
+  ;; 6-reduction.watsup:296.1-297.59
   rule elem.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [ELEM.DROP_admininstr(x)]), `%;%*`($with_elem(z, x, []), []))
 
-  ;; 6-reduction.watsup:301.1-303.53
+  ;; 6-reduction.watsup:317.1-319.53
   rule store-num-trap {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (((i + n_O) + (o0 / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:305.1-307.35
+  ;; 6-reduction.watsup:321.1-323.35
   rule store-num-val {b* : byte*, c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat, o1 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (o0 / 8), b*{b}), []))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($size($valtype_numtype(nt)) = ?(o1))
     -- if (b*{b} = $bytes_(o1, c))
 
-  ;; 6-reduction.watsup:309.1-311.45
+  ;; 6-reduction.watsup:325.1-327.45
   rule store-pack-trap {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:313.1-315.50
+  ;; 6-reduction.watsup:329.1-331.50
   rule store-pack-val {b* : byte*, c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (n / 8), b*{b}), []))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (b*{b} = $bytes_(n, $wrap_((o0, n), c)))
 
-  ;; 6-reduction.watsup:323.1-325.41
+  ;; 6-reduction.watsup:339.1-341.41
   rule memory.grow-succeed {mi : meminst, n : n, z : state, o0 : meminst}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`($with_meminst(z, 0, mi), [CONST_admininstr(I32_numtype, (|$mem(z, 0).DATA_meminst| / (64 * $Ki)))]))
     -- if ($grow_memory($mem(z, 0), n) = ?(o0))
     -- if (o0 = mi)
 
-  ;; 6-reduction.watsup:327.1-328.59
+  ;; 6-reduction.watsup:343.1-344.59
   rule memory.grow-fail {n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:386.1-387.59
+  ;; 6-reduction.watsup:402.1-403.59
   rule data.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [DATA.DROP_admininstr(x)]), `%;%*`($with_data(z, x, []), []))
 
@@ -10609,11 +10883,7 @@ syntax unop_FXX =
   | TRUNC
   | NEAREST
 
-;; 1-syntax.watsup:90.1-90.20
-syntax unop_VXX =
-  |
-
-;; 1-syntax.watsup:92.1-94.62
+;; 1-syntax.watsup:91.1-93.62
 syntax binop_IXX =
   | ADD
   | SUB
@@ -10628,7 +10898,7 @@ syntax binop_IXX =
   | ROTL
   | ROTR
 
-;; 1-syntax.watsup:95.1-95.66
+;; 1-syntax.watsup:94.1-94.66
 syntax binop_FXX =
   | ADD
   | SUB
@@ -10638,19 +10908,15 @@ syntax binop_FXX =
   | MAX
   | COPYSIGN
 
-;; 1-syntax.watsup:96.1-96.21
-syntax binop_VXX =
-  |
-
-;; 1-syntax.watsup:98.1-98.26
+;; 1-syntax.watsup:96.1-96.26
 syntax testop_IXX =
   | EQZ
 
-;; 1-syntax.watsup:99.1-99.22
+;; 1-syntax.watsup:97.1-97.22
 syntax testop_FXX =
   |
 
-;; 1-syntax.watsup:101.1-102.108
+;; 1-syntax.watsup:99.1-100.108
 syntax relop_IXX =
   | EQ
   | NE
@@ -10659,7 +10925,7 @@ syntax relop_IXX =
   | LE(sx)
   | GE(sx)
 
-;; 1-syntax.watsup:103.1-103.49
+;; 1-syntax.watsup:101.1-101.49
 syntax relop_FXX =
   | EQ
   | NE
@@ -10668,60 +10934,92 @@ syntax relop_FXX =
   | LE
   | GE
 
-;; 1-syntax.watsup:105.1-105.22
-syntax ternop_VXX =
-  |
-
-;; 1-syntax.watsup:107.1-107.50
+;; 1-syntax.watsup:103.1-103.50
 syntax unop_numtype =
   | _I(unop_IXX)
   | _F(unop_FXX)
 
-;; 1-syntax.watsup:108.1-108.53
+;; 1-syntax.watsup:104.1-104.53
 syntax binop_numtype =
   | _I(binop_IXX)
   | _F(binop_FXX)
 
-;; 1-syntax.watsup:109.1-109.56
+;; 1-syntax.watsup:105.1-105.56
 syntax testop_numtype =
   | _I(testop_IXX)
   | _F(testop_FXX)
 
-;; 1-syntax.watsup:110.1-110.53
+;; 1-syntax.watsup:106.1-106.53
 syntax relop_numtype =
   | _I(relop_IXX)
   | _F(relop_FXX)
 
-;; 1-syntax.watsup:111.1-111.39
+;; 1-syntax.watsup:107.1-107.39
 syntax cvtop =
   | CONVERT
   | REINTERPRET
 
-;; 1-syntax.watsup:113.1-113.36
+;; 1-syntax.watsup:114.1-115.30
+syntax ishape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+
+;; 1-syntax.watsup:116.1-117.14
+syntax fshape =
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:118.1-119.16
+syntax shape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:123.1-123.24
+syntax unop_VXX =
+  | NOT
+
+;; 1-syntax.watsup:124.1-124.45
+syntax binop_VXX =
+  | AND
+  | ANDNOT
+  | OR
+  | XOR
+
+;; 1-syntax.watsup:125.1-125.32
+syntax ternop_VXX =
+  | BITSELECT
+
+;; 1-syntax.watsup:126.1-126.36
 syntax unop_vectype =
   | _V(unop_VXX)
 
-;; 1-syntax.watsup:114.1-114.38
+;; 1-syntax.watsup:127.1-127.38
 syntax binop_vectype =
   | _V(binop_VXX)
 
-;; 1-syntax.watsup:115.1-115.40
+;; 1-syntax.watsup:128.1-128.40
 syntax ternop_vectype =
   | _V(ternop_VXX)
 
-;; 1-syntax.watsup:128.1-128.23
+;; 1-syntax.watsup:136.1-136.23
 syntax c_numtype = nat
 
-;; 1-syntax.watsup:129.1-129.23
+;; 1-syntax.watsup:137.1-137.23
 syntax c_vectype = nat
 
-;; 1-syntax.watsup:133.1-133.52
+;; 1-syntax.watsup:142.1-142.52
 syntax blocktype = functype
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 rec {
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 syntax instr =
   | UNREACHABLE
   | NOP
@@ -10748,7 +11046,8 @@ syntax instr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -10775,53 +11074,53 @@ syntax instr =
   | STORE(numtype, n?, u32, u32)
 }
 
-;; 1-syntax.watsup:200.1-201.9
+;; 1-syntax.watsup:210.1-211.9
 syntax expr = instr*
 
-;; 1-syntax.watsup:208.1-208.50
+;; 1-syntax.watsup:218.1-218.50
 syntax elemmode =
   | TABLE(tableidx, expr)
   | DECLARE
 
-;; 1-syntax.watsup:209.1-209.39
+;; 1-syntax.watsup:219.1-219.39
 syntax datamode =
   | MEMORY(memidx, expr)
 
-;; 1-syntax.watsup:211.1-212.30
+;; 1-syntax.watsup:221.1-222.30
 syntax func = `FUNC%%*%`(functype, valtype*, expr)
 
-;; 1-syntax.watsup:213.1-214.25
+;; 1-syntax.watsup:223.1-224.25
 syntax global = GLOBAL(globaltype, expr)
 
-;; 1-syntax.watsup:215.1-216.18
+;; 1-syntax.watsup:225.1-226.18
 syntax table = TABLE(tabletype)
 
-;; 1-syntax.watsup:217.1-218.17
+;; 1-syntax.watsup:227.1-228.17
 syntax mem = MEMORY(memtype)
 
-;; 1-syntax.watsup:219.1-220.31
+;; 1-syntax.watsup:229.1-230.31
 syntax elem = `ELEM%%*%?`(reftype, expr*, elemmode?)
 
-;; 1-syntax.watsup:221.1-222.23
+;; 1-syntax.watsup:231.1-232.23
 syntax data = `DATA%*%?`(byte*, datamode?)
 
-;; 1-syntax.watsup:223.1-224.16
+;; 1-syntax.watsup:233.1-234.16
 syntax start = START(funcidx)
 
-;; 1-syntax.watsup:226.1-227.62
+;; 1-syntax.watsup:236.1-237.62
 syntax externuse =
   | FUNC(funcidx)
   | GLOBAL(globalidx)
   | TABLE(tableidx)
   | MEM(memidx)
 
-;; 1-syntax.watsup:228.1-229.24
+;; 1-syntax.watsup:238.1-239.24
 syntax export = EXPORT(name, externuse)
 
-;; 1-syntax.watsup:230.1-231.30
+;; 1-syntax.watsup:240.1-241.30
 syntax import = IMPORT(name, name, externtype)
 
-;; 1-syntax.watsup:233.1-234.70
+;; 1-syntax.watsup:243.1-244.70
 syntax module = `MODULE%*%*%*%*%*%*%*%?%*`(import*, func*, global*, table*, mem*, elem*, data*, start?, export*)
 
 ;; 2-aux.watsup:3.1-3.14
@@ -11651,7 +11950,8 @@ syntax admininstr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -11710,7 +12010,8 @@ def admininstr_instr : instr -> admininstr
   def {x0 : vectype, x1 : binop_vectype} admininstr_instr(VVBINOP_instr(x0, x1)) = VVBINOP_admininstr(x0, x1)
   def {x0 : vectype, x1 : ternop_vectype} admininstr_instr(VVTERNOP_instr(x0, x1)) = VVTERNOP_admininstr(x0, x1)
   def admininstr_instr(V128.ANY_TRUE_instr) = V128.ANY_TRUE_admininstr
-  def admininstr_instr(I8X16.SWIZZLE_instr) = I8X16.SWIZZLE_admininstr
+  def admininstr_instr(I8x16.SWIZZLE_instr) = I8x16.SWIZZLE_admininstr
+  def {x : shape} admininstr_instr(SPLAT_instr(x)) = SPLAT_admininstr(x)
   def {x : reftype} admininstr_instr(REF.NULL_instr(x)) = REF.NULL_admininstr(x)
   def {x : funcidx} admininstr_instr(REF.FUNC_instr(x)) = REF.FUNC_admininstr(x)
   def admininstr_instr(REF.IS_NULL_instr) = REF.IS_NULL_admininstr
@@ -11917,13 +12218,25 @@ def bytes_ : (nat, c_numtype) -> byte*
 ;; 5-numerics.watsup:15.1-15.31
 def ine_128 : (c_vectype, c_vectype) -> nat
 
-;; 5-numerics.watsup:16.1-16.75
+;; 5-numerics.watsup:16.1-16.28
+def unpacked : shape -> numtype
+
+;; 5-numerics.watsup:17.1-17.67
+def exp : (c_numtype, nat) -> numtype
+
+;; 5-numerics.watsup:18.1-18.19
+def dim : shape -> nat
+
+;; 5-numerics.watsup:19.1-19.31
+def lanes : (shape, c_vectype) -> numtype
+
+;; 5-numerics.watsup:21.1-21.82
 def vvunop : (unop_vectype, vectype, c_vectype) -> c_vectype
 
-;; 5-numerics.watsup:17.1-17.82
+;; 5-numerics.watsup:22.1-22.83
 def vvbinop : (binop_vectype, vectype, c_vectype, c_vectype) -> c_vectype*
 
-;; 5-numerics.watsup:18.1-18.88
+;; 5-numerics.watsup:23.1-23.86
 def vvternop : (ternop_vectype, vectype, c_vectype, c_vectype, c_vectype) -> c_vectype*
 
 ;; 6-reduction.watsup:4.1-4.63
@@ -12069,17 +12382,33 @@ relation Step_pure: `%*~>%*`(admininstr*, admininstr*)
     `%*~>%*`([$admininstr_val(val) REF.IS_NULL_admininstr], [CONST_admininstr(I32_numtype, 0)])
     -- otherwise
 
-  ;; 6-reduction.watsup:168.1-170.39
-  rule v128.vvunop {cv : c_vectype, cv_1 : c_vectype, vt : vectype, vvunop : unop_vectype}:
+  ;; 6-reduction.watsup:168.1-170.41
+  rule vvunop {cv : c_vectype, cv_1 : c_vectype, vvunop : unop_vectype}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVUNOP_admininstr(V128_vectype, vvunop)], [VVCONST_admininstr(V128_vectype, cv)])
-    -- if ($vvunop(vvunop, vt, cv_1) = cv)
+    -- if ($vvunop(vvunop, V128_vectype, cv_1) = cv)
 
-  ;; 6-reduction.watsup:173.1-175.30
+  ;; 6-reduction.watsup:173.1-175.49
+  rule vvbinop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, vvbinop : binop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVBINOP_admininstr(V128_vectype, vvbinop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvbinop(vvbinop, V128_vectype, cv_1, cv_2) = [cv])
+
+  ;; 6-reduction.watsup:178.1-180.57
+  rule vvternop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, cv_3 : c_vectype, vvternop : ternop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVCONST_admininstr(V128_vectype, cv_3) VVTERNOP_admininstr(V128_vectype, vvternop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- if ($vvternop(vvternop, V128_vectype, cv_1, cv_2, cv_3) = [cv])
+
+  ;; 6-reduction.watsup:183.1-185.30
   rule v128.any_true {cv_1 : c_vectype, i : nat}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) V128.ANY_TRUE_admininstr], [CONST_admininstr(I32_numtype, i)])
     -- if (i = $ine_128(cv_1, 0))
 
-  ;; 6-reduction.watsup:184.1-185.47
+  ;; 6-reduction.watsup:188.1-191.50
+  rule splat {c : c_numtype, c_1 : c_numtype, nt : numtype, shape : shape}:
+    `%*~>%*`([CONST_admininstr(nt, c_1) SPLAT_admininstr(shape)], [VVCONST_admininstr(V128_vectype, c)])
+    -- if (nt = $unpacked(shape))
+    -- if ($lanes(shape, c) = $exp(c_1, $dim(shape)))
+
+  ;; 6-reduction.watsup:200.1-201.47
   rule local.tee {val : val, x : idx}:
     `%*~>%*`([$admininstr_val(val) LOCAL.TEE_admininstr(x)], [$admininstr_val(val) $admininstr_val(val) LOCAL.SET_admininstr(x)])
 
@@ -12119,163 +12448,163 @@ relation Step_read: `%~>%*`(config, admininstr*)
     `%~>%*`(`%;%*`(z, [REF.FUNC_admininstr(x)]), [REF.FUNC_ADDR_admininstr($funcaddr(z)[x])])
     -- if (x < |$funcaddr(z)|)
 
-  ;; 6-reduction.watsup:178.1-179.37
+  ;; 6-reduction.watsup:194.1-195.37
   rule local.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [LOCAL.GET_admininstr(x)]), [$admininstr_val($local(z, x))])
 
-  ;; 6-reduction.watsup:188.1-189.45
+  ;; 6-reduction.watsup:204.1-205.45
   rule global.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [GLOBAL.GET_admininstr(x)]), [$admininstr_val($global(z, x).VALUE_globalinst)])
 
-  ;; 6-reduction.watsup:195.1-197.33
+  ;; 6-reduction.watsup:211.1-213.33
   rule table.get-trap {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [TRAP_admininstr])
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:199.1-201.32
+  ;; 6-reduction.watsup:215.1-217.32
   rule table.get-val {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [$admininstr_ref($table(z, x).ELEM_tableinst[i])])
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:212.1-214.32
+  ;; 6-reduction.watsup:228.1-230.32
   rule table.size {n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [TABLE.SIZE_admininstr(x)]), [CONST_admininstr(I32_numtype, n)])
     -- if (|$table(z, x).ELEM_tableinst| = n)
 
-  ;; 6-reduction.watsup:225.1-227.39
+  ;; 6-reduction.watsup:241.1-243.39
   rule table.fill-trap {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [TRAP_admininstr])
     -- if ((i + n) > |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:229.1-232.14
+  ;; 6-reduction.watsup:245.1-248.14
   rule table.fill-zero {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:234.1-238.15
+  ;; 6-reduction.watsup:250.1-254.15
   rule table.fill-succ {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) TABLE.FILL_admininstr(x)])
     -- otherwise
 
-  ;; 6-reduction.watsup:241.1-243.73
+  ;; 6-reduction.watsup:257.1-259.73
   rule table.copy-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$table(z, y).ELEM_tableinst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:245.1-248.14
+  ;; 6-reduction.watsup:261.1-264.14
   rule table.copy-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:250.1-255.15
+  ;; 6-reduction.watsup:266.1-271.15
   rule table.copy-le {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:257.1-261.15
+  ;; 6-reduction.watsup:273.1-277.15
   rule table.copy-gt {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:264.1-266.72
+  ;; 6-reduction.watsup:280.1-282.72
   rule table.init-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$elem(z, y).ELEM_eleminst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:268.1-271.14
+  ;; 6-reduction.watsup:284.1-287.14
   rule table.init-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:273.1-277.15
+  ;; 6-reduction.watsup:289.1-293.15
   rule table.init-succ {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) $admininstr_ref($elem(z, y).ELEM_eleminst[i]) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.INIT_admininstr(x, y)])
     -- if (i < |$elem(z, y).ELEM_eleminst|)
     -- otherwise
 
-  ;; 6-reduction.watsup:284.1-286.53
+  ;; 6-reduction.watsup:300.1-302.53
   rule load-num-trap {i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [TRAP_admininstr])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (((i + n_O) + (o0 / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:288.1-290.71
+  ;; 6-reduction.watsup:304.1-306.71
   rule load-num-val {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat, o1 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [CONST_admininstr(nt, c)])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($size($valtype_numtype(nt)) = ?(o1))
     -- if ($bytes_(o0, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (o1 / 8)])
 
-  ;; 6-reduction.watsup:292.1-294.45
+  ;; 6-reduction.watsup:308.1-310.45
   rule load-pack-trap {i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:296.1-298.55
+  ;; 6-reduction.watsup:312.1-314.55
   rule load-pack-val {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state, o0 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [CONST_admininstr(nt, $ext(n, o0, sx, c))])
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($bytes_(n, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (n / 8)])
 
-  ;; 6-reduction.watsup:318.1-320.44
+  ;; 6-reduction.watsup:334.1-336.44
   rule memory.size {n : n, z : state}:
     `%~>%*`(`%;%*`(z, [MEMORY.SIZE_admininstr]), [CONST_admininstr(I32_numtype, n)])
     -- if (((n * 64) * $Ki) = |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:331.1-333.37
+  ;; 6-reduction.watsup:347.1-349.37
   rule memory.fill-trap {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [TRAP_admininstr])
     -- if ((i + n) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:335.1-338.14
+  ;; 6-reduction.watsup:351.1-354.14
   rule memory.fill-zero {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:340.1-344.15
+  ;; 6-reduction.watsup:356.1-360.15
   rule memory.fill-succ {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.FILL_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:347.1-349.69
+  ;; 6-reduction.watsup:363.1-365.69
   rule memory.copy-trap {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [TRAP_admininstr])
     -- if (((i + n) > |$mem(z, 0).DATA_meminst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:351.1-354.14
+  ;; 6-reduction.watsup:367.1-370.14
   rule memory.copy-zero {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:356.1-361.15
+  ;; 6-reduction.watsup:372.1-377.15
   rule memory.copy-le {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:363.1-367.15
+  ;; 6-reduction.watsup:379.1-383.15
   rule memory.copy-gt {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:370.1-372.70
+  ;; 6-reduction.watsup:386.1-388.70
   rule memory.init-trap {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [TRAP_admininstr])
     -- if (((i + n) > |$data(z, x).DATA_datainst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:374.1-377.14
+  ;; 6-reduction.watsup:390.1-393.14
   rule memory.init-zero {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:379.1-383.15
+  ;; 6-reduction.watsup:395.1-399.15
   rule memory.init-succ {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, $data(z, x).DATA_datainst[i]) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.INIT_admininstr(x)])
     -- if (i < |$data(z, x).DATA_datainst|)
@@ -12293,73 +12622,73 @@ relation Step: `%~>%`(config, config)
     `%~>%`(`%;%*`(z, $admininstr_instr(instr)*{instr}), `%;%*`(z, $admininstr_instr(instr')*{instr'}))
     -- Step_read: `%~>%*`(`%;%*`(z, $admininstr_instr(instr)*{instr}), $admininstr_instr(instr')*{instr'})
 
-  ;; 6-reduction.watsup:181.1-182.60
+  ;; 6-reduction.watsup:197.1-198.60
   rule local.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) LOCAL.SET_admininstr(x)]), `%;%*`($with_local(z, x, val), []))
 
-  ;; 6-reduction.watsup:191.1-192.62
+  ;; 6-reduction.watsup:207.1-208.62
   rule global.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) GLOBAL.SET_admininstr(x)]), `%;%*`($with_global(z, x, val), []))
 
-  ;; 6-reduction.watsup:203.1-205.33
+  ;; 6-reduction.watsup:219.1-221.33
   rule table.set-trap {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:207.1-209.32
+  ;; 6-reduction.watsup:223.1-225.32
   rule table.set-val {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`($with_table(z, x, i, ref), []))
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:217.1-219.47
+  ;; 6-reduction.watsup:233.1-235.47
   rule table.grow-succeed {n : n, ref : ref, ti : tableinst, x : idx, z : state, o0 : tableinst}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`($with_tableinst(z, x, ti), [CONST_admininstr(I32_numtype, |$table(z, x).ELEM_tableinst|)]))
     -- if ($grow_table($table(z, x), n, ref) = ?(o0))
     -- if (o0 = ti)
 
-  ;; 6-reduction.watsup:221.1-222.64
+  ;; 6-reduction.watsup:237.1-238.64
   rule table.grow-fail {n : n, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:280.1-281.59
+  ;; 6-reduction.watsup:296.1-297.59
   rule elem.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [ELEM.DROP_admininstr(x)]), `%;%*`($with_elem(z, x, []), []))
 
-  ;; 6-reduction.watsup:301.1-303.53
+  ;; 6-reduction.watsup:317.1-319.53
   rule store-num-trap {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (((i + n_O) + (o0 / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:305.1-307.35
+  ;; 6-reduction.watsup:321.1-323.35
   rule store-num-val {b* : byte*, c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat, o1 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (o0 / 8), b*{b}), []))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if ($size($valtype_numtype(nt)) = ?(o1))
     -- if (b*{b} = $bytes_(o1, c))
 
-  ;; 6-reduction.watsup:309.1-311.45
+  ;; 6-reduction.watsup:325.1-327.45
   rule store-pack-trap {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:313.1-315.50
+  ;; 6-reduction.watsup:329.1-331.50
   rule store-pack-val {b* : byte*, c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (n / 8), b*{b}), []))
     -- if ($size($valtype_numtype(nt)) = ?(o0))
     -- if (b*{b} = $bytes_(n, $wrap_((o0, n), c)))
 
-  ;; 6-reduction.watsup:323.1-325.41
+  ;; 6-reduction.watsup:339.1-341.41
   rule memory.grow-succeed {mi : meminst, n : n, z : state, o0 : meminst}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`($with_meminst(z, 0, mi), [CONST_admininstr(I32_numtype, (|$mem(z, 0).DATA_meminst| / (64 * $Ki)))]))
     -- if ($grow_memory($mem(z, 0), n) = ?(o0))
     -- if (o0 = mi)
 
-  ;; 6-reduction.watsup:327.1-328.59
+  ;; 6-reduction.watsup:343.1-344.59
   rule memory.grow-fail {n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:386.1-387.59
+  ;; 6-reduction.watsup:402.1-403.59
   rule data.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [DATA.DROP_admininstr(x)]), `%;%*`($with_data(z, x, []), []))
 
@@ -12661,9 +12990,6 @@ if ((2 ^ n_A) <= (o0 / 8))
 (if (((2 ^ n_A) <= (n / 8)) /\ ((n / 8) < (o1 / 8))))?{n o1}
 if ((n?{n} = ?()) \/ (nt = $numtype_in(in)))
 ...Animation failed
-Animation failed.
-if ($vvunop(vvunop, vt, cv_1) = cv)
-...Animation failed
 
 ;; 1-syntax.watsup:3.1-3.15
 syntax n = nat
@@ -12822,11 +13148,7 @@ syntax unop_FXX =
   | TRUNC
   | NEAREST
 
-;; 1-syntax.watsup:90.1-90.20
-syntax unop_VXX =
-  |
-
-;; 1-syntax.watsup:92.1-94.62
+;; 1-syntax.watsup:91.1-93.62
 syntax binop_IXX =
   | ADD
   | SUB
@@ -12841,7 +13163,7 @@ syntax binop_IXX =
   | ROTL
   | ROTR
 
-;; 1-syntax.watsup:95.1-95.66
+;; 1-syntax.watsup:94.1-94.66
 syntax binop_FXX =
   | ADD
   | SUB
@@ -12851,19 +13173,15 @@ syntax binop_FXX =
   | MAX
   | COPYSIGN
 
-;; 1-syntax.watsup:96.1-96.21
-syntax binop_VXX =
-  |
-
-;; 1-syntax.watsup:98.1-98.26
+;; 1-syntax.watsup:96.1-96.26
 syntax testop_IXX =
   | EQZ
 
-;; 1-syntax.watsup:99.1-99.22
+;; 1-syntax.watsup:97.1-97.22
 syntax testop_FXX =
   |
 
-;; 1-syntax.watsup:101.1-102.108
+;; 1-syntax.watsup:99.1-100.108
 syntax relop_IXX =
   | EQ
   | NE
@@ -12872,7 +13190,7 @@ syntax relop_IXX =
   | LE(sx)
   | GE(sx)
 
-;; 1-syntax.watsup:103.1-103.49
+;; 1-syntax.watsup:101.1-101.49
 syntax relop_FXX =
   | EQ
   | NE
@@ -12881,60 +13199,92 @@ syntax relop_FXX =
   | LE
   | GE
 
-;; 1-syntax.watsup:105.1-105.22
-syntax ternop_VXX =
-  |
-
-;; 1-syntax.watsup:107.1-107.50
+;; 1-syntax.watsup:103.1-103.50
 syntax unop_numtype =
   | _I(unop_IXX)
   | _F(unop_FXX)
 
-;; 1-syntax.watsup:108.1-108.53
+;; 1-syntax.watsup:104.1-104.53
 syntax binop_numtype =
   | _I(binop_IXX)
   | _F(binop_FXX)
 
-;; 1-syntax.watsup:109.1-109.56
+;; 1-syntax.watsup:105.1-105.56
 syntax testop_numtype =
   | _I(testop_IXX)
   | _F(testop_FXX)
 
-;; 1-syntax.watsup:110.1-110.53
+;; 1-syntax.watsup:106.1-106.53
 syntax relop_numtype =
   | _I(relop_IXX)
   | _F(relop_FXX)
 
-;; 1-syntax.watsup:111.1-111.39
+;; 1-syntax.watsup:107.1-107.39
 syntax cvtop =
   | CONVERT
   | REINTERPRET
 
-;; 1-syntax.watsup:113.1-113.36
+;; 1-syntax.watsup:114.1-115.30
+syntax ishape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+
+;; 1-syntax.watsup:116.1-117.14
+syntax fshape =
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:118.1-119.16
+syntax shape =
+  | I8x16
+  | I16x8
+  | I32x4
+  | I64x2
+  | F32x4
+  | F64x2
+
+;; 1-syntax.watsup:123.1-123.24
+syntax unop_VXX =
+  | NOT
+
+;; 1-syntax.watsup:124.1-124.45
+syntax binop_VXX =
+  | AND
+  | ANDNOT
+  | OR
+  | XOR
+
+;; 1-syntax.watsup:125.1-125.32
+syntax ternop_VXX =
+  | BITSELECT
+
+;; 1-syntax.watsup:126.1-126.36
 syntax unop_vectype =
   | _V(unop_VXX)
 
-;; 1-syntax.watsup:114.1-114.38
+;; 1-syntax.watsup:127.1-127.38
 syntax binop_vectype =
   | _V(binop_VXX)
 
-;; 1-syntax.watsup:115.1-115.40
+;; 1-syntax.watsup:128.1-128.40
 syntax ternop_vectype =
   | _V(ternop_VXX)
 
-;; 1-syntax.watsup:128.1-128.23
+;; 1-syntax.watsup:136.1-136.23
 syntax c_numtype = nat
 
-;; 1-syntax.watsup:129.1-129.23
+;; 1-syntax.watsup:137.1-137.23
 syntax c_vectype = nat
 
-;; 1-syntax.watsup:133.1-133.52
+;; 1-syntax.watsup:142.1-142.52
 syntax blocktype = functype
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 rec {
 
-;; 1-syntax.watsup:177.1-198.80
+;; 1-syntax.watsup:187.1-208.80
 syntax instr =
   | UNREACHABLE
   | NOP
@@ -12961,7 +13311,8 @@ syntax instr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -12988,53 +13339,53 @@ syntax instr =
   | STORE(numtype, n?, u32, u32)
 }
 
-;; 1-syntax.watsup:200.1-201.9
+;; 1-syntax.watsup:210.1-211.9
 syntax expr = instr*
 
-;; 1-syntax.watsup:208.1-208.50
+;; 1-syntax.watsup:218.1-218.50
 syntax elemmode =
   | TABLE(tableidx, expr)
   | DECLARE
 
-;; 1-syntax.watsup:209.1-209.39
+;; 1-syntax.watsup:219.1-219.39
 syntax datamode =
   | MEMORY(memidx, expr)
 
-;; 1-syntax.watsup:211.1-212.30
+;; 1-syntax.watsup:221.1-222.30
 syntax func = `FUNC%%*%`(functype, valtype*, expr)
 
-;; 1-syntax.watsup:213.1-214.25
+;; 1-syntax.watsup:223.1-224.25
 syntax global = GLOBAL(globaltype, expr)
 
-;; 1-syntax.watsup:215.1-216.18
+;; 1-syntax.watsup:225.1-226.18
 syntax table = TABLE(tabletype)
 
-;; 1-syntax.watsup:217.1-218.17
+;; 1-syntax.watsup:227.1-228.17
 syntax mem = MEMORY(memtype)
 
-;; 1-syntax.watsup:219.1-220.31
+;; 1-syntax.watsup:229.1-230.31
 syntax elem = `ELEM%%*%?`(reftype, expr*, elemmode?)
 
-;; 1-syntax.watsup:221.1-222.23
+;; 1-syntax.watsup:231.1-232.23
 syntax data = `DATA%*%?`(byte*, datamode?)
 
-;; 1-syntax.watsup:223.1-224.16
+;; 1-syntax.watsup:233.1-234.16
 syntax start = START(funcidx)
 
-;; 1-syntax.watsup:226.1-227.62
+;; 1-syntax.watsup:236.1-237.62
 syntax externuse =
   | FUNC(funcidx)
   | GLOBAL(globalidx)
   | TABLE(tableidx)
   | MEM(memidx)
 
-;; 1-syntax.watsup:228.1-229.24
+;; 1-syntax.watsup:238.1-239.24
 syntax export = EXPORT(name, externuse)
 
-;; 1-syntax.watsup:230.1-231.30
+;; 1-syntax.watsup:240.1-241.30
 syntax import = IMPORT(name, name, externtype)
 
-;; 1-syntax.watsup:233.1-234.70
+;; 1-syntax.watsup:243.1-244.70
 syntax module = `MODULE%*%*%*%*%*%*%*%?%*`(import*, func*, global*, table*, mem*, elem*, data*, start?, export*)
 
 ;; 2-aux.watsup:3.1-3.14
@@ -13862,7 +14213,8 @@ syntax admininstr =
   | VVBINOP(vectype, binop_vectype)
   | VVTERNOP(vectype, ternop_vectype)
   | V128.ANY_TRUE
-  | I8X16.SWIZZLE
+  | I8x16.SWIZZLE
+  | SPLAT(shape)
   | REF.NULL(reftype)
   | REF.FUNC(funcidx)
   | REF.IS_NULL
@@ -13921,7 +14273,8 @@ def admininstr_instr : instr -> admininstr
   def {x0 : vectype, x1 : binop_vectype} admininstr_instr(VVBINOP_instr(x0, x1)) = VVBINOP_admininstr(x0, x1)
   def {x0 : vectype, x1 : ternop_vectype} admininstr_instr(VVTERNOP_instr(x0, x1)) = VVTERNOP_admininstr(x0, x1)
   def admininstr_instr(V128.ANY_TRUE_instr) = V128.ANY_TRUE_admininstr
-  def admininstr_instr(I8X16.SWIZZLE_instr) = I8X16.SWIZZLE_admininstr
+  def admininstr_instr(I8x16.SWIZZLE_instr) = I8x16.SWIZZLE_admininstr
+  def {x : shape} admininstr_instr(SPLAT_instr(x)) = SPLAT_admininstr(x)
   def {x : reftype} admininstr_instr(REF.NULL_instr(x)) = REF.NULL_admininstr(x)
   def {x : funcidx} admininstr_instr(REF.FUNC_instr(x)) = REF.FUNC_admininstr(x)
   def admininstr_instr(REF.IS_NULL_instr) = REF.IS_NULL_admininstr
@@ -14128,13 +14481,25 @@ def bytes_ : (nat, c_numtype) -> byte*
 ;; 5-numerics.watsup:15.1-15.31
 def ine_128 : (c_vectype, c_vectype) -> nat
 
-;; 5-numerics.watsup:16.1-16.75
+;; 5-numerics.watsup:16.1-16.28
+def unpacked : shape -> numtype
+
+;; 5-numerics.watsup:17.1-17.67
+def exp : (c_numtype, nat) -> numtype
+
+;; 5-numerics.watsup:18.1-18.19
+def dim : shape -> nat
+
+;; 5-numerics.watsup:19.1-19.31
+def lanes : (shape, c_vectype) -> numtype
+
+;; 5-numerics.watsup:21.1-21.82
 def vvunop : (unop_vectype, vectype, c_vectype) -> c_vectype
 
-;; 5-numerics.watsup:17.1-17.82
+;; 5-numerics.watsup:22.1-22.83
 def vvbinop : (binop_vectype, vectype, c_vectype, c_vectype) -> c_vectype*
 
-;; 5-numerics.watsup:18.1-18.88
+;; 5-numerics.watsup:23.1-23.86
 def vvternop : (ternop_vectype, vectype, c_vectype, c_vectype, c_vectype) -> c_vectype*
 
 ;; 6-reduction.watsup:4.1-4.63
@@ -14280,16 +14645,33 @@ relation Step_pure: `%*~>%*`(admininstr*, admininstr*)
     `%*~>%*`([$admininstr_val(val) REF.IS_NULL_admininstr], [CONST_admininstr(I32_numtype, 0)])
     -- otherwise
 
-  ;; 6-reduction.watsup:168.1-170.39
-  rule v128.vvunop {cv : c_vectype, cv_1 : c_vectype, vt : vectype, vvunop : unop_vectype}:
+  ;; 6-reduction.watsup:168.1-170.41
+  rule vvunop {cv : c_vectype, cv_1 : c_vectype, vvunop : unop_vectype}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVUNOP_admininstr(V128_vectype, vvunop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- where cv = $vvunop(vvunop, V128_vectype, cv_1)
 
-  ;; 6-reduction.watsup:173.1-175.30
+  ;; 6-reduction.watsup:173.1-175.49
+  rule vvbinop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, vvbinop : binop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVBINOP_admininstr(V128_vectype, vvbinop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- where [cv] = $vvbinop(vvbinop, V128_vectype, cv_1, cv_2)
+
+  ;; 6-reduction.watsup:178.1-180.57
+  rule vvternop {cv : c_vectype, cv_1 : c_vectype, cv_2 : c_vectype, cv_3 : c_vectype, vvternop : ternop_vectype}:
+    `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) VVCONST_admininstr(V128_vectype, cv_2) VVCONST_admininstr(V128_vectype, cv_3) VVTERNOP_admininstr(V128_vectype, vvternop)], [VVCONST_admininstr(V128_vectype, cv)])
+    -- where [cv] = $vvternop(vvternop, V128_vectype, cv_1, cv_2, cv_3)
+
+  ;; 6-reduction.watsup:183.1-185.30
   rule v128.any_true {cv_1 : c_vectype, i : nat}:
     `%*~>%*`([VVCONST_admininstr(V128_vectype, cv_1) V128.ANY_TRUE_admininstr], [CONST_admininstr(I32_numtype, i)])
     -- where i = $ine_128(cv_1, 0)
 
-  ;; 6-reduction.watsup:184.1-185.47
+  ;; 6-reduction.watsup:188.1-191.50
+  rule splat {c : c_numtype, c_1 : c_numtype, nt : numtype, shape : shape}:
+    `%*~>%*`([CONST_admininstr(nt, c_1) SPLAT_admininstr(shape)], [VVCONST_admininstr(V128_vectype, c)])
+    -- if (nt = $unpacked(shape))
+    -- where $lanes(shape, c) = $exp(c_1, $dim(shape))
+
+  ;; 6-reduction.watsup:200.1-201.47
   rule local.tee {val : val, x : idx}:
     `%*~>%*`([$admininstr_val(val) LOCAL.TEE_admininstr(x)], [$admininstr_val(val) $admininstr_val(val) LOCAL.SET_admininstr(x)])
 
@@ -14329,163 +14711,163 @@ relation Step_read: `%~>%*`(config, admininstr*)
     `%~>%*`(`%;%*`(z, [REF.FUNC_admininstr(x)]), [REF.FUNC_ADDR_admininstr($funcaddr(z)[x])])
     -- if (x < |$funcaddr(z)|)
 
-  ;; 6-reduction.watsup:178.1-179.37
+  ;; 6-reduction.watsup:194.1-195.37
   rule local.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [LOCAL.GET_admininstr(x)]), [$admininstr_val($local(z, x))])
 
-  ;; 6-reduction.watsup:188.1-189.45
+  ;; 6-reduction.watsup:204.1-205.45
   rule global.get {x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [GLOBAL.GET_admininstr(x)]), [$admininstr_val($global(z, x).VALUE_globalinst)])
 
-  ;; 6-reduction.watsup:195.1-197.33
+  ;; 6-reduction.watsup:211.1-213.33
   rule table.get-trap {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [TRAP_admininstr])
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:199.1-201.32
+  ;; 6-reduction.watsup:215.1-217.32
   rule table.get-val {i : nat, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(x)]), [$admininstr_ref($table(z, x).ELEM_tableinst[i])])
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:212.1-214.32
+  ;; 6-reduction.watsup:228.1-230.32
   rule table.size {n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [TABLE.SIZE_admininstr(x)]), [CONST_admininstr(I32_numtype, n)])
     -- where n = |$table(z, x).ELEM_tableinst|
 
-  ;; 6-reduction.watsup:225.1-227.39
+  ;; 6-reduction.watsup:241.1-243.39
   rule table.fill-trap {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [TRAP_admininstr])
     -- if ((i + n) > |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:229.1-232.14
+  ;; 6-reduction.watsup:245.1-248.14
   rule table.fill-zero {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:234.1-238.15
+  ;; 6-reduction.watsup:250.1-254.15
   rule table.fill-succ {i : nat, n : n, val : val, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) TABLE.FILL_admininstr(x)]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) TABLE.FILL_admininstr(x)])
     -- otherwise
 
-  ;; 6-reduction.watsup:241.1-243.73
+  ;; 6-reduction.watsup:257.1-259.73
   rule table.copy-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$table(z, y).ELEM_tableinst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:245.1-248.14
+  ;; 6-reduction.watsup:261.1-264.14
   rule table.copy-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:250.1-255.15
+  ;; 6-reduction.watsup:266.1-271.15
   rule table.copy-le {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:257.1-261.15
+  ;; 6-reduction.watsup:273.1-277.15
   rule table.copy-gt {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.COPY_admininstr(x, y)]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) TABLE.GET_admininstr(y) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) TABLE.COPY_admininstr(x, y)])
     -- otherwise
 
-  ;; 6-reduction.watsup:264.1-266.72
+  ;; 6-reduction.watsup:280.1-282.72
   rule table.init-trap {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [TRAP_admininstr])
     -- if (((i + n) > |$elem(z, y).ELEM_eleminst|) \/ ((j + n) > |$table(z, x).ELEM_tableinst|))
 
-  ;; 6-reduction.watsup:268.1-271.14
+  ;; 6-reduction.watsup:284.1-287.14
   rule table.init-zero {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:273.1-277.15
+  ;; 6-reduction.watsup:289.1-293.15
   rule table.init-succ {i : nat, j : nat, n : n, x : idx, y : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) TABLE.INIT_admininstr(x, y)]), [CONST_admininstr(I32_numtype, j) $admininstr_ref($elem(z, y).ELEM_eleminst[i]) TABLE.SET_admininstr(x) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) TABLE.INIT_admininstr(x, y)])
     -- otherwise
     -- if (i < |$elem(z, y).ELEM_eleminst|)
 
-  ;; 6-reduction.watsup:284.1-286.53
+  ;; 6-reduction.watsup:300.1-302.53
   rule load-num-trap {i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [TRAP_admininstr])
     -- where ?(o0) = $size($valtype_numtype(nt))
     -- if (((i + n_O) + (o0 / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:288.1-290.71
+  ;; 6-reduction.watsup:304.1-306.71
   rule load-num-val {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat, o1 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?(), n_A, n_O)]), [CONST_admininstr(nt, c)])
     -- where ?(o1) = $size($valtype_numtype(nt))
     -- where $bytes_(o0, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (o1 / 8)]
     -- if ($size($valtype_numtype(nt)) = ?(o0))
 
-  ;; 6-reduction.watsup:292.1-294.45
+  ;; 6-reduction.watsup:308.1-310.45
   rule load-pack-trap {i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [TRAP_admininstr])
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:296.1-298.55
+  ;; 6-reduction.watsup:312.1-314.55
   rule load-pack-val {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, sx : sx, z : state, o0 : nat}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) LOAD_admininstr(nt, ?((n, sx)), n_A, n_O)]), [CONST_admininstr(nt, $ext(n, o0, sx, c))])
     -- where $bytes_(n, c) = $mem(z, 0).DATA_meminst[(i + n_O) : (n / 8)]
     -- where ?(o0) = $size($valtype_numtype(nt))
 
-  ;; 6-reduction.watsup:318.1-320.44
+  ;; 6-reduction.watsup:334.1-336.44
   rule memory.size {n : n, z : state}:
     `%~>%*`(`%;%*`(z, [MEMORY.SIZE_admininstr]), [CONST_admininstr(I32_numtype, n)])
     -- where ((n * 64) * $Ki) = |$mem(z, 0).DATA_meminst|
 
-  ;; 6-reduction.watsup:331.1-333.37
+  ;; 6-reduction.watsup:347.1-349.37
   rule memory.fill-trap {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [TRAP_admininstr])
     -- if ((i + n) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:335.1-338.14
+  ;; 6-reduction.watsup:351.1-354.14
   rule memory.fill-zero {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:340.1-344.15
+  ;; 6-reduction.watsup:356.1-360.15
   rule memory.fill-succ {i : nat, n : n, val : val, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_val(val) CONST_admininstr(I32_numtype, n) MEMORY.FILL_admininstr]), [CONST_admininstr(I32_numtype, i) $admininstr_val(val) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (i + 1)) $admininstr_val(val) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.FILL_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:347.1-349.69
+  ;; 6-reduction.watsup:363.1-365.69
   rule memory.copy-trap {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [TRAP_admininstr])
     -- if (((i + n) > |$mem(z, 0).DATA_meminst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:351.1-354.14
+  ;; 6-reduction.watsup:367.1-370.14
   rule memory.copy-zero {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:356.1-361.15
+  ;; 6-reduction.watsup:372.1-377.15
   rule memory.copy-le {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
     -- if (j <= i)
 
-  ;; 6-reduction.watsup:363.1-367.15
+  ;; 6-reduction.watsup:379.1-383.15
   rule memory.copy-gt {i : nat, j : nat, n : n, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.COPY_admininstr]), [CONST_admininstr(I32_numtype, ((j + n) - 1)) CONST_admininstr(I32_numtype, ((i + n) - 1)) LOAD_admininstr(I32_numtype, ?((8, U_sx)), 0, 0) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.COPY_admininstr])
     -- otherwise
 
-  ;; 6-reduction.watsup:370.1-372.70
+  ;; 6-reduction.watsup:386.1-388.70
   rule memory.init-trap {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [TRAP_admininstr])
     -- if (((i + n) > |$data(z, x).DATA_datainst|) \/ ((j + n) > |$mem(z, 0).DATA_meminst|))
 
-  ;; 6-reduction.watsup:374.1-377.14
+  ;; 6-reduction.watsup:390.1-393.14
   rule memory.init-zero {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [])
     -- otherwise
     -- if (n = 0)
 
-  ;; 6-reduction.watsup:379.1-383.15
+  ;; 6-reduction.watsup:395.1-399.15
   rule memory.init-succ {i : nat, j : nat, n : n, x : idx, z : state}:
     `%~>%*`(`%;%*`(z, [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, i) CONST_admininstr(I32_numtype, n) MEMORY.INIT_admininstr(x)]), [CONST_admininstr(I32_numtype, j) CONST_admininstr(I32_numtype, $data(z, x).DATA_datainst[i]) STORE_admininstr(I32_numtype, ?(8), 0, 0) CONST_admininstr(I32_numtype, (j + 1)) CONST_admininstr(I32_numtype, (i + 1)) CONST_admininstr(I32_numtype, (n - 1)) MEMORY.INIT_admininstr(x)])
     -- otherwise
@@ -14503,73 +14885,73 @@ relation Step: `%~>%`(config, config)
     `%~>%`(`%;%*`(z, $admininstr_instr(instr)*{instr}), `%;%*`(z, $admininstr_instr(instr')*{instr'}))
     -- Step_read: `%~>%*`(`%;%*`(z, $admininstr_instr(instr)*{instr}), $admininstr_instr(instr')*{instr'})
 
-  ;; 6-reduction.watsup:181.1-182.60
+  ;; 6-reduction.watsup:197.1-198.60
   rule local.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) LOCAL.SET_admininstr(x)]), `%;%*`($with_local(z, x, val), []))
 
-  ;; 6-reduction.watsup:191.1-192.62
+  ;; 6-reduction.watsup:207.1-208.62
   rule global.set {val : val, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_val(val) GLOBAL.SET_admininstr(x)]), `%;%*`($with_global(z, x, val), []))
 
-  ;; 6-reduction.watsup:203.1-205.33
+  ;; 6-reduction.watsup:219.1-221.33
   rule table.set-trap {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (i >= |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:207.1-209.32
+  ;; 6-reduction.watsup:223.1-225.32
   rule table.set-val {i : nat, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) $admininstr_ref(ref) TABLE.SET_admininstr(x)]), `%;%*`($with_table(z, x, i, ref), []))
     -- if (i < |$table(z, x).ELEM_tableinst|)
 
-  ;; 6-reduction.watsup:217.1-219.47
+  ;; 6-reduction.watsup:233.1-235.47
   rule table.grow-succeed {n : n, ref : ref, ti : tableinst, x : idx, z : state, o0 : tableinst}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`($with_tableinst(z, x, ti), [CONST_admininstr(I32_numtype, |$table(z, x).ELEM_tableinst|)]))
     -- where ?(o0) = $grow_table($table(z, x), n, ref)
     -- where ti = o0
 
-  ;; 6-reduction.watsup:221.1-222.64
+  ;; 6-reduction.watsup:237.1-238.64
   rule table.grow-fail {n : n, ref : ref, x : idx, z : state}:
     `%~>%`(`%;%*`(z, [$admininstr_ref(ref) CONST_admininstr(I32_numtype, n) TABLE.GROW_admininstr(x)]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:280.1-281.59
+  ;; 6-reduction.watsup:296.1-297.59
   rule elem.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [ELEM.DROP_admininstr(x)]), `%;%*`($with_elem(z, x, []), []))
 
-  ;; 6-reduction.watsup:301.1-303.53
+  ;; 6-reduction.watsup:317.1-319.53
   rule store-num-trap {c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- where ?(o0) = $size($valtype_numtype(nt))
     -- if (((i + n_O) + (o0 / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:305.1-307.35
+  ;; 6-reduction.watsup:321.1-323.35
   rule store-num-val {b* : byte*, c : c_numtype, i : nat, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat, o1 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (o0 / 8), b*{b}), []))
     -- where ?(o0) = $size($valtype_numtype(nt))
     -- where ?(o1) = $size($valtype_numtype(nt))
     -- where b*{b} = $bytes_(o1, c)
 
-  ;; 6-reduction.watsup:309.1-311.45
+  ;; 6-reduction.watsup:325.1-327.45
   rule store-pack-trap {c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`(z, [TRAP_admininstr]))
     -- if (((i + n_O) + (n / 8)) > |$mem(z, 0).DATA_meminst|)
 
-  ;; 6-reduction.watsup:313.1-315.50
+  ;; 6-reduction.watsup:329.1-331.50
   rule store-pack-val {b* : byte*, c : c_numtype, i : nat, n : n, n_A : n, n_O : n, nt : numtype, z : state, o0 : nat}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, i) CONST_admininstr(nt, c) STORE_admininstr(nt, ?(n), n_A, n_O)]), `%;%*`($with_mem(z, 0, (i + n_O), (n / 8), b*{b}), []))
     -- where ?(o0) = $size($valtype_numtype(nt))
     -- where b*{b} = $bytes_(n, $wrap_((o0, n), c))
 
-  ;; 6-reduction.watsup:323.1-325.41
+  ;; 6-reduction.watsup:339.1-341.41
   rule memory.grow-succeed {mi : meminst, n : n, z : state, o0 : meminst}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`($with_meminst(z, 0, mi), [CONST_admininstr(I32_numtype, (|$mem(z, 0).DATA_meminst| / (64 * $Ki)))]))
     -- where ?(o0) = $grow_memory($mem(z, 0), n)
     -- where mi = o0
 
-  ;; 6-reduction.watsup:327.1-328.59
+  ;; 6-reduction.watsup:343.1-344.59
   rule memory.grow-fail {n : n, z : state}:
     `%~>%`(`%;%*`(z, [CONST_admininstr(I32_numtype, n) MEMORY.GROW_admininstr]), `%;%*`(z, [CONST_admininstr(I32_numtype, - 1)]))
 
-  ;; 6-reduction.watsup:386.1-387.59
+  ;; 6-reduction.watsup:402.1-403.59
   rule data.drop {x : idx, z : state}:
     `%~>%`(`%;%*`(z, [DATA.DROP_admininstr(x)]), `%;%*`($with_data(z, x, []), []))
 

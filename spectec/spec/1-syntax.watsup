@@ -87,13 +87,11 @@ syntax sx hint(desc "signedness") = | U | S
 
 syntax unop_IXX = | CLZ | CTZ | POPCNT
 syntax unop_FXX = | ABS | NEG | SQRT | CEIL | FLOOR | TRUNC | NEAREST
-syntax unop_VXX = | NOT
 
 syntax binop_IXX =
   | ADD | SUB | MUL | DIV sx hint(show DIV_#%) | REM sx hint(show REM_#%)
   | AND | OR | XOR | SHL | SHR sx hint(show SHR_#%) | ROTL | ROTR
 syntax binop_FXX = | ADD | SUB | MUL | DIV | MIN | MAX | COPYSIGN
-syntax binop_VXX = | AND | ANDNOT | OR | XOR
 
 syntax testop_IXX = | EQZ
 syntax testop_FXX = |      ;; uninhabited
@@ -102,22 +100,32 @@ syntax relop_IXX =
   | EQ | NE | LT sx hint(show LT_#%) | GT sx hint(show GT_#%) | LE sx hint(show LE_#%) | GE sx hint(show GE_#%)
 syntax relop_FXX = | EQ | NE | LT | GT | LE | GE
 
-syntax ternop_VXX = | BITSELECT
-
 syntax unop_numtype = | _I unop_IXX | _F unop_FXX
 syntax binop_numtype = | _I binop_IXX | _F binop_FXX
 syntax testop_numtype = | _I testop_IXX | _F testop_FXX
 syntax relop_numtype = | _I relop_IXX | _F relop_FXX
 syntax cvtop = | CONVERT | REINTERPRET
 
-syntax unop_vectype = | _V unop_VXX
-syntax binop_vectype = | _V binop_VXX
-syntax ternop_vectype = | _V ternop_VXX
-
 var unop : unop_numtype
 var binop : binop_numtype
 var testop : testop_numtype
 var relop : relop_numtype
+
+syntax ishape hint(desc "int shape") =
+  | I8X16 | I16X8 | I32X4 | I64X2
+syntax fshape hint(desc "float shape") =
+  | F32X4 | F64X2
+syntax shape hint(desc "shape") =
+  | ishape | fshape
+
+var sh : shape
+
+syntax unop_VXX = | NOT
+syntax binop_VXX = | AND | ANDNOT | OR | XOR
+syntax ternop_VXX = | BITSELECT
+syntax unop_vectype = | _V unop_VXX
+syntax binop_vectype = | _V binop_VXX
+syntax ternop_vectype = | _V ternop_VXX
 
 var vvunop : unop_vectype
 var vvbinop : binop_vectype
@@ -167,6 +175,8 @@ syntax instr/vector hint(desc "vector instruction") = ...
   | VVTERNOP vectype ternop_vectype  hint(show %.%)
   | V128.ANY_TRUE
   | I8X16.SWIZZLE
+  | SPLAT shape                      hint(show %.SPLAT)
+  | EXTRACT_LANE n n sx? idx       hint(show %X%.EXTRACT#_#LANE#_#% %)
   | ...
 
 syntax instr/reference hint(desc "reference instruction") = ...

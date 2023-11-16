@@ -363,6 +363,7 @@ warning: syntax `externuse` was never spliced
 warning: syntax `externval` was never spliced
 warning: syntax `fn` was never spliced
 warning: syntax `frame` was never spliced
+warning: syntax `fshape` was never spliced
 warning: syntax `func` was never spliced
 warning: syntax `funcaddr` was never spliced
 warning: syntax `funcidx` was never spliced
@@ -376,6 +377,7 @@ warning: syntax `idx` was never spliced
 warning: syntax `import` was never spliced
 warning: syntax `in` was never spliced
 warning: syntax `instr/vector` was never spliced
+warning: syntax `ishape` was never spliced
 warning: syntax `labeladdr` was never spliced
 warning: syntax `labelidx` was never spliced
 warning: syntax `localidx` was never spliced
@@ -393,6 +395,7 @@ warning: syntax `relop_FXX` was never spliced
 warning: syntax `relop_IXX` was never spliced
 warning: syntax `relop_numtype` was never spliced
 warning: syntax `result` was never spliced
+warning: syntax `shape` was never spliced
 warning: syntax `start` was never spliced
 warning: syntax `state` was never spliced
 warning: syntax `store` was never spliced
@@ -539,8 +542,11 @@ warning: rule `Step_pure/cvtop-val` was never spliced
 warning: rule `Step_pure/cvtop-trap` was never spliced
 warning: rule `Step_pure/ref.is_null-true` was never spliced
 warning: rule `Step_pure/ref.is_null-false` was never spliced
-warning: rule `Step_pure/v128.vvunop` was never spliced
+warning: rule `Step_pure/vvunop` was never spliced
+warning: rule `Step_pure/vvbinop` was never spliced
+warning: rule `Step_pure/vvternop` was never spliced
 warning: rule `Step_pure/v128.any_true` was never spliced
+warning: rule `Step_pure/splat` was never spliced
 warning: rule `Step_pure/local.tee` was never spliced
 warning: rule `Step_read/call` was never spliced
 warning: rule `Step_read/call_indirect-call` was never spliced
@@ -602,8 +608,10 @@ warning: definition `concat_instr` was never spliced
 warning: definition `cvtop` was never spliced
 warning: definition `data` was never spliced
 warning: definition `datainst` was never spliced
+warning: definition `dim` was never spliced
 warning: definition `elem` was never spliced
 warning: definition `eleminst` was never spliced
+warning: definition `exp` was never spliced
 warning: definition `ext` was never spliced
 warning: definition `funcs` was never spliced
 warning: definition `global` was never spliced
@@ -615,6 +623,7 @@ warning: definition `ine_128` was never spliced
 warning: definition `instantiation` was never spliced
 warning: definition `instexport` was never spliced
 warning: definition `invocation` was never spliced
+warning: definition `lanes` was never spliced
 warning: definition `local` was never spliced
 warning: definition `mem` was never spliced
 warning: definition `meminst` was never spliced
@@ -627,6 +636,7 @@ warning: definition `tableinst` was never spliced
 warning: definition `tables` was never spliced
 warning: definition `testop` was never spliced
 warning: definition `unop` was never spliced
+warning: definition `unpacked` was never spliced
 warning: definition `vvbinop` was never spliced
 warning: definition `vvternop` was never spliced
 warning: definition `vvunop` was never spliced
