@@ -34,6 +34,10 @@ if ((2 ^ n_A) <= ($size(nt <: valtype) / 8))
 (if (((2 ^ n_A) <= (n / 8)) /\ ((n / 8) < ($size(nt <: valtype) / 8))))?{n}
 if ((n?{n} = ?()) \/ (nt = (in <: numtype)))
 ...Animation failed
+Animation failed.
+if (i*{i} = $lanes($shapeof(vu_1, vc_1), c_1)[$halfop(hf, 0, vc_2) : vc_2])
+if ($lanes($shapeof(vu_2, vc_2), c) = $vcvtop(vcvtop, $width(vu_1), $width(vu_2), sx?{sx}, i*{i}))
+...Animation failed
 == IL Validation...
 == Translating to AL...
 { LOCAL: val^k ++ $default_(t)*; MODULE: m; }
@@ -863,12 +867,26 @@ execution_of_SPLAT shape
 4. Let c be $inverse_of_lanes(shape, [$exp(c_1, $dim(shape))]).
 5. Execute (VVCONST V128 c).
 
-execution_of_EXTRACT_LANE i j sx? idx
+execution_of_EXTRACT_LANE vu vc sx? idx
 1. Assert: Due to validation, a value is on the top of the stack.
 2. Pop (VVCONST V128 c_1) from the stack.
-3. Let nt be $unpacked($shapeof(i, j)).
-4. Let c_2 be $extend(i, nt, sx?, $index($lanes($shapeof(i, j), c_1), idx)).
+3. Let nt be $unpacked($shapeof(vu, vc)).
+4. Let c_2 be $extend(vu, nt, sx?, $index($lanes($shapeof(vu, vc), c_1), idx)).
 5. Push (nt.CONST c_2) to the stack.
+
+execution_of_REPLACE_LANE shape idx
+1. Assert: Due to validation, a value is on the top of the stack.
+2. Pop (VVCONST V128 c_2) from the stack.
+3. Assert: Due to validation, a value of value type nt is on the top of the stack.
+4. Pop (nt.CONST c_1) from the stack.
+5. Let i* be $lanes(shape, c_2).
+6. Let c be $inverse_of_lanes(shape, i* with [idx] replaced by c_1).
+7. Execute (VVCONST V128 c).
+
+execution_of_VCVTOP_HALF vu_2 vc_2 vcvtop hf vu_1 vc_1 sx?
+1. Assert: Due to validation, a value is on the top of the stack.
+2. Pop (VVCONST V128 c_1) from the stack.
+3. Execute (VVCONST V128 c).
 
 execution_of_LOCAL.TEE x
 1. Assert: Due to validation, a value is on the top of the stack.

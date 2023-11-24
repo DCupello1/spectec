@@ -91,15 +91,15 @@ $$
 $$
 \begin{array}{@{}lrrl@{}}
 \mbox{(packed type)} & \mathit{packedtype} &::=& \mathsf{i{\scriptstyle8}} ~|~ \mathsf{i{\scriptstyle16}} \\
+\mbox{(vector unit)} & \mathit{vecunit} &::=& \mathit{packedtype} ~|~ \mathit{numtype} \\
+\mbox{(vector count)} & \mathit{veccount} &::=& \mathit{nat} \\
+\mbox{(int shape)} & \mathit{ishape} &::=& \mathsf{i{\scriptstyle8}x{\scriptstyle16}} ~|~ \mathsf{i{\scriptstyle16}x{\scriptstyle8}} ~|~ \mathsf{i{\scriptstyle32}x{\scriptstyle4}} ~|~ \mathsf{i{\scriptstyle64}x{\scriptstyle2}} \\
+\mbox{(float shape)} & \mathit{fshape} &::=& \mathsf{f{\scriptstyle32}x{\scriptstyle4}} ~|~ \mathsf{f{\scriptstyle64}x{\scriptstyle2}} \\
 \end{array}
 $$
 
 $$
 \begin{array}{@{}lrrl@{}}
-\mbox{(vector unit)} & \mathit{vecunit} &::=& \mathit{packedtype} ~|~ \mathit{numtype} \\
-\mbox{(vector count)} & \mathit{veccount} &::=& \mathit{nat} \\
-\mbox{(int shape)} & \mathit{ishape} &::=& \mathsf{i{\scriptstyle8}x{\scriptstyle16}} ~|~ \mathsf{i{\scriptstyle16}x{\scriptstyle8}} ~|~ \mathsf{i{\scriptstyle32}x{\scriptstyle4}} ~|~ \mathsf{i{\scriptstyle64}x{\scriptstyle2}} \\
-\mbox{(float shape)} & \mathit{fshape} &::=& \mathsf{f{\scriptstyle32}x{\scriptstyle4}} ~|~ \mathsf{f{\scriptstyle64}x{\scriptstyle2}} \\
 \mbox{(shape)} & \mathit{shape} &::=& \mathit{vecunit}~\mathsf{x}~\mathit{veccount} \\
 \end{array}
 $$
@@ -157,7 +157,8 @@ $$
 \mathsf{v{\scriptstyle128}.any\_true} \\ &&|&
 \mathsf{i{\scriptstyle8}x{\scriptstyle16}.swizzle} \\ &&|&
 \mathit{shape}.\mathsf{splat} \\ &&|&
-{{{{\mathit{n}~\mathsf{x}~\mathit{n}.\mathsf{extract}}{\mathsf{\_}}}{\mathsf{lane}}}{\mathsf{\_}}}{{\mathit{sx}^?}}~\mathit{idx} \\ &&|&
+{{{{\mathit{vecunit}~\mathsf{x}~\mathit{veccount}.\mathsf{extract}}{\mathsf{\_}}}{\mathsf{lane}}}{\mathsf{\_}}}{{\mathit{sx}^?}}~\mathit{idx} \\ &&|&
+{{\mathit{shape}.\mathsf{replace}}{\mathsf{\_}}}{\mathsf{lane}}~\mathit{idx} \\ &&|&
 \mathsf{ref.null}~\mathit{reftype} \\ &&|&
 \mathsf{ref.func}~\mathit{funcidx} \\ &&|&
 \mathsf{ref.is\_null} \\ &&|&
@@ -2039,9 +2040,19 @@ $$
 
 $$
 \begin{array}{@{}l@{}lcl@{}l@{}}
-{[\textsc{\scriptsize E{-}extract\_lane}]} \quad & (\mathsf{v{\scriptstyle128}}.\mathsf{const}~\mathit{c}_{1})~({{{{\mathit{i}~\mathsf{x}~\mathit{j}.\mathsf{extract}}{\mathsf{\_}}}{\mathsf{lane}}}{\mathsf{\_}}}{{\mathit{sx}^?}}~\mathit{idx}) &\hookrightarrow& (\mathit{nt}.\mathsf{const}~\mathit{c}_{2}) &\quad
-  \mbox{if}~\mathit{nt} = \mathrm{unpacked}(\mathit{i}~\mathsf{x}~\mathit{j}) \\
- &&&&\quad {\land}~\mathit{c}_{2} = {{\mathrm{ext}}_{\mathit{i}}(\mathit{nt})^{{\mathit{sx}^?}}}~(\mathrm{lanes}(\mathit{i}~\mathsf{x}~\mathit{j},\, \mathit{c}_{1})[\mathit{idx}]) \\
+{[\textsc{\scriptsize E{-}extract\_lane}]} \quad & (\mathsf{v{\scriptstyle128}}.\mathsf{const}~\mathit{c}_{1})~({{{{\mathit{vu}~\mathsf{x}~\mathit{vc}.\mathsf{extract}}{\mathsf{\_}}}{\mathsf{lane}}}{\mathsf{\_}}}{{\mathit{sx}^?}}~\mathit{idx}) &\hookrightarrow& (\mathit{nt}.\mathsf{const}~\mathit{c}_{2}) &\quad
+  \mbox{if}~\mathit{nt} = \mathrm{unpacked}(\mathit{vu}~\mathsf{x}~\mathit{vc}) \\
+ &&&&\quad {\land}~\mathit{c}_{2} = {{\mathrm{ext}}_{\mathit{vu},\mathit{nt}}^{{\mathit{sx}^?}}}~(\mathrm{lanes}(\mathit{vu}~\mathsf{x}~\mathit{vc},\, \mathit{c}_{1})[\mathit{idx}]) \\
+\end{array}
+$$
+
+\vspace{1ex}
+
+$$
+\begin{array}{@{}l@{}lcl@{}l@{}}
+{[\textsc{\scriptsize E{-}replace\_lane}]} \quad & (\mathit{nt}.\mathsf{const}~\mathit{c}_{1})~(\mathsf{v{\scriptstyle128}}.\mathsf{const}~\mathit{c}_{2})~({{\mathit{shape}.\mathsf{replace}}{\mathsf{\_}}}{\mathsf{lane}}~\mathit{idx}) &\hookrightarrow& (\mathsf{v{\scriptstyle128}}.\mathsf{const}~\mathit{c}) &\quad
+  \mbox{if}~{\mathit{i}^\ast} = \mathrm{lanes}(\mathit{shape},\, \mathit{c}_{2}) \\
+ &&&&\quad {\land}~\mathrm{lanes}(\mathit{shape},\, \mathit{c}) = ({\mathit{i}^\ast})[[\mathit{idx}] = \mathit{c}_{1}] \\
 \end{array}
 $$
 

@@ -552,6 +552,7 @@ warning: rule `Step_pure/v128.any_true` was never spliced
 warning: rule `Step_pure/i8x16.swizzle` was never spliced
 warning: rule `Step_pure/splat` was never spliced
 warning: rule `Step_pure/extract_lane` was never spliced
+warning: rule `Step_pure/replace_lane` was never spliced
 warning: rule `Step_pure/local.tee` was never spliced
 warning: rule `Step_read/call` was never spliced
 warning: rule `Step_read/call_indirect-call` was never spliced
@@ -620,7 +621,6 @@ warning: definition `eleminst` was never spliced
 warning: definition `exp` was never spliced
 warning: definition `ext` was never spliced
 warning: definition `extend` was never spliced
-warning: definition `fromto` was never spliced
 warning: definition `funcs` was never spliced
 warning: definition `global` was never spliced
 warning: definition `globalinst` was never spliced
