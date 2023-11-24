@@ -111,12 +111,18 @@ var binop : binop_numtype
 var testop : testop_numtype
 var relop : relop_numtype
 
+syntax packedtype hint(desc "packed type") =
+  | I8 | I16
+var pt : packedtype
+syntax vecunit hint(desc "vector unit") =
+  | packedtype | numtype
+syntax veccount hint(desc "vector count") = nat
 syntax ishape hint(desc "int shape") =
   | I8X16 | I16X8 | I32X4 | I64X2
 syntax fshape hint(desc "float shape") =
   | F32X4 | F64X2
 syntax shape hint(desc "shape") =
-  | ishape | fshape
+  | SHAPE vecunit veccount      hint(show %X%)
 
 var sh : shape
 

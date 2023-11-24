@@ -16,8 +16,8 @@ def $ine_128(cv_1, cv_2) : nat
 def $unpacked(sh) : numtype
 def $exp(c_1, i) : nat                        hint(show %^%)
 def $dim(sh) : nat
-def $lanes(sh, cv_1) : nat
-def $concat(i, j) : nat                         hint(show % %)
+def $lanes(sh, cv_1) : nat*
+def $concat(i*, j) : nat                         hint(show % %)
 def $index(i*, j) : nat                         hint(show %[%])
 def $fromto(i, j) : nat                         hint(show %...%)
 def $shapeof(i, j) : shape                      hint(show %X%)

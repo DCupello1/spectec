@@ -850,23 +850,24 @@ execution_of_I8X16.SWIZZLE
 2. Pop (VVCONST V128 cv_2) from the stack.
 3. Assert: Due to validation, a value is on the top of the stack.
 4. Pop (VVCONST V128 cv_1) from the stack.
-5. Let c* be [$concat($lanes(I8X16, cv_1), $exp(0, 240))].
-6. Let i* be [$lanes(I8X16, cv_2)].
-7. Let c' be $inverse_of_lanes(I8X16, $fromto($index(c*, $index(i*, 0)), $index(c*, $index(i*, 15)))).
-8. Execute (VVCONST V128 c').
+5. Let c* be [$concat($lanes((SHAPE I8 16), cv_1), $exp(0, 240))].
+6. Let i* be $lanes((SHAPE I8 16), cv_2).
+7. Let i'* be i*[k]^(k<16).
+8. Let c' be $inverse_of_lanes((SHAPE I8 16), c*[i']*).
+9. Execute (VVCONST V128 c').
 
 execution_of_SPLAT shape
 1. Assert: Due to validation, a value of value type nt is on the top of the stack.
 2. Pop (nt.CONST c_1) from the stack.
 3. Assert: Due to validation, nt is $unpacked(shape).
-4. Let c be $inverse_of_lanes(shape, $exp(c_1, $dim(shape))).
+4. Let c be $inverse_of_lanes(shape, [$exp(c_1, $dim(shape))]).
 5. Execute (VVCONST V128 c).
 
 execution_of_EXTRACT_LANE i j sx? idx
 1. Assert: Due to validation, a value is on the top of the stack.
 2. Pop (VVCONST V128 c_1) from the stack.
 3. Let nt be $unpacked($shapeof(i, j)).
-4. Let c_2 be $extend(i, nt, sx?, $index([$lanes($shapeof(i, j), c_1)], idx)).
+4. Let c_2 be $extend(i, nt, sx?, $index($lanes($shapeof(i, j), c_1), idx)).
 5. Push (nt.CONST c_2) to the stack.
 
 execution_of_LOCAL.TEE x

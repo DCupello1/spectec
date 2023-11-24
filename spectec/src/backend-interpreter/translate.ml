@@ -628,11 +628,12 @@ let rec rulepr2instr pr =
               ]
           | _ -> failwith "Invalid IterPr"
           end
-      | instr ->
+      | _instr -> []
+      (* | instr ->[
           List.hd instr
           |> Al.Print.string_of_instr (ref 0) 0
           |> Printf.sprintf "Invalid RulePr: %s"
-          |> failwith
+          |> failwith] *)
       end
   (* Exec_expr_const *)
   | Ast.RulePr (
@@ -655,7 +656,8 @@ let rec rulepr2instr pr =
       LetI (exp2expr rhs, AppE ("exec_expr_const", [ exp2expr lhs ]));
       PopI (FrameE (None, NameE f.it))
     ]
-  | _ -> failwith "We do not allow iter on premises other than `RulePr`"
+  (* | _ -> failwith "We do not allow iter on premises other than `RulePr`" *)
+  | _ -> []
 
 (** `Il.instr expr list` -> `prems -> `instr list` -> `instr list` **)
 let prems2instrs remain_lhs =

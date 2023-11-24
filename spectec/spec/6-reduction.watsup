@@ -187,9 +187,10 @@ rule Step_pure/v128.any_true:
 
 rule Step_pure/i8x16.swizzle:
   (VVCONST V128 cv_1) (VVCONST V128 cv_2) (I8X16.SWIZZLE) ~> (VVCONST V128 c')
-  -- if i* = $lanes(I8X16, cv_2)
-  -- if c* = $concat($lanes(I8X16, cv_1), $exp(0, 240))
-  -- if $lanes(I8X16, c') = $fromto($index(c*, $index(i*, 0)), $index(c*, $index(i*, 15)))
+  -- if i* = $lanes(SHAPE I8 16, cv_2)
+  -- if c* = $concat($lanes(SHAPE I8 16, cv_1), $exp(0, 240))
+  -- if i'* = (i*[k])^(k<16)
+  -- if $lanes(SHAPE I8 16, c') = c*[i']*
 
 
 rule Step_pure/splat:

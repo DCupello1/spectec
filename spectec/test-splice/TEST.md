@@ -390,6 +390,7 @@ warning: syntax `moduleinst` was never spliced
 warning: syntax `n` was never spliced
 warning: syntax `name` was never spliced
 warning: syntax `num` was never spliced
+warning: syntax `packedtype` was never spliced
 warning: syntax `ref` was never spliced
 warning: syntax `relop_FXX` was never spliced
 warning: syntax `relop_IXX` was never spliced
@@ -416,6 +417,8 @@ warning: syntax `unop_VXX` was never spliced
 warning: syntax `unop_numtype` was never spliced
 warning: syntax `unop_vectype` was never spliced
 warning: syntax `val` was never spliced
+warning: syntax `veccount` was never spliced
+warning: syntax `vecunit` was never spliced
 warning: rule `Blocktype_ok` was never spliced
 warning: rule `Data_ok` was never spliced
 warning: rule `Datamode_ok` was never spliced
@@ -546,7 +549,9 @@ warning: rule `Step_pure/vvunop` was never spliced
 warning: rule `Step_pure/vvbinop` was never spliced
 warning: rule `Step_pure/vvternop` was never spliced
 warning: rule `Step_pure/v128.any_true` was never spliced
+warning: rule `Step_pure/i8x16.swizzle` was never spliced
 warning: rule `Step_pure/splat` was never spliced
+warning: rule `Step_pure/extract_lane` was never spliced
 warning: rule `Step_pure/local.tee` was never spliced
 warning: rule `Step_read/call` was never spliced
 warning: rule `Step_read/call_indirect-call` was never spliced
@@ -604,6 +609,7 @@ warning: definition `alloctable` was never spliced
 warning: definition `alloctables` was never spliced
 warning: definition `binop` was never spliced
 warning: definition `bytes_` was never spliced
+warning: definition `concat` was never spliced
 warning: definition `concat_instr` was never spliced
 warning: definition `cvtop` was never spliced
 warning: definition `data` was never spliced
@@ -613,12 +619,15 @@ warning: definition `elem` was never spliced
 warning: definition `eleminst` was never spliced
 warning: definition `exp` was never spliced
 warning: definition `ext` was never spliced
+warning: definition `extend` was never spliced
+warning: definition `fromto` was never spliced
 warning: definition `funcs` was never spliced
 warning: definition `global` was never spliced
 warning: definition `globalinst` was never spliced
 warning: definition `globals` was never spliced
 warning: definition `grow_memory` was never spliced
 warning: definition `grow_table` was never spliced
+warning: definition `index` was never spliced
 warning: definition `ine_128` was never spliced
 warning: definition `instantiation` was never spliced
 warning: definition `instexport` was never spliced
@@ -632,6 +641,7 @@ warning: definition `min` was never spliced
 warning: definition `relop` was never spliced
 warning: definition `rundata` was never spliced
 warning: definition `runelem` was never spliced
+warning: definition `shapeof` was never spliced
 warning: definition `tableinst` was never spliced
 warning: definition `tables` was never spliced
 warning: definition `testop` was never spliced
