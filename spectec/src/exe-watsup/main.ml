@@ -16,6 +16,7 @@ type target =
 type pass =
   | Sub
   | Totalize
+  | Else
   | Unthe
   | Wild
   | Sideconditions
@@ -28,7 +29,7 @@ passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
 let _skip_passes = [ Sub; Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ Totalize; Wild; Sideconditions; Animate ]
+let all_passes = [ Else; Totalize; Wild; Sideconditions; Animate ]
 
 type file_kind =
   | Spec
@@ -70,6 +71,7 @@ let print_il il =
 let pass_flag = function
   | Sub -> "sub"
   | Totalize -> "totalize"
+  | Else -> "else-removal"
   | Unthe -> "the-elimination"
   | Wild -> "wildcards"
   | Sideconditions -> "sideconditions"
@@ -78,6 +80,7 @@ let pass_flag = function
 let pass_desc = function
   | Sub -> "Synthesize explicit subtype coercions"
   | Totalize -> "Run function totalization"
+  | Else -> "Remove Else premise in relations"
   | Unthe -> "Eliminate the ! operator in relations"
   | Wild -> "Eliminate wildcards and equivalent expressions"
   | Sideconditions -> "Infer side conditions"
@@ -86,6 +89,7 @@ let pass_desc = function
 let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
   | Sub -> Middlend.Sub.transform
   | Totalize -> Middlend.Totalize.transform
+  | Else -> Middlend.Else.transform
   | Unthe -> Middlend.Unthe.transform
   | Wild -> Middlend.Wild.transform
   | Sideconditions -> Middlend.Sideconditions.transform
@@ -176,6 +180,8 @@ let () =
     (match !target with
     | Prose | Splice _ | Interpreter _ ->
       enable_pass Sideconditions; enable_pass Animate
+    | Check ->
+      enable_pass Else
     | _ -> ()
     );
 

@@ -2,6 +2,7 @@
   (name middlend)
   (libraries util il)
   (modules
+    else
     sub
     totalize
     wild
