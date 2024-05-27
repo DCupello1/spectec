@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
-    <title>Types &#8212; WebAssembly 3.0 (Draft 2024-05-17)</title>
+    <title>Types &#8212; WebAssembly 3.0 (Draft 2024-05-27)</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -97,7 +97,7 @@ However, restrictions apply to most other types, such as <a class="reference int
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
 }{
-C \href{../valid/types.html#valid-numtype}{\vdash} {\href{../syntax/types.html#syntax-numtype}{\mathit{numtype}}} : \href{../valid/types.html#valid-numtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-numtype}{\vdash} {\href{../syntax/types.html#syntax-numtype}{\mathit{numtype}}} : \href{../valid/types.html#valid-numtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -109,7 +109,7 @@ C \href{../valid/types.html#valid-numtype}{\vdash} {\href{../syntax/types.html#s
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
 }{
-C \href{../valid/types.html#valid-vectype}{\vdash} {\href{../syntax/types.html#syntax-vectype}{\mathit{vectype}}} : \href{../valid/types.html#valid-vectype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-vectype}{\vdash} {\href{../syntax/types.html#syntax-vectype}{\mathit{vectype}}} : \href{../valid/types.html#valid-vectype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -126,7 +126,7 @@ C \href{../valid/types.html#valid-vectype}{\vdash} {\href{../syntax/types.html#s
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
 }{
-C \href{../valid/types.html#valid-heaptype}{\vdash} {\href{../syntax/types.html#syntax-absheaptype}{\mathit{absheaptype}}} : \href{../valid/types.html#valid-heaptype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-heaptype}{\vdash} {\href{../syntax/types.html#syntax-absheaptype}{\mathit{absheaptype}}} : \href{../valid/types.html#valid-heaptype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -140,9 +140,9 @@ C \href{../valid/types.html#valid-heaptype}{\vdash} {\href{../syntax/types.html#
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C{.}\mathsf{types}{}[{\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}}] = {\mathit{dt}}
+{\mathit{{\scriptstyle C}}}{.}\href{../valid/conventions.html#context}{\mathsf{types}}{}[{\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}}] = {\mathit{dt}}
 }{
-C \href{../valid/types.html#valid-heaptype}{\vdash} {\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}} : \href{../valid/types.html#valid-heaptype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-heaptype}{\vdash} {\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}} : \href{../valid/types.html#valid-heaptype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -160,9 +160,9 @@ C \href{../valid/types.html#valid-heaptype}{\vdash} {\href{../syntax/modules.htm
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-heaptype}{\vdash} {\href{../syntax/types.html#syntax-heaptype}{\mathit{heaptype}}} : \href{../valid/types.html#valid-heaptype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-heaptype}{\vdash} {\href{../syntax/types.html#syntax-heaptype}{\mathit{heaptype}}} : \href{../valid/types.html#valid-heaptype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-reftype}{\vdash} \href{../syntax/types.html#syntax-reftype}{\mathsf{ref}}~{\mathsf{null}^?}~{\href{../syntax/types.html#syntax-heaptype}{\mathit{heaptype}}} : \href{../valid/types.html#valid-reftype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-reftype}{\vdash} \href{../syntax/types.html#syntax-reftype}{\mathsf{ref}}~{\href{../syntax/types.html#syntax-reftype}{\mathsf{null}}^?}~{\href{../syntax/types.html#syntax-heaptype}{\mathit{heaptype}}} : \href{../valid/types.html#valid-reftype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -185,9 +185,9 @@ C \href{../valid/types.html#valid-reftype}{\vdash} \href{../syntax/types.html#sy
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C{.}\mathsf{types}{}[{\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}}] \approx \href{../syntax/types.html#syntax-comptype}{\mathsf{func}}~({t_1^\ast} \href{../syntax/types.html#syntax-functype}{\rightarrow} {t_2^\ast})
+{\mathit{{\scriptstyle C}}}{.}\href{../valid/conventions.html#context}{\mathsf{types}}{}[{\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}}] \href{../valid/conventions.html#aux-expand-deftype}{\approx} \href{../syntax/types.html#syntax-comptype}{\mathsf{func}}~({t_1^\ast} \href{../syntax/types.html#syntax-functype}{\rightarrow} {t_2^\ast})
 }{
-C \href{../valid/types.html#valid-blocktype}{\vdash} {\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}} : {t_1^\ast} \rightarrow {t_2^\ast}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-blocktype}{\vdash} {\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}} : {t_1^\ast} \rightarrow {t_2^\ast}
 }
 \qquad
 \end{array}\]</div>
@@ -201,9 +201,9 @@ C \href{../valid/types.html#valid-blocktype}{\vdash} {\href{../syntax/modules.ht
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-(C \href{../valid/types.html#valid-valtype}{\vdash} {\href{../syntax/types.html#syntax-valtype}{\mathit{valtype}}} : \href{../valid/types.html#valid-valtype}{\mathsf{ok}})^?
+({\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-valtype}{\vdash} {\href{../syntax/types.html#syntax-valtype}{\mathit{valtype}}} : \href{../valid/types.html#valid-valtype}{\mathsf{ok}})^?
 }{
-C \href{../valid/types.html#valid-blocktype}{\vdash} {{\href{../syntax/types.html#syntax-valtype}{\mathit{valtype}}}^?} : \epsilon \rightarrow {{\href{../syntax/types.html#syntax-valtype}{\mathit{valtype}}}^?}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-blocktype}{\vdash} {{\href{../syntax/types.html#syntax-valtype}{\mathit{valtype}}}^?} : \epsilon \rightarrow {{\href{../syntax/types.html#syntax-valtype}{\mathit{valtype}}}^?}
 }
 \qquad
 \end{array}\]</div>
@@ -220,9 +220,9 @@ C \href{../valid/types.html#valid-blocktype}{\vdash} {{\href{../syntax/types.htm
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-(C \href{../valid/types.html#valid-valtype}{\vdash} t : \href{../valid/types.html#valid-valtype}{\mathsf{ok}})^\ast
+({\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-valtype}{\vdash} t : \href{../valid/types.html#valid-valtype}{\mathsf{ok}})^\ast
 }{
-C \href{../valid/types.html#valid-resulttype}{\vdash} {t^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-resulttype}{\vdash} {t^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -241,13 +241,13 @@ C \href{../valid/types.html#valid-resulttype}{\vdash} {t^\ast} : \href{../valid/
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-resulttype}{\vdash} {t_1^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-resulttype}{\vdash} {t_1^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
  \qquad
-C \href{../valid/types.html#valid-resulttype}{\vdash} {t_2^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-resulttype}{\vdash} {t_2^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
  \qquad
-(C{.}\mathsf{locals}{}[x] = {{\mathit{lt}}})^\ast
+({\mathit{{\scriptstyle C}}}{.}\href{../valid/conventions.html#context}{\mathsf{locals}}{}[x] = {{\mathit{lt}}})^\ast
 }{
-C \href{../valid/types.html#valid-instrtype}{\vdash} {t_1^\ast}~\mathrel{\href{../valid/conventions.html#syntax-instrtype}{\rightarrow}}~({x^\ast})~{t_2^\ast} : \href{../valid/types.html#valid-instrtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-instrtype}{\vdash} {t_1^\ast}~\mathrel{\href{../valid/conventions.html#syntax-instrtype}{\rightarrow}}~({x^\ast})~{t_2^\ast} : \href{../valid/types.html#valid-instrtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -265,11 +265,11 @@ C \href{../valid/types.html#valid-instrtype}{\vdash} {t_1^\ast}~\mathrel{\href{.
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-resulttype}{\vdash} {t_1^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-resulttype}{\vdash} {t_1^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
  \qquad
-C \href{../valid/types.html#valid-resulttype}{\vdash} {t_2^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-resulttype}{\vdash} {t_2^\ast} : \href{../valid/types.html#valid-resulttype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-functype}{\vdash} {t_1^\ast} \href{../syntax/types.html#syntax-functype}{\rightarrow} {t_2^\ast} : \href{../valid/types.html#valid-functype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-functype}{\vdash} {t_1^\ast} \href{../syntax/types.html#syntax-functype}{\rightarrow} {t_2^\ast} : \href{../valid/types.html#valid-functype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -286,9 +286,9 @@ C \href{../valid/types.html#valid-functype}{\vdash} {t_1^\ast} \href{../syntax/t
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-functype}{\vdash} {\href{../syntax/types.html#syntax-functype}{\mathit{functype}}} : \href{../valid/types.html#valid-functype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-functype}{\vdash} {\href{../syntax/types.html#syntax-functype}{\mathit{functype}}} : \href{../valid/types.html#valid-functype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#syntax-comptype}{\mathsf{func}}~{\href{../syntax/types.html#syntax-functype}{\mathit{functype}}} : \href{../valid/types.html#valid-comptype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#syntax-comptype}{\mathsf{func}}~{\href{../syntax/types.html#syntax-functype}{\mathit{functype}}} : \href{../valid/types.html#valid-comptype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -306,9 +306,9 @@ C \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#s
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-(C \href{../valid/types.html#valid-fieldtype}{\vdash} {\href{../syntax/types.html#syntax-fieldtype}{\mathit{fieldtype}}} : \href{../valid/types.html#valid-fieldtype}{\mathsf{ok}})^\ast
+({\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-fieldtype}{\vdash} {\href{../syntax/types.html#syntax-fieldtype}{\mathit{fieldtype}}} : \href{../valid/types.html#valid-fieldtype}{\mathsf{ok}})^\ast
 }{
-C \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#syntax-comptype}{\mathsf{struct}}~{{\href{../syntax/types.html#syntax-fieldtype}{\mathit{fieldtype}}}^\ast} : \href{../valid/types.html#valid-comptype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#syntax-comptype}{\mathsf{struct}}~{{\href{../syntax/types.html#syntax-fieldtype}{\mathit{fieldtype}}}^\ast} : \href{../valid/types.html#valid-comptype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -322,9 +322,9 @@ C \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#s
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-fieldtype}{\vdash} {\href{../syntax/types.html#syntax-fieldtype}{\mathit{fieldtype}}} : \href{../valid/types.html#valid-fieldtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-fieldtype}{\vdash} {\href{../syntax/types.html#syntax-fieldtype}{\mathit{fieldtype}}} : \href{../valid/types.html#valid-fieldtype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#syntax-comptype}{\mathsf{array}}~{\href{../syntax/types.html#syntax-fieldtype}{\mathit{fieldtype}}} : \href{../valid/types.html#valid-comptype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#syntax-comptype}{\mathsf{array}}~{\href{../syntax/types.html#syntax-fieldtype}{\mathit{fieldtype}}} : \href{../valid/types.html#valid-comptype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -341,9 +341,9 @@ C \href{../valid/types.html#valid-comptype}{\vdash} \href{../syntax/types.html#s
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-storagetype}{\vdash} {\href{../syntax/types.html#syntax-storagetype}{\mathit{storagetype}}} : \href{../valid/types.html#valid-storagetype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-storagetype}{\vdash} {\href{../syntax/types.html#syntax-storagetype}{\mathit{storagetype}}} : \href{../valid/types.html#valid-storagetype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-fieldtype}{\vdash} {\mathsf{mut}^?}~{\href{../syntax/types.html#syntax-storagetype}{\mathit{storagetype}}} : \href{../valid/types.html#valid-fieldtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-fieldtype}{\vdash} {\href{../syntax/types.html#syntax-mut}{\mathsf{mut}}^?}~{\href{../syntax/types.html#syntax-storagetype}{\mathit{storagetype}}} : \href{../valid/types.html#valid-fieldtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -357,7 +357,7 @@ C \href{../valid/types.html#valid-fieldtype}{\vdash} {\mathsf{mut}^?}~{\href{../
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
 }{
-C \href{../valid/types.html#valid-packtype}{\vdash} {\href{../syntax/types.html#syntax-packtype}{\mathit{packtype}}} : \href{../valid/types.html#valid-packtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-packtype}{\vdash} {\href{../syntax/types.html#syntax-packtype}{\mathit{packtype}}} : \href{../valid/types.html#valid-packtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -382,15 +382,15 @@ C \href{../valid/types.html#valid-packtype}{\vdash} {\href{../syntax/types.html#
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
 }{
-C \href{../valid/types.html#valid-rectype}{\vdash} \href{../syntax/types.html#syntax-rectype}{\mathsf{rec}}~\epsilon : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x)}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-rectype}{\vdash} \href{../syntax/types.html#syntax-rectype}{\mathsf{rec}}~\epsilon : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x)}
 }
 \qquad
 \frac{
-C \href{../valid/types.html#valid-subtype}{\vdash} {\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}_1 : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x)}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-subtype}{\vdash} {\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}_1 : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x)}
  \qquad
-C \href{../valid/types.html#valid-rectype}{\vdash} \href{../syntax/types.html#syntax-rectype}{\mathsf{rec}}~{{\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}^\ast} : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x + 1)}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-rectype}{\vdash} \href{../syntax/types.html#syntax-rectype}{\mathsf{rec}}~{{\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}^\ast} : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x + 1)}
 }{
-C \href{../valid/types.html#valid-rectype}{\vdash} \href{../syntax/types.html#syntax-rectype}{\mathsf{rec}}~({\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}_1~{{\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}^\ast}) : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x)}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-rectype}{\vdash} \href{../syntax/types.html#syntax-rectype}{\mathsf{rec}}~({\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}_1~{{\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}^\ast}) : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x)}
 }
 \qquad
 \end{array}\]</div>
@@ -420,14 +420,14 @@ C \href{../valid/types.html#valid-rectype}{\vdash} \href{../syntax/types.html#sy
  \qquad
 (x &lt; x_0)^\ast
  \qquad
-({\href{../valid/conventions.html#aux-unroll-deftype}{\mathrm{unroll}}}(C{.}\mathsf{types}{}[x]) = \href{../syntax/types.html#syntax-subtype}{\mathsf{sub}}~{{x'}^\ast}~{\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}'})^\ast
+({\href{../valid/conventions.html#aux-unroll-deftype}{\mathrm{unroll}}}({\mathit{{\scriptstyle C}}}{.}\href{../valid/conventions.html#context}{\mathsf{types}}{}[x]) = \href{../syntax/types.html#syntax-subtype}{\mathsf{sub}}~{{x'}^\ast}~{\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}'})^\ast
  \\
-C \href{../valid/types.html#valid-comptype}{\vdash} {\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}} : \href{../valid/types.html#valid-comptype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-comptype}{\vdash} {\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}} : \href{../valid/types.html#valid-comptype}{\mathsf{ok}}
  \qquad
-(C \href{../valid/matching.html#match-comptype}{\vdash} {\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}} \href{../valid/matching.html#match-comptype}{\leq} {\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}'})^\ast
+({\mathit{{\scriptstyle C}}} \href{../valid/matching.html#match-comptype}{\vdash} {\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}} \href{../valid/matching.html#match-comptype}{\leq} {\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}'})^\ast
 \end{array}
 }{
-C \href{../valid/types.html#valid-subtype}{\vdash} \href{../syntax/types.html#syntax-subtype}{\mathsf{sub}}~{\mathsf{final}^?}~{{\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}}^\ast}~{\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}} : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x_0)}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-subtype}{\vdash} \href{../syntax/types.html#syntax-subtype}{\mathsf{sub}}~{\href{../syntax/types.html#syntax-subtype}{\mathsf{final}}^?}~{{\href{../syntax/modules.html#syntax-typeidx}{\mathit{typeidx}}}^\ast}~{\href{../syntax/types.html#syntax-comptype}{\mathit{comptype}}} : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x_0)}
 }
 \qquad
 \end{array}\end{split}\]</div>
@@ -452,13 +452,13 @@ preventing cyclic subtype hierarchies.</p>
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-rectype}{\vdash} {\href{../syntax/types.html#syntax-rectype}{\mathit{rectype}}} : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x)}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-rectype}{\vdash} {\href{../syntax/types.html#syntax-rectype}{\mathit{rectype}}} : {\href{../valid/types.html#valid-subtype}{\mathsf{ok}}}{(x)}
  \qquad
 {\href{../syntax/types.html#syntax-rectype}{\mathit{rectype}}} = \href{../syntax/types.html#syntax-rectype}{\mathsf{rec}}~{{\href{../syntax/types.html#syntax-subtype}{\mathit{subtype}}}^{n}}
  \qquad
 i &lt; n
 }{
-C \href{../valid/types.html#valid-deftype}{\vdash} {\href{../syntax/types.html#syntax-rectype}{\mathit{rectype}}} {.} i : \href{../valid/types.html#valid-deftype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-deftype}{\vdash} {\href{../syntax/types.html#syntax-rectype}{\mathit{rectype}}} {.} i : \href{../valid/types.html#valid-deftype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -484,7 +484,7 @@ C \href{../valid/types.html#valid-deftype}{\vdash} {\href{../syntax/types.html#s
 \frac{
 n \leq m \leq k
 }{
-C \href{../valid/types.html#valid-limits}{\vdash} {}[ n \href{../syntax/types.html#syntax-limits}{\,{..}\,} m ] : k
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-limits}{\vdash} {}[ n \href{../syntax/types.html#syntax-limits}{\,{..}\,} m ] : k
 }
 \qquad
 \end{array}\]</div>
@@ -502,11 +502,11 @@ C \href{../valid/types.html#valid-limits}{\vdash} {}[ n \href{../syntax/types.ht
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-limits}{\vdash} {\href{../syntax/types.html#syntax-limits}{\mathit{limits}}} : {2^{32}} - 1
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-limits}{\vdash} {\href{../syntax/types.html#syntax-limits}{\mathit{limits}}} : {2^{32}} - 1
  \qquad
-C \href{../valid/types.html#valid-reftype}{\vdash} {\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}} : \href{../valid/types.html#valid-reftype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-reftype}{\vdash} {\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}} : \href{../valid/types.html#valid-reftype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-tabletype}{\vdash} {\href{../syntax/types.html#syntax-limits}{\mathit{limits}}}~{\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}} : \href{../valid/types.html#valid-tabletype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-tabletype}{\vdash} {\href{../syntax/types.html#syntax-limits}{\mathit{limits}}}~{\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}} : \href{../valid/types.html#valid-tabletype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -523,9 +523,9 @@ C \href{../valid/types.html#valid-tabletype}{\vdash} {\href{../syntax/types.html
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-limits}{\vdash} {\href{../syntax/types.html#syntax-limits}{\mathit{limits}}} : {2^{16}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-limits}{\vdash} {\href{../syntax/types.html#syntax-limits}{\mathit{limits}}} : {2^{16}}
 }{
-C \href{../valid/types.html#valid-memtype}{\vdash} {\href{../syntax/types.html#syntax-limits}{\mathit{limits}}}~\mathsf{i{\scriptstyle8}} : \href{../valid/types.html#valid-memtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-memtype}{\vdash} {\href{../syntax/types.html#syntax-limits}{\mathit{limits}}}~\href{../syntax/types.html#syntax-memtype}{\mathsf{page}} : \href{../valid/types.html#valid-memtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -542,9 +542,9 @@ C \href{../valid/types.html#valid-memtype}{\vdash} {\href{../syntax/types.html#s
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-valtype}{\vdash} t : \href{../valid/types.html#valid-valtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-valtype}{\vdash} t : \href{../valid/types.html#valid-valtype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-globaltype}{\vdash} {\mathsf{mut}^?}~t : \href{../valid/types.html#valid-globaltype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-globaltype}{\vdash} {\href{../syntax/types.html#syntax-mut}{\mathsf{mut}}^?}~t : \href{../valid/types.html#valid-globaltype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -562,11 +562,11 @@ C \href{../valid/types.html#valid-globaltype}{\vdash} {\mathsf{mut}^?}~t : \href
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-deftype}{\vdash} {\href{../valid/conventions.html#syntax-deftype}{\mathit{deftype}}} : \href{../valid/types.html#valid-deftype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-deftype}{\vdash} {\href{../valid/conventions.html#syntax-deftype}{\mathit{deftype}}} : \href{../valid/types.html#valid-deftype}{\mathsf{ok}}
  \qquad
-{\href{../valid/conventions.html#syntax-deftype}{\mathit{deftype}}} \approx \href{../syntax/types.html#syntax-comptype}{\mathsf{func}}~{\href{../syntax/types.html#syntax-functype}{\mathit{functype}}}
+{\href{../valid/conventions.html#syntax-deftype}{\mathit{deftype}}} \href{../valid/conventions.html#aux-expand-deftype}{\approx} \href{../syntax/types.html#syntax-comptype}{\mathsf{func}}~{\href{../syntax/types.html#syntax-functype}{\mathit{functype}}}
 }{
-C \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html#syntax-externtype}{\mathsf{func}}~{\href{../valid/conventions.html#syntax-deftype}{\mathit{deftype}}} : \href{../valid/types.html#valid-externtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html#syntax-externtype}{\mathsf{func}}~{\href{../valid/conventions.html#syntax-deftype}{\mathit{deftype}}} : \href{../valid/types.html#valid-externtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -580,9 +580,9 @@ C \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-tabletype}{\vdash} {\href{../syntax/types.html#syntax-tabletype}{\mathit{tabletype}}} : \href{../valid/types.html#valid-tabletype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-tabletype}{\vdash} {\href{../syntax/types.html#syntax-tabletype}{\mathit{tabletype}}} : \href{../valid/types.html#valid-tabletype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html#syntax-externtype}{\mathsf{table}}~{\href{../syntax/types.html#syntax-tabletype}{\mathit{tabletype}}} : \href{../valid/types.html#valid-externtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html#syntax-externtype}{\mathsf{table}}~{\href{../syntax/types.html#syntax-tabletype}{\mathit{tabletype}}} : \href{../valid/types.html#valid-externtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -596,9 +596,9 @@ C \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-memtype}{\vdash} {\href{../syntax/types.html#syntax-memtype}{\mathit{memtype}}} : \href{../valid/types.html#valid-memtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-memtype}{\vdash} {\href{../syntax/types.html#syntax-memtype}{\mathit{memtype}}} : \href{../valid/types.html#valid-memtype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html#syntax-externtype}{\mathsf{mem}}~{\href{../syntax/types.html#syntax-memtype}{\mathit{memtype}}} : \href{../valid/types.html#valid-externtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html#syntax-externtype}{\mathsf{mem}}~{\href{../syntax/types.html#syntax-memtype}{\mathit{memtype}}} : \href{../valid/types.html#valid-externtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -612,9 +612,9 @@ C \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-globaltype}{\vdash} {\href{../syntax/types.html#syntax-globaltype}{\mathit{globaltype}}} : \href{../valid/types.html#valid-globaltype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-globaltype}{\vdash} {\href{../syntax/types.html#syntax-globaltype}{\mathit{globaltype}}} : \href{../valid/types.html#valid-globaltype}{\mathsf{ok}}
 }{
-C \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html#syntax-externtype}{\mathsf{global}}~{\href{../syntax/types.html#syntax-globaltype}{\mathit{globaltype}}} : \href{../valid/types.html#valid-externtype}{\mathsf{ok}}
+{\mathit{{\scriptstyle C}}} \href{../valid/types.html#valid-externtype}{\vdash} \href{../syntax/types.html#syntax-externtype}{\mathsf{global}}~{\href{../syntax/types.html#syntax-globaltype}{\mathit{globaltype}}} : \href{../valid/types.html#valid-externtype}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
