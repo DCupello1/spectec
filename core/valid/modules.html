@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
-    <title>Modules &#8212; WebAssembly 3.0 (Draft 2024-06-01)</title>
+    <title>Modules &#8212; WebAssembly 3.0 (Draft 2024-06-04)</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -363,13 +363,13 @@ C \href{../valid/modules.html#valid-globalseq}{\vdash} {\href{../syntax/modules.
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/types.html#valid-reftype}{\vdash} {\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}} : \href{../valid/types.html#valid-reftype}{\mathsf{ok}}
+C \href{../valid/types.html#valid-reftype}{\vdash} {\href{../syntax/types.html#syntax-elemtype}{\mathit{elemtype}}} : \href{../valid/types.html#valid-reftype}{\mathsf{ok}}
  \qquad
-(C \href{../valid/instructions.html#valid-const}{\vdash} {\href{../syntax/instructions.html#syntax-expr}{\mathit{expr}}} : {\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}}~\href{../valid/instructions.html#valid-const}{\mathsf{const}})^\ast
+(C \href{../valid/instructions.html#valid-const}{\vdash} {\href{../syntax/instructions.html#syntax-expr}{\mathit{expr}}} : {\href{../syntax/types.html#syntax-elemtype}{\mathit{elemtype}}}~\href{../valid/instructions.html#valid-const}{\mathsf{const}})^\ast
  \qquad
-C \href{../valid/modules.html#valid-elemmode}{\vdash} {\href{../syntax/modules.html#syntax-elemmode}{\mathit{elemmode}}} : {\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}}
+C \href{../valid/modules.html#valid-elemmode}{\vdash} {\href{../syntax/modules.html#syntax-elemmode}{\mathit{elemmode}}} : {\href{../syntax/types.html#syntax-elemtype}{\mathit{elemtype}}}
 }{
-C \href{../valid/modules.html#valid-elem}{\vdash} \href{../syntax/modules.html#syntax-elem}{\mathsf{elem}}~{\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}}~{{\href{../syntax/instructions.html#syntax-expr}{\mathit{expr}}}^\ast}~{\href{../syntax/modules.html#syntax-elemmode}{\mathit{elemmode}}} : {\href{../syntax/types.html#syntax-reftype}{\mathit{reftype}}}
+C \href{../valid/modules.html#valid-elem}{\vdash} \href{../syntax/modules.html#syntax-elem}{\mathsf{elem}}~{\href{../syntax/types.html#syntax-elemtype}{\mathit{elemtype}}}~{{\href{../syntax/instructions.html#syntax-expr}{\mathit{expr}}}^\ast}~{\href{../syntax/modules.html#syntax-elemmode}{\mathit{elemmode}}} : {\href{../syntax/types.html#syntax-elemtype}{\mathit{elemtype}}}
 }
 \qquad
 \end{array}\]</div>
@@ -427,7 +427,7 @@ C \href{../valid/modules.html#valid-elemmode}{\vdash} \href{../syntax/modules.ht
 </section>
 </section>
 <section id="data-segments">
-<span id="syntax-datatype"></span><span id="valid-data"></span><span id="index-7"></span><h2>Data Segments<a class="headerlink" href="#data-segments" title="Permalink to this heading">¶</a></h2>
+<span id="valid-data"></span><span id="index-7"></span><h2>Data Segments<a class="headerlink" href="#data-segments" title="Permalink to this heading">¶</a></h2>
 <p>Data segments <span class="math notranslate nohighlight">\({\href{../syntax/modules.html#syntax-data}{\mathit{data}}}\)</span> are not classified by any type but merely checked for well-formedness.</p>
 <section id="xref-syntax-modules-syntax-data-mathsf-init-b-ast-xref-syntax-modules-syntax-data-mathsf-mode-xref-syntax-modules-syntax-datamode-mathit-datamode">
 <h3><span class="math notranslate nohighlight">\(\{ \href{../syntax/modules.html#syntax-data}{\mathsf{init}}~b^\ast, \href{../syntax/modules.html#syntax-data}{\mathsf{mode}}~\href{../syntax/modules.html#syntax-datamode}{\mathit{datamode}} \}\)</span><a class="headerlink" href="#xref-syntax-modules-syntax-data-mathsf-init-b-ast-xref-syntax-modules-syntax-data-mathsf-mode-xref-syntax-modules-syntax-datamode-mathit-datamode" title="Permalink to this heading">¶</a></h3>
@@ -438,7 +438,7 @@ C \href{../valid/modules.html#valid-elemmode}{\vdash} \href{../syntax/modules.ht
 <div class="math notranslate nohighlight">
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
-C \href{../valid/modules.html#valid-datamode}{\vdash} {\href{../syntax/modules.html#syntax-datamode}{\mathit{datamode}}} : \href{../valid/modules.html#valid-datamode}{\mathsf{ok}}
+C \href{../valid/modules.html#valid-datamode}{\vdash} {\href{../syntax/modules.html#syntax-datamode}{\mathit{datamode}}} : \href{../valid/modules.html#valid-data}{\mathsf{ok}}
 }{
 C \href{../valid/modules.html#valid-data}{\vdash} \href{../syntax/modules.html#syntax-data}{\mathsf{data}}~{b^\ast}~{\href{../syntax/modules.html#syntax-datamode}{\mathit{datamode}}} : \href{../valid/modules.html#valid-data}{\mathsf{ok}}
 }
@@ -454,7 +454,7 @@ C \href{../valid/modules.html#valid-data}{\vdash} \href{../syntax/modules.html#s
 \[\begin{array}{&#64;{}c&#64;{}}\displaystyle
 \frac{
 }{
-C \href{../valid/modules.html#valid-datamode}{\vdash} \href{../syntax/modules.html#syntax-datamode}{\mathsf{passive}} : \href{../valid/modules.html#valid-datamode}{\mathsf{ok}}
+C \href{../valid/modules.html#valid-datamode}{\vdash} \href{../syntax/modules.html#syntax-datamode}{\mathsf{passive}} : \href{../valid/modules.html#valid-data}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -474,7 +474,7 @@ C{.}\href{../valid/conventions.html#context}{\mathsf{mems}}{}[x] = {\mathit{mt}}
  \qquad
 C \href{../valid/instructions.html#valid-const}{\vdash} {\href{../syntax/instructions.html#syntax-expr}{\mathit{expr}}} : \href{../syntax/types.html#syntax-numtype}{\mathsf{i\scriptstyle32}}~\href{../valid/instructions.html#valid-const}{\mathsf{const}}
 }{
-C \href{../valid/modules.html#valid-datamode}{\vdash} \href{../syntax/modules.html#syntax-datamode}{\mathsf{active}}~x~{\href{../syntax/instructions.html#syntax-expr}{\mathit{expr}}} : \href{../valid/modules.html#valid-datamode}{\mathsf{ok}}
+C \href{../valid/modules.html#valid-datamode}{\vdash} \href{../syntax/modules.html#syntax-datamode}{\mathsf{active}}~x~{\href{../syntax/instructions.html#syntax-expr}{\mathit{expr}}} : \href{../valid/modules.html#valid-data}{\mathsf{ok}}
 }
 \qquad
 \end{array}\]</div>
@@ -663,7 +663,7 @@ the definition <span class="math notranslate nohighlight">\(\href{../syntax/modu
 <li><p>For each <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-elem}{\mathit{elem}}_i\)</span> in <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-module}{\mathit{module}}.\href{../syntax/modules.html#syntax-module}{\mathsf{elems}}\)</span>,
 the segment <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-elem}{\mathit{elem}}_i\)</span> must be <a class="reference internal" href="#valid-elem"><span class="std std-ref">valid</span></a> with <a class="reference internal" href="../syntax/types.html#syntax-reftype"><span class="std std-ref">reference type</span></a> <span class="math notranslate nohighlight">\(\mathit{rt}_i\)</span>.</p></li>
 <li><p>For each <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-data}{\mathit{data}}_i\)</span> in <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-module}{\mathit{module}}.\href{../syntax/modules.html#syntax-module}{\mathsf{datas}}\)</span>,
-the segment <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-data}{\mathit{data}}_i\)</span> must be <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> with <a class="reference internal" href="#syntax-datatype"><span class="std std-ref">data type</span></a> <span class="math notranslate nohighlight">\(\mathit{ok}_i\)</span>.</p></li>
+the segment <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-data}{\mathit{data}}_i\)</span> must be <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> with <a class="reference internal" href="../syntax/types.html#syntax-datatype"><span class="std std-ref">data type</span></a> <span class="math notranslate nohighlight">\(\mathit{ok}_i\)</span>.</p></li>
 <li><p>If <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-module}{\mathit{module}}.\href{../syntax/modules.html#syntax-module}{\mathsf{start}}\)</span> is non-empty,
 then <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-module}{\mathit{module}}.\href{../syntax/modules.html#syntax-module}{\mathsf{start}}\)</span> must be <a class="reference internal" href="#valid-start"><span class="std std-ref">valid</span></a>.</p></li>
 <li><p>For each <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-import}{\mathit{import}}_i\)</span> in <span class="math notranslate nohighlight">\(\href{../syntax/modules.html#syntax-module}{\mathit{module}}.\href{../syntax/modules.html#syntax-module}{\mathsf{imports}}\)</span>,
@@ -676,7 +676,7 @@ the segment <span class="math notranslate nohighlight">\(\href{../syntax/modules
 <li><p>Let <span class="math notranslate nohighlight">\(\mathit{tt}^\ast\)</span> be the concatenation of the internal <a class="reference internal" href="../syntax/types.html#syntax-tabletype"><span class="std std-ref">table types</span></a> <span class="math notranslate nohighlight">\(\mathit{tt}_i\)</span>, in index order.</p></li>
 <li><p>Let <span class="math notranslate nohighlight">\(\mathit{mt}^\ast\)</span> be the concatenation of the internal <a class="reference internal" href="../syntax/types.html#syntax-memtype"><span class="std std-ref">memory types</span></a> <span class="math notranslate nohighlight">\(\mathit{mt}_i\)</span>, in index order.</p></li>
 <li><p>Let <span class="math notranslate nohighlight">\(\mathit{rt}^\ast\)</span> be the concatenation of the <a class="reference internal" href="../syntax/types.html#syntax-reftype"><span class="std std-ref">reference types</span></a> <span class="math notranslate nohighlight">\(\mathit{rt}_i\)</span>, in index order.</p></li>
-<li><p>Let <span class="math notranslate nohighlight">\(\mathit{ok}^\ast\)</span> be the concatenation of the <a class="reference internal" href="#syntax-datatype"><span class="std std-ref">data types</span></a> <span class="math notranslate nohighlight">\(\mathit{ok}_i\)</span>, in index order.</p></li>
+<li><p>Let <span class="math notranslate nohighlight">\(\mathit{ok}^\ast\)</span> be the concatenation of the <a class="reference internal" href="../syntax/types.html#syntax-datatype"><span class="std std-ref">data types</span></a> <span class="math notranslate nohighlight">\(\mathit{ok}_i\)</span>, in index order.</p></li>
 <li><p>Let <span class="math notranslate nohighlight">\(\mathit{it}^\ast\)</span> be the concatenation of <a class="reference internal" href="../syntax/types.html#syntax-externtype"><span class="std std-ref">external types</span></a> <span class="math notranslate nohighlight">\(\mathit{it}_i\)</span> of the imports, in index order.</p></li>
 <li><p>Let <span class="math notranslate nohighlight">\(\mathit{et}^\ast\)</span> be the concatenation of <a class="reference internal" href="../syntax/types.html#syntax-externtype"><span class="std std-ref">external types</span></a> <span class="math notranslate nohighlight">\(\mathit{et}_i\)</span> of the exports, in index order.</p></li>
 <li><p>The length of <span class="math notranslate nohighlight">\(C.\href{../valid/conventions.html#context}{\mathsf{mems}}\)</span> must not be larger than <span class="math notranslate nohighlight">\(1\)</span>.</p></li>
@@ -724,7 +724,7 @@ C = \{ \begin{array}[t]{&#64;{}l&#64;{}}
 {{\mathit{mt}}_{\mathsf{i}}^\ast} = {\href{../syntax/types.html#syntax-externtype}{\mathrm{mems}}}({{\mathit{xt}}_{\mathsf{i}}^\ast})
 \end{array}
 }{
-{ \href{../valid/modules.html#valid-module}{\vdash} }\;\href{../syntax/modules.html#syntax-module}{\mathsf{module}}~{{\href{../syntax/types.html#syntax-rectype}{\mathit{type}}}^\ast}~{{\href{../syntax/modules.html#syntax-import}{\mathit{import}}}^\ast}~{{\href{../syntax/modules.html#syntax-func}{\mathit{func}}}^\ast}~{{\href{../syntax/modules.html#syntax-global}{\mathit{global}}}^\ast}~{{\href{../syntax/modules.html#syntax-table}{\mathit{table}}}^\ast}~{{\href{../syntax/modules.html#syntax-mem}{\mathit{mem}}}^\ast}~{{\href{../syntax/modules.html#syntax-elem}{\mathit{elem}}}^\ast}~{{\href{../syntax/modules.html#syntax-data}{\mathit{data}}}^\ast}~{{\href{../syntax/modules.html#syntax-start}{\mathit{start}}}^?}~{{\href{../syntax/modules.html#syntax-export}{\mathit{export}}}^\ast} : {{\mathit{xt}}_{\mathsf{i}}^\ast} \mathrel{\href{../valid/modules.html#syntax-moduletype}{\rightarrow}} {{\mathit{xt}}_{\mathsf{e}}^\ast}
+{ \href{../valid/modules.html#valid-module}{\vdash} }\;\href{../syntax/modules.html#syntax-module}{\mathsf{module}}~{{\href{../syntax/types.html#syntax-rectype}{\mathit{type}}}^\ast}~{{\href{../syntax/modules.html#syntax-import}{\mathit{import}}}^\ast}~{{\href{../syntax/modules.html#syntax-func}{\mathit{func}}}^\ast}~{{\href{../syntax/modules.html#syntax-global}{\mathit{global}}}^\ast}~{{\href{../syntax/modules.html#syntax-table}{\mathit{table}}}^\ast}~{{\href{../syntax/modules.html#syntax-mem}{\mathit{mem}}}^\ast}~{{\href{../syntax/modules.html#syntax-elem}{\mathit{elem}}}^\ast}~{{\href{../syntax/modules.html#syntax-data}{\mathit{data}}}^\ast}~{{\href{../syntax/modules.html#syntax-start}{\mathit{start}}}^?}~{{\href{../syntax/modules.html#syntax-export}{\mathit{export}}}^\ast} : {{\href{../valid/conventions.html#aux-clostype}{\mathsf{clos}}}}_{C}({{\mathit{xt}}_{\mathsf{i}}^\ast} \mathrel{\href{../valid/modules.html#syntax-moduletype}{\rightarrow}} {{\mathit{xt}}_{\mathsf{e}}^\ast})
 }
 \qquad
 \end{array}\end{split}\]</div>
