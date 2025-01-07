@@ -68,14 +68,17 @@ atomop ::=
 ### Types
 
 ```
-typ ::=
-  varid args                           type name
-  "bool"                               booleans
+numtyp ::=
   "nat"                                natural numbers
   "int"                                integer numbers
   "rat"                                rational numbers
   "real"                               real numbers
+
+typ ::=
+  varid args                           type name
+  "bool"                               booleans
   "text"                               text strings
+  numtyp                               numbers
   typ iter                             iteration
   "(" list(typ, ",") ")"               parentheses or tupling
 
@@ -130,14 +133,16 @@ exp ::=
   "eps"                                empty sequence
   exp exp                              sequencing
   exp iter                             iteration
+  "[" exp* "]"                         list
   exp "[" arith "]"                    list indexing
   exp "[" arith ":" arith "]"          list slicing
   exp "[" path "=" exp "]"             list update
-  exp "[" path "=.." exp "]"           list extension
+  exp "[" path "=++" exp "]"           list extension
   "{" list(atom exp, ",") "}"          record
   exp "." atom                         record access
   exp "," exp                          record extension
-  exp "++" exp                         record composition
+  exp "++" exp                         list and record composition
+  exp "<-" exp                         list membership
   "|" exp "|"                          list length
   "||" gramid "||"                     expansion length
   "(" list(exp, ",") ")"               parentheses or tupling
@@ -149,6 +154,7 @@ exp ::=
   "`" "[" list(exp, ",") "]"
   "`" "{" list(exp, ",") "}"
   "$" "(" arith ")"                    escape to arithmetic syntax
+  "$" numtyp "$" "(" arith ")"         numeric conversion
   hole                                 hole (for syntax rewrites in hints)
   exp "#" exp                          token concatenation (for syntax rewrites in hints)
   "##" exp                             remove possible parentheses (for syntax rewrites in hints)
@@ -168,6 +174,7 @@ arith ::=
   "|" exp "|"                          list length
   "$" defid exp?                       function invocation
   "$" "(" exp ")"                      escape back to general expression syntax
+  "$" numtyp "$" "(" arith ")"         numeric conversion
 
 path ::=
   path? "[" arith "]"                  list element
@@ -180,6 +187,7 @@ hole ::=
   "%"digit*                            use numbered operand
   "%%"                                 use all operands
   "!%"                                 empty expression
+  "%latex" "(" text* ")"               literal latex
 ```
 
 The various meta notations for lists, records, and tuples mirror the syntactic conventions defined in the Wasm spec.
@@ -227,12 +235,14 @@ arg ::=
   exp
   "syntax" typ
   "grammar" sym
+  "def" defid
 
 params ::= ("(" list(param ",") ")")?
 param ::=
   (varid ":") typ
   "syntax" synid
   "grammar" gramid ":" typ
+  "def" "$" defid params ":" typ
 
 def ::=
   "syntax" varid params hint*                               syntax declaration

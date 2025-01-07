@@ -2,10 +2,14 @@
   (name backend_prose)
   (libraries util el il il2al backend_latex backend_interpreter)
   (modules
+    config
     prose
+    prose_util
     print
     gen
     render
     macro
-    symbol)
+    langs
+    eq
+    prose_util)
 )

@@ -123,7 +123,8 @@ and after_nl_nl = parse
   | indent* "|"[' ''\t'] { NL_BAR }
   | indent* '\n' { Lexing.new_line lexbuf; NL_NL_NL }
   | indent* line_comment '\n' { Lexing.new_line lexbuf; after_nl_nl lexbuf }
-  | "" { token lexbuf }
+  | indent* line_comment? eof { EOF }
+  | "" { NL_NL }
 
 and token = parse
   | "(" { LPAREN }
@@ -164,14 +165,16 @@ and token = parse
   | ":>" { SUP }
   | ":=" { ASSIGN }
   | "==" { EQUIV }
-  | "=.." { EQDOT2 }
+  | "=++" { EQCAT }
 
   | "~" { NOT }
   | "/\\" { AND }
   | "\\/" { OR }
-  | "(++)" { BIGCOMP }
   | "(/\\)" { BIGAND }
   | "(\\/)" { BIGOR }
+  | "(+)" { BIGADD }
+  | "(*)" { BIGMUL }
+  | "(++)" { BIGCAT }
 
   | "?" { QUEST }
   | "+" { PLUS }
@@ -180,11 +183,11 @@ and token = parse
   | "/" { SLASH }
   | "\\" { BACKSLASH }
   | "^" { UP }
-  | "++" { COMPOSE }
+  | "++" { CAT }
   | "+-" { PLUSMINUS }
   | "-+" { MINUSPLUS }
 
-  | "<-" { IN }
+  | "<-" { MEM }
   | "->" { ARROW }
   | "=>" { ARROW2 }
   | "->_" { ARROWSUB }
@@ -207,6 +210,7 @@ and token = parse
   | "!%" { NOTHING }
   | "#" { FUSE }
   | "##" { FUSEFUSE }
+  | "%latex" { LATEX }
 
   | "`" { TICK }
 
@@ -252,9 +256,9 @@ and token = parse
   | "`"(loid as s) "(" { UPID_LPAREN s }
   | "."(id as s) { DOTID s }
 
-  | ";;"utf8_no_nl*eof { EOF }
-  | ";;"utf8_no_nl*'\n' { Lexing.new_line lexbuf; token lexbuf }
-  | ";;"utf8_no_nl* { token lexbuf (* causes error on following position *) }
+  | line_comment eof { EOF }
+  | line_comment '\n' { Lexing.new_line lexbuf; token lexbuf }
+  | line_comment { token lexbuf (* causes error on following position *) }
   | "(;" { comment (Lexing.lexeme_start_p lexbuf) lexbuf; token lexbuf }
   | space#'\n' { token lexbuf }
   | "\n" { Lexing.new_line lexbuf; token lexbuf }

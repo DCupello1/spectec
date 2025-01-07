@@ -136,7 +136,7 @@ rule Instrs_ok/empty:
 rule Instrs_ok/seq:
   C |- instr_1 instr_2* : t_1* -> t_3*
   -- Instr_ok: C |- instr_1 : t_1* -> t_2*
-  -- Instrs_ok: C |- instr_2 : t_2* -> t_3*
+  -- Instrs_ok: C |- instr_2* : t_2* -> t_3*
 
 rule Instrs_ok/frame:
   C |- instr* : t* t_1* -> t* t_2*
@@ -162,16 +162,16 @@ rule Instr_ok/select:
 
 rule Instr_ok/block:
   C |- BLOCK t? instr* : eps -> t?
-  -- Instrs_ok: C, LABELS (t?) |- instr* : eps -> t?
+  -- Instrs_ok: {LABELS (t?)} ++ C |- instr* : eps -> t?
 
 rule Instr_ok/loop:
   C |- LOOP t? instr* : eps -> t?
-  -- Instrs_ok: C, LABELS (eps) |- instr* : eps -> eps
+  -- Instrs_ok: {LABELS (eps)} ++ C |- instr* : eps -> eps
 
 rule Instr_ok/if:
   C |- IF t? instr_1* ELSE instr_2* : I32 -> t?
-  -- Instrs_ok: C, LABELS (t?) |- instr_1* : eps -> t?
-  -- Instrs_ok: C, LABELS (t?) |- instr_2* : eps -> t?
+  -- Instrs_ok: {LABELS (t?)} ++ C |- instr_1* : eps -> t?
+  -- Instrs_ok: {LABELS (t?)} ++ C |- instr_2* : eps -> t?
 
 
 ;; Branch instructions
@@ -185,7 +185,7 @@ rule Instr_ok/br_if:
   -- if C.LABELS[l] = t?
 
 rule Instr_ok/br_table:
-  C |- BR_TABLE l* l' : t_1* t? -> t_2*
+  C |- BR_TABLE l* l' : t_1* t? I32 -> t_2*
   -- if t? = C.LABELS[l']
   -- if (t? = C.LABELS[l])*
 
@@ -229,8 +229,7 @@ rule Instr_ok/cvtop-reinterpret:
   -- if $size(nt_1) = $size(nt_2)
 
 rule Instr_ok/cvtop-convert:
-  C |- CVTOP nt_1 nt_2 CONVERT sx? : nt_2 -> nt_1
-  -- if sx? = eps <=> nt_1 = Inn_1 /\ nt_2 = Inn_2 /\ $size(nt_1) > $size(nt_2) \/ nt_1 = Fnn_1 /\ nt_2 = Fnn_2
+  C |- CVTOP nt_1 nt_2 cvtop : nt_2 -> nt_1
 
 
 ;; Local instructions
@@ -269,19 +268,43 @@ rule Instr_ok/memory.grow:
   C |- MEMORY.GROW : I32 -> I32
   -- if C.MEMS[0] = mt
 
+(;
 rule Instr_ok/load:
-  C |- LOAD nt (n _ sx)? memarg : I32 -> nt
+  C |- LOAD t (n sx)? memarg : I32 -> t
   -- if C.MEMS[0] = mt
-  -- if $(2^(memarg.ALIGN) <= $size(nt)/8)
-  -- if $(2^(memarg.ALIGN) <= n/8 < $size(nt)/8)?
-  -- if n? = eps \/ nt = Inn
+  -- if $(2^(memarg.ALIGN) <= $size(t)/8)
+  -- if $(2^(memarg.ALIGN) <= n/8 < $size(t)/8)?
+  -- if n? = eps \/ t = Inn
+;)
 
-rule Instr_ok/store:
-  C |- STORE nt n? memarg : I32 nt -> eps
+rule Instr_ok/load-val:
+  C |- LOAD t memarg : I32 -> t
   -- if C.MEMS[0] = mt
-  -- if $(2^(memarg.ALIGN) <= $size(nt)/8)
-  -- if $(2^(memarg.ALIGN) <= n/8 < $size(nt)/8)?
-  -- if n? = eps \/ nt = Inn
+  -- if $(2^(memarg.ALIGN) <= $size(t)/8)
+
+rule Instr_ok/load-pack:
+  C |- LOAD Inn (M sx) memarg : I32 -> Inn
+  -- if C.MEMS[0] = mt
+  -- if $(2^(memarg.ALIGN) <= M/8)
+
+(;
+rule Instr_ok/store:
+  C |- STORE t n? memarg : I32 t -> eps
+  -- if C.MEMS[0] = mt
+  -- if $(2^(memarg.ALIGN) <= $size(t)/8)
+  -- if $(2^(memarg.ALIGN) <= n/8 < $size(t)/8)?
+  -- if n? = eps \/ t = Inn
+;)
+
+rule Instr_ok/store-val:
+  C |- STORE t memarg : I32 t -> eps
+  -- if C.MEMS[0] = mt
+  -- if $(2^(memarg.ALIGN) <= $size(t)/8)
+
+rule Instr_ok/store-pack:
+  C |- STORE Inn M memarg : I32 Inn -> eps
+  -- if C.MEMS[0] = mt
+  -- if $(2^(memarg.ALIGN) <= M/8)
 
 
 ;;
@@ -333,7 +356,7 @@ rule Type_ok:
 rule Func_ok:
   C |- FUNC x (LOCAL t)* expr : t_1* -> t_2?
   -- if C.TYPES[x] = t_1* -> t_2?
-  -- Expr_ok: C, LOCALS t_1* t*, LABELS (t_2?), RETURN (t_2?) |- expr : t_2?
+  -- Expr_ok: C ++ {LOCALS t_1* t*, LABELS (t_2?), RETURN (t_2?)} |- expr : t_2?
 
 rule Global_ok:
   C |- GLOBAL gt expr : gt

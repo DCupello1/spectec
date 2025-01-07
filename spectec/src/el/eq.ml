@@ -80,24 +80,28 @@ and eq_exp e1 e2 =
   match e1.it, e2.it with
   | VarE (id1, args1), VarE (id2, args2) ->
     eq_id id1 id2 && eq_list eq_arg args1 args2
+  | CvtE (e11, nt1), CvtE (e21, nt2) -> eq_exp e11 e21 && nt1 = nt2
   | UnE (op1, e11), UnE (op2, e21) -> op1 = op2 && eq_exp e11 e21
   | BinE (e11, op1, e12), BinE (e21, op2, e22) ->
     eq_exp e11 e21 && op1 = op2 && eq_exp e12 e22
   | CmpE (e11, op1, e12), CmpE (e21, op2, e22) ->
     eq_exp e11 e21 && op1 = op2 && eq_exp e12 e22
-  | LenE e11, LenE e21 
+  | LenE e11, LenE e21
+  | ParenE e11, ParenE e21
+  | ArithE e11, ArithE e21
   | UnparenE e11, UnparenE e21 -> eq_exp e11 e21
   | IdxE (e11, e12), IdxE (e21, e22)
   | CommaE (e11, e12), CommaE (e21, e22)
-  | CompE (e11, e12), CompE (e21, e22)
+  | CatE (e11, e12), CatE (e21, e22)
+  | MemE (e11, e12), MemE (e21, e22)
   | FuseE (e11, e12), FuseE (e21, e22) -> eq_exp e11 e21 && eq_exp e12 e22
   | SliceE (e11, e12, e13), SliceE (e21, e22, e23) ->
     eq_exp e11 e21 && eq_exp e12 e22 && eq_exp e13 e23
   | UpdE (e11, p1, e12), UpdE (e21, p2, e22)
   | ExtE (e11, p1, e12), ExtE (e21, p2, e22) ->
     eq_exp e11 e21 && eq_path p1 p2 && eq_exp e12 e22
-  | ParenE (e11, b1), ParenE (e21, b2) -> eq_exp e11 e21 && b1 = b2
   | SeqE es1, SeqE es2
+  | ListE es1, ListE es2
   | TupE es1, TupE es2 -> eq_list eq_exp es1 es2
   | StrE efs1, StrE efs2 -> eq_nl_list eq_expfield efs1 efs2
   | DotE (e11, atom1), DotE (e21, atom2) -> eq_exp e11 e21 && eq_atom atom1 atom2
@@ -164,6 +168,7 @@ and eq_arg a1 a2 =
   | ExpA e1, ExpA e2 -> eq_exp e1 e2
   | TypA t1, TypA t2 -> eq_typ t1 t2
   | GramA g1, GramA g2 -> eq_sym g1 g2
+  | DefA id1, DefA id2 -> eq_id id1 id2
   | _, _ -> false
 
 and eq_param p1 p2 =
@@ -171,4 +176,6 @@ and eq_param p1 p2 =
   | ExpP (id1, t1), ExpP (id2, t2) -> eq_id id1 id2 && eq_typ t1 t2
   | TypP id1, TypP id2 -> eq_id id1 id2
   | GramP (id1, t1), GramP (id2, t2) -> eq_id id1 id2 && eq_typ t1 t2
+  | DefP (id1, ps1, t1), DefP (id2, ps2, t2) ->
+    eq_id id1 id2 && eq_list eq_param ps1 ps2 && eq_typ t1 t2
   | _, _ -> false

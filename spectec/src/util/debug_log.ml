@@ -2,13 +2,14 @@
 let active : string list = []
 
 let fmt = Printf.sprintf
+let loc = Source.string_of_region
 
 let log_exn _exn =
   if active <> [] then
     Printf.eprintf "\n%s\n%!" (Printexc.get_backtrace ())
 
 let log_at (type a) label at (arg_f : unit -> string) (res_f : a -> string) (f : unit -> a) : a =
-  if not (List.mem label active) then f () else
+  if not (label = "" || List.exists (fun s -> String.starts_with ~prefix: s label) active) then f () else
   let ats = if at = Source.no_region then "" else " " ^ Source.string_of_region at in
   let arg = arg_f () in
   Printf.eprintf "[%s%s] %s\n%!" label ats arg;
@@ -25,13 +26,17 @@ let log_at (type a) label at (arg_f : unit -> string) (res_f : a -> string) (f :
 let log_in_at label at arg_f = log_at label at arg_f (Fun.const "") Fun.id
 let log_in label = log_in_at label Source.no_region
 let log label = log_at label Source.no_region
-let log_if label b arg_f res_f f = if b then log label arg_f res_f f else f ()
+let log_if_at label at b arg_f res_f f = if b then log_at label at arg_f res_f f else f ()
+let log_if label = log_if_at label Source.no_region
 
+module MySet = Set.Make(String)
 module MyMap = Map.Make(String)
 
-let opt f xo = match xo with None -> "-" | Some x -> f x
+let opt f = function None -> "-" | Some x -> f x
+let result f g = function Ok x -> f x | Error y -> g y
 let seq f xs = String.concat " " (List.map f xs)
 let list f xs = String.concat ", " (List.map f xs)
+let set s = seq Fun.id (MySet.elements s)
 let mapping f m = seq (fun (x, y) -> x ^ "=" ^ f y) (MyMap.bindings m)
 
 let qline _ = "--------------------"

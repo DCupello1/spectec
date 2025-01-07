@@ -4,7 +4,7 @@
 
 ;; Vectors
 
-grammar Bvec(grammar BX : el) : el* =
+grammar Blist(grammar BX : el) : el* =
   | n:Bu32 (el:BX)^n => el^n
 
 
@@ -27,11 +27,11 @@ grammar BsN(N) : sN(N) hint(show Bs#%) =
   | n:Bbyte i:BuN(($(N-7))) => $(2^7 * i + (n - 2^7))  -- if $(n >= 2^7 /\ N > 7)
 
 grammar BiN(N) : iN(N) hint(show Bi#%) =
-  | i:BsN(N)                => $invsigned(N, i)
+  | i:BsN(N)                => $invsigned_(N, i)
 
 
 grammar BfN(N) : fN(N) hint(show Bf#%) =
-  | b*:Bbyte^(N/8)  => $invfbytes(N, b*)
+  | b*:Bbyte^(N/8)  => $invfbytes_(N, b*)
 
 
 grammar Bu32 : u32 = n:BuN(32) => n
@@ -53,7 +53,7 @@ def $utf8(ch) = b_1 b_2 b_3 b_4  -- if (U+10000 <= ch < U+11000) /\ ch = $(2^18*
 def $utf8(ch*) = $concat_(byte, $utf8(ch)*)
 
 grammar Bname : name =
-  | b*:Bvec(Bbyte) => name  -- if $utf8(name) = b*
+  | b*:Blist(Bbyte) => name  -- if $utf8(name) = b*
 
 
 ;; Indices
@@ -87,7 +87,7 @@ grammar Bvaltype : valtype =
 
 
 grammar Bresulttype : valtype* =
-  | t*:Bvec(Bvaltype) => t*
+  | t*:Blist(Bvaltype) => t*
 
 
 ;; Type definitions
@@ -145,7 +145,7 @@ grammar Binstr/control : instr =
   | 0x04 bt:Bblocktype (in_1:Binstr)* 0x05 (in_2:Binstr)* 0x0B => IF bt in_1* ELSE in_2*
   | 0x0C l:Blabelidx => BR l
   | 0x0D l:Blabelidx => BR_IF l
-  | 0x0E l*:Bvec(Blabelidx) l_N:Blabelidx => BR_TABLE l* l_N
+  | 0x0E l*:Blist(Blabelidx) l_N:Blabelidx => BR_TABLE l* l_N
   | 0x0F => RETURN
   | 0x10 x:Bfuncidx => CALL x
   | 0x11 x:Btypeidx 0x00 => CALL_INDIRECT x
@@ -181,16 +181,16 @@ grammar Binstr/memory : instr = ...
   | 0x29 ao:Bmemarg => LOAD I64 ao
   | 0x2A ao:Bmemarg => LOAD F32 ao
   | 0x2B ao:Bmemarg => LOAD F64 ao
-  | 0x2C ao:Bmemarg => LOAD I32 (8 _ S) ao
-  | 0x2D ao:Bmemarg => LOAD I32 (8 _ U) ao
-  | 0x2E ao:Bmemarg => LOAD I32 (16 _ S) ao
-  | 0x2F ao:Bmemarg => LOAD I32 (16 _ U) ao
-  | 0x30 ao:Bmemarg => LOAD I64 (8 _ S) ao
-  | 0x31 ao:Bmemarg => LOAD I64 (8 _ U) ao
-  | 0x32 ao:Bmemarg => LOAD I64 (16 _ S) ao
-  | 0x33 ao:Bmemarg => LOAD I64 (16 _ U) ao
-  | 0x34 ao:Bmemarg => LOAD I64 (32 _ S) ao
-  | 0x35 ao:Bmemarg => LOAD I64 (32 _ U) ao
+  | 0x2C ao:Bmemarg => LOAD I32 (8 S) ao
+  | 0x2D ao:Bmemarg => LOAD I32 (8 U) ao
+  | 0x2E ao:Bmemarg => LOAD I32 (16 S) ao
+  | 0x2F ao:Bmemarg => LOAD I32 (16 U) ao
+  | 0x30 ao:Bmemarg => LOAD I64 (8 S) ao
+  | 0x31 ao:Bmemarg => LOAD I64 (8 U) ao
+  | 0x32 ao:Bmemarg => LOAD I64 (16 S) ao
+  | 0x33 ao:Bmemarg => LOAD I64 (16 U) ao
+  | 0x34 ao:Bmemarg => LOAD I64 (32 S) ao
+  | 0x35 ao:Bmemarg => LOAD I64 (32 U) ao
   | 0x36 ao:Bmemarg => STORE I32 ao
   | 0x37 ao:Bmemarg => STORE I64 ao
   | 0x38 ao:Bmemarg => STORE F32 ao
@@ -355,29 +355,28 @@ grammar Binstr/numeric-bin-f64 : instr = ...
   | 0xA6 => BINOP F64 COPYSIGN
   | ...
 
-
 grammar Binstr/numeric-cvt : instr = ...
-  | 0xA7 => CVTOP I32 I64 CONVERT
-  | 0xA8 => CVTOP I32 F32 CONVERT S
-  | 0xA9 => CVTOP I32 F32 CONVERT U
-  | 0xAA => CVTOP I32 F64 CONVERT S
-  | 0xAB => CVTOP I32 F64 CONVERT U
-  | 0xAC => CVTOP I64 I32 CONVERT S
-  | 0xAD => CVTOP I64 I32 CONVERT U
-  | 0xAE => CVTOP I64 F32 CONVERT S
-  | 0xAF => CVTOP I64 F32 CONVERT U
-  | 0xB0 => CVTOP I64 F64 CONVERT S
-  | 0xB1 => CVTOP I64 F64 CONVERT U
-  | 0xB2 => CVTOP F32 I32 CONVERT S
-  | 0xB3 => CVTOP F32 I32 CONVERT U
-  | 0xB4 => CVTOP F32 I64 CONVERT S
-  | 0xB5 => CVTOP F32 I64 CONVERT U
-  | 0xB6 => CVTOP F32 F64 CONVERT
-  | 0xB7 => CVTOP F64 I32 CONVERT S
-  | 0xB8 => CVTOP F64 I32 CONVERT U
-  | 0xB9 => CVTOP F64 I64 CONVERT S
-  | 0xBA => CVTOP F64 I64 CONVERT U
-  | 0xBB => CVTOP F64 F32 CONVERT
+  | 0xA7 => CVTOP I32 I64 WRAP
+  | 0xA8 => CVTOP I32 F32 (TRUNC S)
+  | 0xA9 => CVTOP I32 F32 (TRUNC U)
+  | 0xAA => CVTOP I32 F64 (TRUNC S)
+  | 0xAB => CVTOP I32 F64 (TRUNC U)
+  | 0xAC => CVTOP I64 I32 (EXTEND S)
+  | 0xAD => CVTOP I64 I32 (EXTEND U)
+  | 0xAE => CVTOP I64 F32 (TRUNC S)
+  | 0xAF => CVTOP I64 F32 (TRUNC U)
+  | 0xB0 => CVTOP I64 F64 (TRUNC S)
+  | 0xB1 => CVTOP I64 F64 (TRUNC U)
+  | 0xB2 => CVTOP F32 I32 (CONVERT S)
+  | 0xB3 => CVTOP F32 I32 (CONVERT U)
+  | 0xB4 => CVTOP F32 I64 (CONVERT S)
+  | 0xB5 => CVTOP F32 I64 (CONVERT U)
+  | 0xB6 => CVTOP F32 F64 DEMOTE
+  | 0xB7 => CVTOP F64 I32 (CONVERT S)
+  | 0xB8 => CVTOP F64 I32 (CONVERT U)
+  | 0xB9 => CVTOP F64 I64 (CONVERT S)
+  | 0xBA => CVTOP F64 I64 (CONVERT U)
+  | 0xBB => CVTOP F32 F64 PROMOTE
   | 0xBC => CVTOP I32 F32 REINTERPRET
   | 0xBD => CVTOP I64 F64 REINTERPRET
   | 0xBE => CVTOP F32 I32 REINTERPRET
@@ -419,7 +418,7 @@ grammar Btype : type =
   | ft:Bfunctype => TYPE ft
 
 grammar Btypesec : type* hint(desc "type section") =
-  | ty*:Bsection_(1, Bvec(Btype)) => ty*
+  | ty*:Bsection_(1, Blist(Btype)) => ty*
 
 
 ;; Import section
@@ -428,13 +427,13 @@ grammar Bimport : import =
   | nm_1:Bname nm_2:Bname xt:Bexterntype => IMPORT nm_1 nm_2 xt
 
 grammar Bimportsec : import* hint(desc "import section") =
-  | im*:Bsection_(2, Bvec(Bimport)) => im*
+  | im*:Bsection_(2, Blist(Bimport)) => im*
 
 
 ;; Function section
 
 grammar Bfuncsec : typeidx* hint(desc "function section") =
-  | x*:Bsection_(3, Bvec(Btypeidx)) => x*
+  | x*:Bsection_(3, Blist(Btypeidx)) => x*
 
 
 ;; Table section
@@ -443,7 +442,7 @@ grammar Btable : table =
   | tt:Btabletype => TABLE tt
 
 grammar Btablesec : table* hint(desc "table section") =
-  | tab*:Bsection_(4, Bvec(Btable)) => tab*
+  | tab*:Bsection_(4, Blist(Btable)) => tab*
 
 
 ;; Memory section
@@ -452,7 +451,7 @@ grammar Bmem : mem =
   | mt:Bmemtype => MEMORY mt
 
 grammar Bmemsec : mem* hint(desc "memory section") =
-  | mem*:Bsection_(5, Bvec(Bmem)) => mem*
+  | mem*:Bsection_(5, Blist(Bmem)) => mem*
 
 
 ;; Global section
@@ -461,7 +460,7 @@ grammar Bglobal : global =
   | gt:Bglobaltype e:Bexpr => GLOBAL gt e
 
 grammar Bglobalsec : global* hint(desc "global section") =
-  | glob*:Bsection_(6, Bvec(Bglobal)) => glob*
+  | glob*:Bsection_(6, Blist(Bglobal)) => glob*
 
 
 ;; Export section
@@ -470,7 +469,7 @@ grammar Bexport : export =
   | nm:Bname xx:Bexternidx => EXPORT nm xx
 
 grammar Bexportsec : export* hint(desc "export section") =
-  | ex*:Bsection_(7, Bvec(Bexport)) => ex*
+  | ex*:Bsection_(7, Blist(Bexport)) => ex*
 
 
 ;; Start section
@@ -478,17 +477,19 @@ grammar Bexportsec : export* hint(desc "export section") =
 grammar Bstart : start* =
   | x:Bfuncidx => (START x)
 
-grammar Bstartsec : start* hint(desc "start section") =
-  | st*:Bsection_(8, Bstart) => st*
+syntax startopt hint(show start?) = start*  ;; HACK
+
+grammar Bstartsec : start? hint(desc "start section") =
+  | startopt:Bsection_(8, Bstart) => $opt_(start, startopt)
 
 
 ;; Element section
 
 grammar Belem : elem =
-  | 0x00 e:Bexpr x*:Bvec(Bfuncidx) => ELEM e x*
+  | 0x00 e:Bexpr x*:Blist(Bfuncidx) => ELEM e x*
 
 grammar Belemsec : elem* hint(desc "element section") =
-  | elem*:Bsection_(9, Bvec(Belem)) => elem*
+  | elem*:Bsection_(9, Blist(Belem)) => elem*
 
 
 ;; Code section
@@ -499,72 +500,39 @@ grammar Blocals : local* hint(desc "local") =
   | n:Bu32 t:Bvaltype => (LOCAL t)^n
 
 grammar Bfunc : code =
-  | local**:Bvec(Blocals) expr:Bexpr => ($concat_(local, local**), expr)
+  | local**:Blist(Blocals) expr:Bexpr => ($concat_(local, local**), expr)
 
 grammar Bcode : code =
   | len:Bu32 code:Bfunc => code  -- if len = ||Bfunc||
 
 grammar Bcodesec : code* hint(desc "code section") =
-  | code*:Bsection_(10, Bvec(Bcode)) => code*
+  | code*:Bsection_(10, Blist(Bcode)) => code*
 
 
 ;; Data section
 
 grammar Bdata : data =
-  | 0x00 e:Bexpr b*:Bvec(Bbyte) => DATA e b*
+  | 0x00 e:Bexpr b*:Blist(Bbyte) => DATA e b*
 
 grammar Bdatasec : data* hint(desc "data section") =
-  | data*:Bsection_(11, Bvec(Bdata)) => data*
+  | data*:Bsection_(11, Blist(Bdata)) => data*
 
 
 ;; Modules
 
 grammar Bmodule : module =
   | 0x00 0x61 0x73 0x6D 1:Bu32
-    Bcustomsec*
-
-
-    type*:Btypesec
-    Bcustomsec*
-
-
-    import*:Bimportsec
-    Bcustomsec*
-
-
-    typeidx^n:Bfuncsec
-    Bcustomsec*
-
-
-    table*:Btablesec
-    Bcustomsec*
-
-
-    mem*:Bmemsec
-    Bcustomsec*
-
-
-    global*:Bglobalsec
-    Bcustomsec*
-
-
-    export*:Bexportsec
-    Bcustomsec*
-
-
-    start*:Bstartsec
-    Bcustomsec*
-
-
-    elem*:Belemsec
-    Bcustomsec*
-
-
-    (local*, expr)^n:Bcodesec
-    Bcustomsec*
-
-
-    data*:Bdatasec
+    Bcustomsec* type*:Btypesec
+    Bcustomsec* import*:Bimportsec
+    Bcustomsec* typeidx*:Bfuncsec
+    Bcustomsec* table*:Btablesec
+    Bcustomsec* mem*:Bmemsec
+    Bcustomsec* global*:Bglobalsec
+    Bcustomsec* export*:Bexportsec
+    Bcustomsec* start?:Bstartsec
+    Bcustomsec* elem*:Belemsec
+    Bcustomsec* (local*, expr)*:Bcodesec
+    Bcustomsec* data*:Bdatasec
     Bcustomsec* =>
-      MODULE type* import* func^n global* table* mem* elem* data* start* export*
-    -- if (func = FUNC typeidx local* expr)^n
+      MODULE type* import* func* global* table* mem* elem* data* start? export*
+    -- (if func = FUNC typeidx local* expr)*

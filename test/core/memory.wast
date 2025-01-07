@@ -50,40 +50,53 @@
 )
 (assert_invalid
   (module (memory 65537))
-  "memory size must be at most 65536 pages (4GiB)"
+  "memory size"
 )
 (assert_invalid
   (module (memory 2147483648))
-  "memory size must be at most 65536 pages (4GiB)"
+  "memory size"
 )
 (assert_invalid
   (module (memory 4294967295))
-  "memory size must be at most 65536 pages (4GiB)"
+  "memory size"
 )
 (assert_invalid
   (module (memory 0 65537))
-  "memory size must be at most 65536 pages (4GiB)"
+  "memory size"
 )
 (assert_invalid
   (module (memory 0 2147483648))
-  "memory size must be at most 65536 pages (4GiB)"
+  "memory size"
 )
 (assert_invalid
   (module (memory 0 4294967295))
-  "memory size must be at most 65536 pages (4GiB)"
+  "memory size"
 )
 
-(assert_malformed
-  (module quote "(memory 0x1_0000_0000)")
-  "i32 constant out of range"
+(assert_invalid
+  (module (memory 0x1_0000_0000))
+  "memory size"
 )
-(assert_malformed
-  (module quote "(memory 0x1_0000_0000 0x1_0000_0000)")
-  "i32 constant out of range"
+(assert_invalid
+  (module (memory 0x1_0000_0000 0x1_0000_0000))
+  "memory size"
 )
-(assert_malformed
-  (module quote "(memory 0 0x1_0000_0000)")
-  "i32 constant out of range"
+(assert_invalid
+  (module (memory 0 0x1_0000_0000))
+  "memory size"
+)
+
+(assert_invalid
+  (module (memory (import "M" "m") 0x1_0000_0000))
+  "memory size"
+)
+(assert_invalid
+  (module (memory (import "M" "m") 0x1_0000_0000 0x1_0000_0000))
+  "memory size"
+)
+(assert_invalid
+  (module (memory (import "M" "m") 0 0x1_0000_0000))
+  "memory size"
 )
 
 (module
@@ -237,3 +250,28 @@
   "(import \"\" \"\" (memory $foo 1))"
   "(import \"\" \"\" (memory $foo 1))")
   "duplicate memory")
+
+;; Test that exporting random globals does not change a memory's semantics.
+
+(module
+  (memory (export "memory") 1 1)
+
+  ;; These should not change the behavior of memory accesses.
+  (global (export "__data_end") i32 (i32.const 10000))
+  (global (export "__stack_top") i32 (i32.const 10000))
+  (global (export "__heap_base") i32 (i32.const 10000))
+
+  (func (export "load") (param i32) (result i32)
+    (i32.load8_u (local.get 0))
+  )
+)
+
+;; None of these memory accesses should trap.
+(assert_return (invoke "load" (i32.const 0)) (i32.const 0))
+(assert_return (invoke "load" (i32.const 10000)) (i32.const 0))
+(assert_return (invoke "load" (i32.const 20000)) (i32.const 0))
+(assert_return (invoke "load" (i32.const 30000)) (i32.const 0))
+(assert_return (invoke "load" (i32.const 40000)) (i32.const 0))
+(assert_return (invoke "load" (i32.const 50000)) (i32.const 0))
+(assert_return (invoke "load" (i32.const 60000)) (i32.const 0))
+(assert_return (invoke "load" (i32.const 65535)) (i32.const 0))

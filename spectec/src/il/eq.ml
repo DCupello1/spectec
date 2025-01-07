@@ -1,5 +1,6 @@
 open Util.Source
 open Ast
+open Xl
 
 
 (* Helpers *)
@@ -22,10 +23,10 @@ let eq_id i1 i2 =
   i1.it = i2.it
 
 let eq_atom atom1 atom2 =
-  atom1.it = atom2.it
+  Atom.eq atom1 atom2
 
 let eq_mixop op1 op2 =
-  eq_list (eq_list eq_atom) op1 op2
+  Mixop.eq op1 op2
 
 
 (* Iteration *)
@@ -65,14 +66,17 @@ and eq_typcase (op1, (_binds1, t1, prems1), _) (op2, (_binds2, t2, prems2), _) =
 and eq_exp e1 e2 =
   match e1.it, e2.it with
   | VarE id1, VarE id2 -> eq_id id1 id2
-  | UnE (op1, e11), UnE (op2, e21) -> op1 = op2 && eq_exp e11 e21
-  | BinE (op1, e11, e12), BinE (op2, e21, e22) ->
-    op1 = op2 && eq_exp e11 e21 && eq_exp e12 e22
-  | CmpE (op1, e11, e12), CmpE (op2, e21, e22) ->
-    op1 = op2 && eq_exp e11 e21 && eq_exp e12 e22
+  | UnE (op1, ot1, e11), UnE (op2, ot2, e21) ->
+    op1 = op2 && ot1 = ot2 && eq_exp e11 e21
+  | BinE (op1, ot1, e11, e12), BinE (op2, ot2, e21, e22) ->
+    op1 = op2 && ot1 = ot2 && eq_exp e11 e21 && eq_exp e12 e22
+  | CmpE (op1, ot1, e11, e12), CmpE (op2, ot2, e21, e22) ->
+    op1 = op2 && ot1 = ot2 && eq_exp e11 e21 && eq_exp e12 e22
+  | LiftE e11, LiftE e21
   | LenE e11, LenE e21 -> eq_exp e11 e21
   | IdxE (e11, e12), IdxE (e21, e22)
   | CompE (e11, e12), CompE (e21, e22)
+  | MemE (e11, e12), MemE (e21, e22)
   | CatE (e11, e12), CatE (e21, e22) -> eq_exp e11 e21 && eq_exp e12 e22
   | SliceE (e11, e12, e13), SliceE (e21, e22, e23) ->
     eq_exp e11 e21 && eq_exp e12 e22 && eq_exp e13 e23
@@ -91,6 +95,8 @@ and eq_exp e1 e2 =
   | ProjE (e1, i1), ProjE (e2, i2) -> eq_exp e1 e2 && i1 = i2
   | TheE e1, TheE e2 -> eq_exp e1 e2
   | CaseE (op1, e1), CaseE (op2, e2) -> eq_mixop op1 op2 && eq_exp e1 e2
+  | CvtE (e1, nt11, nt12), CvtE (e2, nt21, nt22) ->
+    eq_exp e1 e2 && nt11 = nt21 && nt12 = nt22
   | SubE (e1, t11, t12), SubE (e2, t21, t22) ->
     eq_exp e1 e2 && eq_typ t11 t21 && eq_typ t12 t22
   | _, _ -> e1.it = e2.it
@@ -107,8 +113,23 @@ and eq_path p1 p2 =
   | DotP (p11, atom1), DotP (p21, atom2) -> eq_path p11 p21 && eq_atom atom1 atom2
   | _, _ -> p1.it = p2.it
 
-and eq_iterexp (iter1, bs1) (iter2, bs2) =
-  eq_iter iter1 iter2 && eq_list (eq_pair eq_id eq_typ) bs1 bs2
+and eq_iterexp (iter1, xes1) (iter2, xes2) =
+  eq_iter iter1 iter2 && eq_list (eq_pair eq_id eq_exp) xes1 xes2
+
+
+(* Grammars *)
+
+and eq_sym g1 g2 =
+  match g1.it, g2.it with
+  | VarG (id1, args1), VarG (id2, args2) ->
+    eq_id id1 id2 && eq_list eq_arg args1 args2
+  | SeqG gs1, SeqG gs2
+  | AltG gs1, AltG gs2 -> eq_list eq_sym gs1 gs2
+  | RangeG (g11, g12), RangeG (g21, g22) -> eq_sym g11 g21 && eq_sym g12 g22
+  | IterG (g11, iter1), IterG (g21, iter2) ->
+    eq_sym g11 g21 && eq_iterexp iter1 iter2
+  | AttrG (e1, g11), AttrG (e2, g21) -> eq_exp e1 e2 && eq_sym g11 g21
+  | _, _ -> g1.it = g2.it
 
 
 (* Premises *)
@@ -120,6 +141,8 @@ and eq_prem prem1 prem2 =
   | IfPr e1, IfPr e2 -> eq_exp e1 e2
   | IterPr (prem1, e1), IterPr (prem2, e2) ->
     eq_prem prem1 prem2 && eq_iterexp e1 e2
+  | LetPr (e1, e1', ids1), LetPr (e2, e2', ids2) ->
+    eq_exp e1 e2 && eq_exp e1' e2' && ids1 = ids2
   | _, _ -> prem1.it = prem2.it
 
 
@@ -129,4 +152,6 @@ and eq_arg a1 a2 =
   match a1.it, a2.it with
   | ExpA e1, ExpA e2 -> eq_exp e1 e2
   | TypA t1, TypA t2 -> eq_typ t1 t2
+  | DefA id1, DefA id2 -> eq_id id1 id2
+  | GramA g1, GramA g2 -> eq_sym g1 g2
   | _, _ -> false

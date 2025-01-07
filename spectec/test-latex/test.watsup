@@ -25,6 +25,233 @@ syntax testfuse =
 
 
 ;;
+;; Atoms with subscripts
+;;
+
+syntax InfixArrow  = nat* ->_(nat*) nat* hint(macro none)
+syntax InfixArrow2 = nat* =>_(nat*) nat* hint(macro none)
+syntax AtomArrow   = nat? `->_(nat*) nat* hint(macro none)
+syntax AtomArrow2  = nat? `=>_(nat*) nat* hint(macro none)
+
+def $InfixArrow(InfixArrow) : nat
+def $InfixArrow(a ->_c) = 0
+def $InfixArrow(a ->_c b) = 0
+def $InfixArrow(a ->_(c*) b) = 0
+def $InfixArrow(a ->_c b_1 b_2) = 0
+def $InfixArrow(a ->_(c*) b_1 b_2) = 0
+def $InfixArrow(a ->_(c_1 c_2) b_1 b_2) = 0
+def $InfixArrow(->_(c_1 c_2) b_1 b_2) = 0
+
+def $InfixArrow2(InfixArrow2) : nat
+def $InfixArrow2(a =>_c) = 0
+def $InfixArrow2(a =>_c b) = 0
+def $InfixArrow2(a =>_(c*) b) = 0
+def $InfixArrow2(a =>_c b_1 b_2) = 0
+def $InfixArrow2(a =>_(c*) b_1 b_2) = 0
+def $InfixArrow2(a =>_(c_1 c_2) b_1 b_2) = 0
+def $InfixArrow2(=>_(c_1 c_2) b_1 b_2) = 0
+
+def $AtomArrow(AtomArrow) : nat
+def $AtomArrow(a `->_c) = 0
+def $AtomArrow(a `->_c b) = 0
+def $AtomArrow(a `->_(c*) b) = 0
+def $AtomArrow(a `->_c b_1 b_2) = 0
+def $AtomArrow(a `->_(c*) b_1 b_2) = 0
+def $AtomArrow(a `->_(c_1 c_2) b_1 b_2) = 0
+def $AtomArrow(`->_(c_1 c_2) b_1 b_2) = 0
+
+def $AtomArrow2(AtomArrow2) : nat
+def $AtomArrow2(a `=>_c) = 0
+def $AtomArrow2(a `=>_c b) = 0
+def $AtomArrow2(a `=>_(c*) b) = 0
+def $AtomArrow2(a `=>_c b_1 b_2) = 0
+def $AtomArrow2(a `=>_(c*) b_1 b_2) = 0
+def $AtomArrow2(a `=>_(c_1 c_2) b_1 b_2) = 0
+def $AtomArrow2(`=>_(c_1 c_2) b_1 b_2) = 0
+
+syntax MacroInfixArrow = nat* ->_nat* nat* hint(macro "to")
+syntax MacroAtomArrow = nat* ->_nat* nat* hint(macro "to")
+
+def $MacroInfixArrow(MacroInfixArrow) : nat
+def $MacroInfixArrow(a ->_c) = 0
+def $MacroInfixArrow(a ->_c b) = 0
+def $MacroInfixArrow(a ->_(c*) b) = 0
+def $MacroInfixArrow(a ->_c b_1 b_2) = 0
+def $MacroInfixArrow(a ->_(c*) b_1 b_2) = 0
+def $MacroInfixArrow(a ->_(c_1 c_2) b_1 b_2) = 0
+def $MacroInfixArrow(->_(c_1 c_2) b_1 b_2) = 0
+
+def $MacroAtomArrow(MacroAtomArrow) : nat
+def $MacroAtomArrow(a ->_c) = 0
+def $MacroAtomArrow(a ->_c b) = 0
+def $MacroAtomArrow(a ->_(c*) b) = 0
+def $MacroAtomArrow(a ->_c b_1 b_2) = 0
+def $MacroAtomArrow(a ->_(c*) b_1 b_2) = 0
+def $MacroAtomArrow(a ->_(c_1 c_2) b_1 b_2) = 0
+def $MacroAtomArrow(->_(c_1 c_2) b_1 b_2) = 0
+
+syntax ShowInfixArrow = nat* ->_nat* nat* hint(show %0 ->_%2 %%) hint(macro none)
+syntax ShowAtomArrow = nat* ->_nat* nat* hint(show %0 `->_%2 %%) hint(macro none)
+
+def $ShowInfixArrow(ShowInfixArrow) : nat
+def $ShowInfixArrow(a ->_c) = 0
+def $ShowInfixArrow(a ->_c b) = 0
+def $ShowInfixArrow(a ->_(c*) b) = 0
+def $ShowInfixArrow(a ->_c b_1 b_2) = 0
+def $ShowInfixArrow(a ->_(c*) b_1 b_2) = 0
+def $ShowInfixArrow(a ->_(c_1 c_2) b_1 b_2) = 0
+def $ShowInfixArrow(->_(c_1 c_2) b_1 b_2) = 0
+
+def $ShowAtomArrow(ShowAtomArrow) : nat
+def $ShowAtomArrow(a ->_c) = 0
+def $ShowAtomArrow(a ->_c b) = 0
+def $ShowAtomArrow(a ->_(c*) b) = 0
+def $ShowAtomArrow(a ->_c b_1 b_2) = 0
+def $ShowAtomArrow(a ->_(c*) b_1 b_2) = 0
+def $ShowAtomArrow(a ->_(c_1 c_2) b_1 b_2) = 0
+def $ShowAtomArrow(->_(c_1 c_2) b_1 b_2) = 0
+
+syntax ShowMacroInfixArrow = nat* ->_nat* nat* hint(show %0 ->_%2 %%) hint(macro "to")
+syntax ShowMacroAtomArrow = nat* ->_nat* nat* hint(show %0 `->_%2 %%) hint(macro "to")
+
+def $ShowMacroInfixArrow(ShowMacroInfixArrow) : nat
+def $ShowMacroInfixArrow(a ->_c) = 0
+def $ShowMacroInfixArrow(a ->_c b) = 0
+def $ShowMacroInfixArrow(a ->_(c*) b) = 0
+def $ShowMacroInfixArrow(a ->_c b_1 b_2) = 0
+def $ShowMacroInfixArrow(a ->_(c*) b_1 b_2) = 0
+def $ShowMacroInfixArrow(a ->_(c_1 c_2) b_1 b_2) = 0
+def $ShowMacroInfixArrow(->_(c_1 c_2) b_1 b_2) = 0
+
+def $ShowMacroAtomArrow(ShowMacroAtomArrow) : nat
+def $ShowMacroAtomArrow(a ->_c) = 0
+def $ShowMacroAtomArrow(a ->_c b) = 0
+def $ShowMacroAtomArrow(a ->_(c*) b) = 0
+def $ShowMacroAtomArrow(a ->_c b_1 b_2) = 0
+def $ShowMacroAtomArrow(a ->_(c*) b_1 b_2) = 0
+def $ShowMacroAtomArrow(a ->_(c_1 c_2) b_1 b_2) = 0
+def $ShowMacroAtomArrow(->_(c_1 c_2) b_1 b_2) = 0
+
+
+;;
+;; Expansions
+;;
+
+;; Atoms
+
+syntax xfoo =
+  | XFOONULL             hint(show XBARNULL)
+  | XFOOUN0 nat          hint(show XBARUN0)
+  | XFOOUN1N nat         hint(show XBARUN1N %)
+  | XFOOUN11 nat         hint(show XBARUN11 %1)
+  | XFOOUNREST nat       hint(show XBARUNREST %%)
+  | XFOOBIN0 nat nat     hint(show XBARBIN0)
+  | XFOOBIN1N nat nat    hint(show XBARBIN1N %)
+  | XFOOBIN11 nat nat    hint(show XBARBIN11 %1)
+  | XFOOBIN1N2N nat nat  hint(show XBARBIN1N2N % %)
+  | XFOOBIN1N22 nat nat  hint(show XBARBIN1N22 % %2)
+  | XFOOBIN112N nat nat  hint(show XBARBIN112N %1 %)
+  | XFOOBIN1122 nat nat  hint(show XBARBIN1122 %1 %2)
+  | XFOOBIN22 nat nat    hint(show XBARBIN22 %2)
+  | XFOOBIN2211 nat nat  hint(show XBARBIN2211 %2 %1)
+  | XFOOBINREST nat nat  hint(show XBARBINREST %%)
+  | XFOOBIN1NREST nat nat  hint(show XBARBIN1NREST % %%)
+  | XFOOBIN11REST nat nat  hint(show XBARBIN1NREST %1 %%)
+  | XFOOBIN22REST nat nat  hint(show XBARBIN1NREST %2 %%)
+  | XFOOBIN1N2NREST nat nat  hint(show XBARBIN1NREST % % %%)
+  | XFOOBIN1122REST nat nat  hint(show XBARBIN1NREST %1 %2 %%)
+  | XFOOBIN2211REST nat nat  hint(show XBARBIN1NREST %2 %1 %%)
+  | XFOONAME1N2NREST nat nat  hint(show XBARBIN1NREST %0 % % %%)
+  | XFOONAME1122REST nat nat  hint(show XBARBIN1NREST %0 %1 %2 %%)
+  | XFOONAME2211REST nat nat  hint(show XBARBIN1NREST %0 %2 %1 %%)
+
+syntax xxfoo = xfoo nat
+syntax xxxfoo = nat xfoo nat
+
+def $xfoo(xfoo) : nat
+def $xfoo(XFOONULL) = 0
+def $xfoo(XFOOUN0 2) = 0
+def $xfoo(XFOOUN1N 2) = 0
+def $xfoo(XFOOUN11 2) = 0
+def $xfoo(XFOOUNREST 2) = 0
+def $xfoo(XFOOBIN0 2 3) = 0
+def $xfoo(XFOOBIN1N 2 3) = 0
+def $xfoo(XFOOBIN11 2 3) = 0
+def $xfoo(XFOOBIN1N2N 2 3) = 0
+def $xfoo(XFOOBIN1N22 2 3) = 0
+def $xfoo(XFOOBIN112N 2 3) = 0
+def $xfoo(XFOOBIN1122 2 3) = 0
+def $xfoo(XFOOBIN22 2 3) = 0
+def $xfoo(XFOOBIN2211 2 3) = 0
+def $xfoo(XFOOBINREST 2 3) = 0
+def $xfoo(XFOOBIN1NREST 2 3) = 0
+def $xfoo(XFOOBIN11REST 2 3) = 0
+def $xfoo(XFOOBIN22REST 2 3) = 0
+def $xfoo(XFOOBIN1N2NREST 2 3) = 0
+def $xfoo(XFOOBIN1122REST 2 3) = 0
+def $xfoo(XFOOBIN2211REST 2 3) = 0
+def $xfoo(XFOONAME1N2NREST 2 3) = 0
+def $xfoo(XFOONAME1122REST 2 3) = 0
+def $xfoo(XFOONAME2211REST 2 3) = 0
+
+def $xxfoo(xxfoo) : nat
+def $xxfoo(XFOONULL 9) = 0
+(; The following are not supported yet
+def $xxfoo(XFOOUN0 2 9) = 0
+def $xxfoo(XFOOUN1N 2 9) = 0
+def $xxfoo(XFOOUN11 2 9) = 0
+def $xxfoo(XFOOUNREST 2 9) = 0
+def $xxfoo(XFOOBIN0 2 3 9) = 0
+def $xxfoo(XFOOBIN1N 2 3 9) = 0
+def $xxfoo(XFOOBIN11 2 3 9) = 0
+def $xxfoo(XFOOBIN1N2N 2 3 9) = 0
+def $xxfoo(XFOOBIN1N22 2 3 9) = 0
+def $xxfoo(XFOOBIN112N 2 3 9) = 0
+def $xxfoo(XFOOBIN1122 2 3 9) = 0
+def $xxfoo(XFOOBIN22 2 3 9) = 0
+def $xxfoo(XFOOBIN2211 2 3 9) = 0
+def $xxfoo(XFOOBINREST 2 3 9) = 0
+def $xxfoo(XFOOBIN1NREST 2 3 9) = 0
+def $xxfoo(XFOOBIN11REST 2 3 9) = 0
+def $xxfoo(XFOOBIN22REST 2 3 9) = 0
+def $xxfoo(XFOOBIN1N2NREST 2 3 9) = 0
+def $xxfoo(XFOOBIN1122REST 2 3 9) = 0
+def $xxfoo(XFOOBIN2211REST 2 3 9) = 0
+def $xxfoo(XFOONAME1N2NREST 2 3 9) = 0
+def $xxfoo(XFOONAME1122REST 2 3 9) = 0
+def $xxfoo(XFOONAME2211REST 2 3 9) = 0
+;)
+
+def $xxxfoo(xxxfoo) : nat
+def $xxxfoo(1 XFOONULL 9) = 0
+(; The following are not supported yet
+def $xxxfoo(1 XFOOUN0 2 9) = 0
+def $xxxfoo(1 XFOOUN1N 2 9) = 0
+def $xxxfoo(1 XFOOUN11 2 9) = 0
+def $xxxfoo(1 XFOOUNREST 2 9) = 0
+def $xxxfoo(1 XFOOBIN0 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN1N 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN11 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN1N2N 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN1N22 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN112N 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN1122 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN22 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN2211 2 3 9) = 0
+def $xxxfoo(1 XFOOBINREST 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN1NREST 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN11REST 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN22REST 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN1N2NREST 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN1122REST 2 3 9) = 0
+def $xxxfoo(1 XFOOBIN2211REST 2 3 9) = 0
+def $xxxfoo(1 XFOONAME1N2NREST 2 3 9) = 0
+def $xxxfoo(1 XFOONAME1122REST 2 3 9) = 0
+def $xxxfoo(1 XFOONAME2211REST 2 3 9) = 0
+;)
+
+
+;;
 ;; Macro hints
 ;;
 
@@ -330,14 +557,14 @@ def $upd(r, 6) = r[.FG = 0]
 def $upd(r, 7) = r[.FH = 0]
 
 def $ext(rec, nat) : rec
-def $ext(r, 0) = r[.FA =.. 0]
-def $ext(r, 1) = r[.FB =.. 0]
-def $ext(r, 2) = r[.FC =.. 0]
-def $ext(r, 3) = r[.FD =.. 0]
-def $ext(r, 4) = r[.FE =.. 0]
-def $ext(r, 5) = r[.FF =.. 0]
-def $ext(r, 6) = r[.FG =.. 0]
-def $ext(r, 7) = r[.FH =.. 0]
+def $ext(r, 0) = r[.FA =++ 0]
+def $ext(r, 1) = r[.FB =++ 0]
+def $ext(r, 2) = r[.FC =++ 0]
+def $ext(r, 3) = r[.FD =++ 0]
+def $ext(r, 4) = r[.FE =++ 0]
+def $ext(r, 5) = r[.FF =++ 0]
+def $ext(r, 6) = r[.FG =++ 0]
+def $ext(r, 7) = r[.FH =++ 0]
 
 syntax recimpl hint(macro "%" "R%") = {
   FIA nat*,                                      ;; \RFIA
@@ -379,7 +606,7 @@ syntax C = {}
 
 relation Rok: C |- parent : OK
 relation Rsub: C |- parent <: parent
-relation Reval: parent; child ~> parent; child
+relation Reval: parent; child ~> parent; child hint(tabular)
 
 rule Rok: C |- AA : OK
 rule Rsub: C |- parent <: AA
@@ -387,7 +614,7 @@ rule Reval: parent; child ~> AA; BB
 
 relation Rok_macro: C |- parent : OK                  hint(macro "%ok")
 relation Rsub_macro: C |- parent <: parent            hint(macro "%sub")
-relation Reval_macro: parent; child ~> parent; child  hint(macro "%eval")
+relation Reval_macro: parent; child ~> parent; child  hint(macro "%eval") hint(tabular)
 
 rule Rok_macro: C |- AA : OK
 rule Rsub_macro: C |- parent <: AA
@@ -395,8 +622,210 @@ rule Reval_macro: parent; child ~> AA; BB
 
 relation Rok_nomacro: C |- parent : OK                  hint(macro none)
 relation Rsub_nomacro: C |- parent <: parent            hint(macro none)
-relation Reval_nomacro: parent; child ~> parent; child  hint(macro none)
+relation Reval_nomacro: parent; child ~> parent; child  hint(macro none) hint(tabular)
 
 rule Rok_nomacro: C |- AA : OK
 rule Rsub_nomacro: C |- parent <: AA
 rule Reval_nomacro: parent; child ~> AA; BB
+
+
+;;
+;; Layout
+;;
+
+;; Syntax
+
+syntax argh = ARGH
+syntax borg = BORG
+syntax curb = CURB
+syntax dork = DORK
+syntax eerk = EERK
+
+
+syntax dotstypex = argh | DX1 | ...
+syntax dotstypey =
+  argh | DY1 | ...
+syntax dotstypex = ... | borg | DX2 | ...
+syntax dotstypesep = borg
+syntax dotstypex = ...
+  | curb | DX3
+  | DX4 | DX5
+  | DX6 | ...
+syntax dotstypey =
+  | ...
+  | borg | DY2
+  | DY3 | DY4
+  | ...
+syntax dotstypex = ... | dork | DX7
+syntax dotstypey =
+  | ...
+  | dork
+  | DY5
+
+
+syntax casetype = LA nat argh
+    -- if nat = 0
+    -- if argh =/= ARGH
+  | LB borg curb
+  | LC dork_1 dork_2 -- if dork_1 =/= dork_2
+  | LD argh nat
+    -- if nat > 0 -- if argh =/= ARGH
+  | LE nat_1 nat_2
+    -- if nat_1 <= nat_2
+  | LFA borg | LFB borg | LFC borg
+;;  | LGA borg -- if borg = borg | LGB borg   ;; TODO(3, rossberg): what should this produce?
+  | LH borg
+      argh eerk
+  | LI borg
+      argh eerk
+    -- if 0 < 1
+    -- if 1 > 0
+  | LJ borg
+    ----
+    -- if 0 < 1
+    -- if 1 > 0
+  | LK borg
+      argh eerk
+    ----
+    -- if 0 < 1
+    -- if 1 > 0
+
+
+;; Grammars
+
+grammar gram : nat* = "GA" "GB" => 0
+    -- if 0 < 1
+  | "GB" "GC" "GD" => 0
+  | "GC" "GD" => 0 -- if 0 < 1
+  | "GD" "GE" => 0
+    -- if 0 < 1 -- if 1 > 0
+  | "GE" "GF" => 0
+    -- if 0 < 1
+  | "GFA" "GF" => 0 | "GFB" "GF" => 1 | "GFC" => 2
+  | "GG" =>
+    0 -- if 1 > 0
+  | "GH" =>
+    0
+    -- if 1 > 0
+  | "GI" =>
+    0
+    1
+    2
+    -- if 0 < 1
+    -- if 1 > 0
+  | "GJ" "GJ"
+      "G" "J" => 0
+  | "GK" "GJ"
+      "G" "J" => 0
+    -- if 0 < 1
+    -- if 1 > 0
+  | "GI" => 0 1 2
+    ----
+    -- if 0 < 1
+    -- if 1 > 0
+  | "GI" =>
+    0
+    1
+    2
+    ----
+    -- if 0 < 1
+    -- if 1 > 0
+
+
+;; Functions
+
+def $func(nat, nat) : nat*
+
+def $func(n, m) = 0
+def $func(n, m) = 0 -- if n < m
+def $func(n, m) = 0 -- if n > m -- if m < n
+def $func(n, m) = 0 1
+  -- if n < m
+  -- if m > n
+def $func(n, m) =
+  0 1
+  -- if n < m
+  -- if m > n
+def $func(n, m) =
+  0
+  1
+  2
+  -- if n < m
+  -- if m > n
+def $func(n, m) = 0 1 2
+  ----
+  -- if n < m
+  -- if m > n
+def $func(n, m) =
+  0
+  1
+  2
+  ----
+  -- if n < m
+  -- if m > n
+
+
+;; Rules
+
+relation Rel: argh borg -> curb dork hint(tabular)
+
+rule Rel/A:
+  argh borg -> curb dork
+
+rule Rel/B:
+  argh borg -> curb dork -- if 0 < 1
+
+rule Rel/C:
+  argh borg -> curb dork -- if 0 < 1 -- if 1 > 0
+
+rule Rel/D:
+  argh borg -> curb dork
+  -- if 0 < 1 
+  -- if 1 > 0
+
+rule Rel/E:
+  argh borg ->
+    curb dork
+  -- if 0 < 1 
+  -- if 1 > 0
+
+rule Rel/F:
+  argh borg -> curb
+    dork
+  -- if 0 < 1 
+  -- if 1 > 0
+
+rule Rel/G:
+  argh borg ->
+    curb
+    dork
+  -- if 0 < 1 
+  -- if 1 > 0
+
+rule Rel/DD:
+  argh borg -> curb dork
+  ----
+  -- if 0 < 1 
+  -- if 1 > 0
+
+rule Rel/EE:
+  argh borg ->
+    curb dork
+  ----
+  -- if 0 < 1 
+  -- if 1 > 0
+
+rule Rel/FF:
+  argh borg -> curb
+    dork
+  ----
+  -- if 0 < 1 
+  -- if 1 > 0
+
+rule Rel/GG:
+  argh borg ->
+    curb
+    dork
+  ----
+  -- if 0 < 1 
+  -- if 1 > 0

@@ -17,21 +17,21 @@ Parametric Instructions
 
 .. _exec-nop:
 
-$${rule-prose: exec/nop}
+$${rule-prose: Step_pure/nop}
 
 $${rule: {Step_pure/nop}}
 
 
 .. _exec-unreachable:
 
-$${rule-prose: exec/unreachable}
+$${rule-prose: Step_pure/unreachable}
 
 $${rule: {Step_pure/unreachable}}
 
 
 .. _exec-drop:
 
-$${rule-prose: exec/drop}
+$${rule-prose: Step_pure/drop}
 
 .. todo:: (1) Remove trailing "Do nothing."
 
@@ -40,15 +40,15 @@ $${rule: Step_pure/drop}
 
 .. _exec-select:
 
-$${rule-prose: exec/select}
+$${rule-prose: Step_pure/select}
 
 $${rule: {Step_pure/select-*}}
 
 .. note::
-   In future versions of WebAssembly, |SELECT| may allow more than one value per choice.
+   In future versions of WebAssembly, ${:SELECT} may allow more than one value per choice.
 
 
-.. index:: numeric instruction, determinism, trap, NaN, value, value type
+.. index:: numeric instruction, determinism, non-determinism, trap, NaN, value, value type
    pair: execution; instruction
    single: abstract syntax; instruction
 .. _exec-instr-numeric:
@@ -61,15 +61,15 @@ The mapping of numeric instructions to their underlying operators is expressed b
 
 .. math::
    \begin{array}{lll@{\qquad}l}
-   \X{op}_{\IN}(i_1,\dots,i_k) &=& \xref{exec/numerics}{int-ops}{\F{i}\X{op}}_N(i_1,\dots,i_k) \\
-   \X{op}_{\FN}(z_1,\dots,z_k) &=& \xref{exec/numerics}{float-ops}{\F{f}\X{op}}_N(z_1,\dots,z_k) \\
+   \X{op}_{\IN}(i_1,\dots,i_k) &=& \xref{Step_pure/numerics}{int-ops}{\F{i}\X{op}}_N(i_1,\dots,i_k) \\
+   \X{op}_{\FN}(z_1,\dots,z_k) &=& \xref{Step_pure/numerics}{float-ops}{\F{f}\X{op}}_N(z_1,\dots,z_k) \\
    \end{array}
 
 And for :ref:`conversion operators <exec-cvtop>`:
 
 .. math::
    \begin{array}{lll@{\qquad}l}
-   \cvtop^{\sx^?}_{t_1,t_2}(c) &=& \xref{exec/numerics}{convert-ops}{\X{cvtop}}^{\sx^?}_{|t_1|,|t_2|}(c) \\
+   \cvtop^{\sx^?}_{t_1,t_2}(c) &=& \xref{Step_pure/numerics}{convert-ops}{\X{cvtop}}^{\sx^?}_{|t_1|,|t_2|}(c) \\
    \end{array}
 
 Where the underlying operators are partial, the corresponding instruction will :ref:`trap <trap>` when the result is not defined.
@@ -97,7 +97,7 @@ Where the underlying operators are non-deterministic, because they may return on
 
 .. _exec-unop:
 
-$${rule-prose: exec/unop}
+$${rule-prose: Step_pure/unop}
 
 .. todo:: (2) SpecTec currently defines the image of unop as a sequence, not a set.
 
@@ -106,7 +106,7 @@ $${rule: {Step_pure/unop-*}}
 
 .. _exec-binop:
 
-$${rule-prose: exec/binop}
+$${rule-prose: Step_pure/binop}
 
 .. todo:: (2) SpecTec currently defines the image of binop as a sequence, not a set.
 
@@ -115,7 +115,7 @@ $${rule: {Step_pure/binop-*}}
 
 .. _exec-testop:
 
-$${rule-prose: exec/testop}
+$${rule-prose: Step_pure/testop}
 
 .. todo:: (2) SpecTec currently defines the image of testop as a sequence, not a set.
 
@@ -124,7 +124,7 @@ $${rule: Step_pure/testop}
 
 .. _exec-relop:
 
-$${rule-prose: exec/relop}
+$${rule-prose: Step_pure/relop}
 
 .. todo:: (2) SpecTec currently defines the image of testop as a sequence, not a set.
 
@@ -133,7 +133,7 @@ $${rule: Step_pure/relop}
 
 .. _exec-cvtop:
 
-$${rule-prose: exec/cvtop}
+$${rule-prose: Step_pure/cvtop}
 
 .. todo:: (2) SpecTec currently defines the image of testop as a sequence, not a set.
 
@@ -170,14 +170,14 @@ $${rule: {Step_read/ref.null-*}}
 
 .. _exec-ref.func:
 
-$${rule-prose: exec/ref.func}
+$${rule-prose: Step_read/ref.func}
 
 $${rule: Step_read/ref.func}
 
 
 .. _exec-ref.is_null:
 
-$${rule-prose: exec/ref.is_null}
+$${rule-prose: Step_pure/ref.is_null}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -186,7 +186,7 @@ $${rule: {Step_pure/ref.is_null-*}}
 
 .. _exec-ref.as_non_null:
 
-$${rule-prose: exec/ref.as_non_null}
+$${rule-prose: Step_pure/ref.as_non_null}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -195,7 +195,7 @@ $${rule: {Step_pure/ref.as_non_null-*}}
 
 .. _exec-ref.eq:
 
-$${rule-prose: exec/ref.eq}
+$${rule-prose: Step_pure/ref.eq}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -204,7 +204,7 @@ $${rule: {Step_pure/ref.eq-*}}
 
 .. _exec-ref.test:
 
-$${rule-prose: exec/ref.test}
+$${rule-prose: Step_read/ref.test}
 
 .. todo::
    Below is the actual prose. 
@@ -237,7 +237,7 @@ $${rule: {Step_read/ref.test-*}}
 
 .. _exec-ref.cast:
 
-$${rule-prose: exec/ref.cast}
+$${rule-prose: Step_read/ref.cast}
 
 .. todo::
    Below is the actual prose. 
@@ -270,14 +270,14 @@ $${rule: {Step_read/ref.cast-*}}
 
 .. _exec-ref.i31:
 
-$${rule-prose: exec/ref.i31}
+$${rule-prose: Step_pure/ref.i31}
 
 $${rule: {Step_pure/ref.i31}}
 
 
 .. _exec-i31.get_sx:
 
-$${rule-prose: exec/i31.get}
+$${rule-prose: Step_pure/i31.get}
 
 .. todo::
    Below is the actual prose.
@@ -296,7 +296,7 @@ $${rule-prose: exec/i31.get}
 
 5. Let :math:`\REFI31NUM~i` be the reference value :math:`\reff`.
 
-6. Let :math:`j` be the result of computing :math:`\ext^{\sx}_{31,32}(i)`.
+6. Let :math:`j` be the result of computing :math:`\extend^{\sx}_{31,32}(i)`.
 
 7. Push the value :math:`\I32.\CONST~j` to the stack.
 
@@ -305,7 +305,7 @@ $${rule: {Step_pure/i31.get-*}}
 
 .. _exec-struct.new:
 
-$${rule-prose: exec/struct.new}
+$${rule-prose: Step/struct.new}
 
 .. todo::
    Below is the actual prose.
@@ -347,7 +347,7 @@ $${rule: {Step/struct.new}}
 
 .. _exec-struct.new_default:
 
-$${rule-prose: exec/struct.new_default}
+$${rule-prose: Step_read/struct.new_default}
 
 .. todo::
    Below is the actual prose.
@@ -382,7 +382,7 @@ $${rule: {Step_read/struct.new_default}}
 .. _exec-struct.get:
 .. _exec-struct.get_sx:
 
-$${rule-prose: exec/struct.get}
+$${rule-prose: Step_read/struct.get}
 
 .. todo::
    Below is the actual prose.
@@ -426,7 +426,7 @@ $${rule: {Step_read/struct.get-*}}
 
 .. _exec-struct.set:
 
-$${rule-prose: exec/struct.set}
+$${rule-prose: Step/struct.set}
 
 .. todo::
    Below is the actual prose.
@@ -472,14 +472,14 @@ $${rule: {Step/struct.set-*}}
 
 .. _exec-array.new:
 
-$${rule-prose: exec/array.new}
+$${rule-prose: Step_pure/array.new}
 
 $${rule: {Step_pure/array.new}}
 
 
 .. _exec-array.new_default:
 
-$${rule-prose: exec/array.new_default}
+$${rule-prose: Step_read/array.new_default}
 
 .. todo::
    Below is the actual prose.
@@ -513,7 +513,7 @@ $${rule: {Step_read/array.new_default}}
 
 .. _exec-array.new_fixed:
 
-$${rule-prose: exec/array.new_fixed}
+$${rule-prose: Step/array.new_fixed}
 
 .. todo::
    Below is the actual prose.
@@ -553,7 +553,7 @@ $${rule: {Step/array.new_fixed}}
 
 .. _exec-array.new_data:
 
-$${rule-prose: exec/array.new_data}
+$${rule-prose: Step_read/array.new_data}
 
 .. todo::
    Below is the actual prose.
@@ -595,11 +595,11 @@ $${rule-prose: exec/array.new_data}
 
 17. Let :math:`t` be the :ref:`value type <syntax-valtype>` :math:`\unpack(\X{ft})`.
 
-18. For each consecutive subsequence :math:`{b'}^n` of :math:`b^\ast`:
+18. For each of the :math:`n` consecutive subsequences :math:`{b'}^z` of :math:`b^\ast`:
 
     a. Assert: due to :ref:`validation <valid-array.new_data>`, :math:`\bytes_{\X{ft}}` is defined.
 
-    b. Let :math:`c_i` be the constant for which :math:`\bytes_{\X{ft}}(c_i)` is :math:`{b'}^n`.
+    b. Let :math:`c_i` be the constant for which :math:`\bytes_{\X{ft}}(c_i)` is :math:`{b'}^z`.
 
     c. Push the value :math:`t.\CONST~c_i` to the stack.
 
@@ -610,7 +610,7 @@ $${rule: {Step_read/array.new_data-*}}
 
 .. _exec-array.new_elem:
 
-$${rule-prose: exec/array.new_elem}
+$${rule-prose: Step_read/array.new_elem}
 
 $${rule: {Step_read/array.new_elem-*}}
 
@@ -618,7 +618,7 @@ $${rule: {Step_read/array.new_elem-*}}
 .. _exec-array.get:
 .. _exec-array.get_sx:
 
-$${rule-prose: exec/array.get}
+$${rule-prose: Step_read/array.get}
 
 .. todo::
    Below is the actual prose.
@@ -668,7 +668,7 @@ $${rule: {Step_read/array.get-*}}
 
 .. _exec-array.set:
 
-$${rule-prose: exec/array.set}
+$${rule-prose: Step/array.set}
 
 .. todo::
    Below is the actual prose.
@@ -720,7 +720,7 @@ $${rule: {Step/array.set-*}}
 
 .. _exec-array.len:
 
-$${rule-prose: exec/array.len}
+$${rule-prose: Step_read/array.len}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -729,7 +729,7 @@ $${rule: {Step_read/array.len-*}}
 
 .. _exec-array.fill:
 
-$${rule-prose: exec/array.fill}
+$${rule-prose: Step_read/array.fill}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -738,12 +738,11 @@ $${rule: {Step_read/array.fill-*}}
 
 .. _exec-array.copy:
 
-$${rule-prose: exec/array.copy}
-
 .. todo::
    Below is the actual prose.
    (3) Introduce if-let instruction instead of "is of the case".
    (5) Use "the expansion of" instead of $expand function application.
+   + Too deeply nested
 
 1. Let :math:`F` be the :ref:`current <exec-notation-textual>` :ref:`frame <syntax-frame>`.
 
@@ -837,13 +836,13 @@ $${rule-prose: exec/array.copy}
 
     a. Push the value :math:`\REFARRAYADDR~a_1` to the stack.
 
-    b. Assert: due to the earlier check against the memory size, :math:`d+n-1 < 2^{32}`.
+    b. Assert: due to the earlier check against the array size, :math:`d+n-1 < 2^{32}`.
 
     c. Push the value :math:`\I32.\CONST~(d+n-1)` to the stack.
 
     d. Push the value :math:`\REFARRAYADDR~a_2` to the stack.
 
-    e. Assert: due to the earlier check against the memory size, :math:`s+n-1 < 2^{32}`.
+    e. Assert: due to the earlier check against the array size, :math:`s+n-1 < 2^{32}`.
 
     f. Push the value :math:`\I32.\CONST~(s+n-1)` to the stack.
 
@@ -873,7 +872,7 @@ $${definition: sx}
 
 .. _exec-array.init_data:
 
-$${rule-prose: exec/array.init_data}
+$${rule-prose: Step_read/array.init_data}
 
 .. todo::
    Below is the actual prose.
@@ -962,7 +961,7 @@ $${rule: {Step_read/array.init_data-*}}
 
 .. _exec-array.init_elem:
 
-$${rule-prose: exec/array.init_elem}
+$${rule-prose: Step_read/array.init_elem}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -971,7 +970,7 @@ $${rule: {Step_read/array.init_elem-*}}
 
 .. _exec-any.convert_extern:
 
-$${rule-prose: exec/any.convert_extern}
+$${rule-prose: Step_pure/any.convert_extern}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -980,7 +979,7 @@ $${rule: {Step_pure/any.convert_extern-*}}
 
 .. _exec-extern.convert_any:
 
-$${rule-prose: exec/extern.convert_any}
+$${rule-prose: Step_pure/extern.convert_any}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -995,19 +994,19 @@ $${rule: {Step_pure/extern.convert_any-*}}
 Vector Instructions
 ~~~~~~~~~~~~~~~~~~~
 
-Vector instructions that operate bitwise are handled as integer operations of respective width.
+Vector instructions that operate bitwise are handled as integer operations of respective bit width.
 
 .. math::
    \begin{array}{lll@{\qquad}l}
-   \X{op}_{\VN}(i_1,\dots,i_k) &=& \xref{exec/numerics}{int-ops}{\F{i}\X{op}}_N(i_1,\dots,i_k) \\
+   \X{op}_{\VN}(i_1,\dots,i_k) &=& \xref{Step_pure/numerics}{int-ops}{\F{i}\X{op}}_N(i_1,\dots,i_k) \\
    \end{array}
 
-Most other vector instructions are defined in terms of numeric operators that are applied lane-wise according to the given :ref:`shape <syntax-shape>`.
+Most other vector instructions are defined in terms of :ref:`numeric operators <exec-numeric>` that are applied lane-wise according to the given :ref:`shape <syntax-shape>`.
 
 .. math::
    \begin{array}{llll}
    \X{op}_{t\K{x}N}(n_1,\dots,n_k) &=&
-     \lanes^{-1}_{t\K{x}N}(\xref{exec/instructions}{exec-instr-numeric}{\X{op}}_t(i_1,\dots,i_k)^\ast) & \qquad(\iff i_1^\ast = \lanes_{t\K{x}N}(n_1) \land \dots \land i_k^\ast = \lanes_{t\K{x}N}(n_k) \\
+     \lanes^{-1}_{t\K{x}N}(\xref{Step_pure/instructions}{exec-instr-numeric}{\X{op}}_t(i_1,\dots,i_k)^\ast) & \qquad(\iff i_1^\ast = \lanes_{t\K{x}N}(n_1) \land \dots \land i_k^\ast = \lanes_{t\K{x}N}(n_k) \\
    \end{array}
 
 .. note::
@@ -1017,6 +1016,21 @@ Most other vector instructions are defined in terms of numeric operators that ar
    where :math:`i_1^\ast` and :math:`i_2^\ast` are sequences resulting from invoking
    :math:`\lanes_{\K{i32x4}}(v_1)` and :math:`\lanes_{\K{i32x4}}(v_2)`
    respectively.
+
+For non-deterministic operators this definition is generalized to sets:
+
+.. math::
+   \begin{array}{lll}
+   \X{op}_{t\K{x}N}(n_1,\dots,n_k) &=&
+     \{ \lanes^{-1}_{t\K{x}N}(i^\ast) ~|~ i^\ast \in \Large\times\xref{Step_pure/instructions}{exec-instr-numeric}{\X{op}}_t(i_1,\dots,i_k)^\ast \land i_1^\ast = \lanes_{t\K{x}N}(n_1) \land \dots \land i_k^\ast = \lanes_{t\K{x}N}(n_k) \} \\
+   \end{array}
+
+where :math:`\Large\times \{x^\ast\}^N` transforms a sequence of :math:`N` sets of values into a set of sequences of :math:`N` values by computing the set product:
+
+.. math::
+   \begin{array}{lll}
+   \Large\times (S_1 \dots S_N) &=& \{ x_1 \dots x_N ~|~ x_1 \in S_1 \land \dots \land x_N \in S_N \}
+   \end{array}
 
 
 .. _exec-vconst:
@@ -1032,96 +1046,72 @@ Most other vector instructions are defined in terms of numeric operators that ar
 
 .. _exec-vvunop:
 
-$${rule-prose: exec/vvunop}
+$${rule-prose: Step_pure/vvunop}
 
 $${rule: {Step_pure/vvunop}}
 
 
 .. _exec-vvbinop:
 
-$${rule-prose: exec/vvbinop}
+$${rule-prose: Step_pure/vvbinop}
 
 $${rule: {Step_pure/vvbinop}}
 
 
 .. _exec-vvternop:
 
-$${rule-prose: exec/vvternop}
+$${rule-prose: Step_pure/vvternop}
 
 $${rule: {Step_pure/vvternop}}
 
 
 .. _exec-vvtestop:
 
-$${rule-prose: exec/vvtestop}
+$${rule-prose: Step_pure/vvtestop}
 
 $${rule: {Step_pure/vvtestop}}
 
 
 .. _exec-vunop:
 
-$${rule-prose: exec/vunop}
+$${rule-prose: Step_pure/vunop}
 
-$${rule: {Step_pure/vunop}}
+$${rule: {Step_pure/vunop-*}}
 
 
 .. _exec-vbinop:
 
-$${rule-prose: exec/vbinop}
+$${rule-prose: Step_pure/vbinop}
 
 .. todo:: (2) SpecTec currently defines the image of vbinop as a sequence, not a set.
 
 $${rule: {Step_pure/vbinop-*}}
 
 
+.. _exec-vternop:
+
+$${rule-prose: Step_pure/vternop}
+
+$${rule: {Step_pure/vternop-*}}
+
+
 .. _exec-vtestop:
 
-$${rule-prose: exec/vtestop}
+$${rule-prose: Step_pure/vtestop}
 
-$${rule: {Step_pure/vtestop-*}}
+$${rule: {Step_pure/vtestop}}
 
 
 .. _exec-vrelop:
 
-$${rule-prose: exec/vrelop}
-
-.. todo::
-   Below is the actual prose.
-
-1. Assert: due to :ref:`validation <valid-vrelop>`, two values of :ref:`value type <syntax-valtype>` |V128| are on the top of the stack.
-
-2. Pop the value :math:`\V128.\VCONST~c_2` from the stack.
-
-3. Pop the value :math:`\V128.\VCONST~c_1` from the stack.
-
-4. Let :math:`i_1^\ast` be the result of computing :math:`\lanes_{t\K{x}N}(c_1)`.
-
-5. Let :math:`i_2^\ast` be the result of computing :math:`\lanes_{t\K{x}N}(c_2)`.
-
-6. Let :math:`i^\ast` be the result of computing :math:`\vrelop_t(i_1^\ast, i_2^\ast)`.
-
-7. Let :math:`j^\ast` be the result of computing :math:`\exts_{1,|t|}(i^\ast)`.
-
-8. Let :math:`c` be the result of computing :math:`\lanes^{-1}_{t\K{x}N}(j^\ast)`.
-
-9. Push the value :math:`\V128.\VCONST~c` to the stack.
+$${rule-prose: Step_pure/vrelop}
 
 $${rule: {Step_pure/vrelop}}
 
-.. math::
-   \begin{array}{l}
-   \begin{array}{lcl@{\qquad}l}
-   (\V128\K{.}\VCONST~c_1)~(\V128\K{.}\VCONST~c_2)~t\K{x}N\K{.}\vrelop &\stepto& (\V128\K{.}\VCONST~c)
-   \end{array}
-   \\ \qquad
-     \begin{array}[t]{@{}r@{~}l@{}}
-     (\iff c = \lanes^{-1}_{t\K{x}N}(\exts_{1,|t|}(\vrelop_t(\lanes_{t\K{x}N}(c_1), \lanes_{t\K{x}N}(c_2)))))
-     \end{array}
-   \end{array}
 
 .. _exec-vshiftop:
 
-$${rule-prose: exec/vshiftop}
+$${rule-prose: Step_pure/vshiftop}
 
 .. todo::
    Below is the actual prose.
@@ -1159,7 +1149,7 @@ $${rule: {Step_pure/vshiftop}}
 
 .. _exec-vbitmask:
 
-$${rule-prose: exec/vbitmask}
+$${rule-prose: Step_pure/vbitmask}
 
 .. todo::
    Below is the actual prose.
@@ -1190,9 +1180,9 @@ $${rule: {Step_pure/vbitmask}}
    \end{array}
 
 
-.. _exec-vswizzle:
+.. _exec-vswizzlop:
 
-$${rule-prose: exec/vswizzle}
+$${rule-prose: Step_pure/vswizzlop}
 
 .. todo::
    Below is the actual prose.
@@ -1213,7 +1203,7 @@ $${rule-prose: exec/vswizzle}
 
 8. Push the value :math:`\V128.\VCONST~c'` onto the stack.
 
-$${rule: {Step_pure/vswizzle}}
+$${rule: {Step_pure/vswizzlop}}
 
 .. math::
    \begin{array}{l}
@@ -1231,7 +1221,7 @@ $${rule: {Step_pure/vswizzle}}
 
 .. _exec-vshuffle:
 
-$${rule-prose: exec/vshuffle}
+$${rule-prose: Step_pure/vshuffle}
 
 .. todo::
    Below is the actual prose.
@@ -1271,7 +1261,7 @@ $${rule: {Step_pure/vshuffle}}
 
 .. _exec-vsplat:
 
-$${rule-prose: exec/vsplat}
+$${rule-prose: Step_pure/vsplat}
 
 .. todo::
    Below is the actual prose.
@@ -1301,7 +1291,7 @@ $${rule: {Step_pure/vsplat}}
 
 .. _exec-vextract_lane:
 
-$${rule-prose: exec/vextract_lane}
+$${rule-prose: Step_pure/vextract_lane}
 
 .. todo::
    Below is the actual prose.
@@ -1316,7 +1306,7 @@ $${rule-prose: exec/vextract_lane}
 
 5. Let :math:`t_2` be the type :math:`\unpackshape(t_1\K{x}N)`.
 
-6. Let :math:`c_2` be the result of computing :math:`\ext^{sx^?}_{t_1,t_2}(i^\ast[x])`.
+6. Let :math:`c_2` be the result of computing :math:`\extend^{sx^?}_{t_1,t_2}(i^\ast[x])`.
 
 7. Push the value :math:`t_2.\CONST~c_2` to the stack.
 
@@ -1330,14 +1320,14 @@ $${rule: {Step_pure/vextract_lane-*}}
    \\ \qquad
      \begin{array}[t]{@{}r@{~}l@{}}
       (\iff & t_2 = \unpackshape(t_1\K{x}N) \\
-       \wedge & c_2 = \ext^{sx^?}_{t_1,t_2}(\lanes_{t_1\K{x}N}(c_1)[x]))
+       \wedge & c_2 = \extend^{sx^?}_{t_1,t_2}(\lanes_{t_1\K{x}N}(c_1)[x]))
      \end{array}
    \end{array}
 
 
 .. _exec-vreplace_lane:
 
-$${rule-prose: exec/vreplace_lane}
+$${rule-prose: Step_pure/vreplace_lane}
 
 .. todo::
    Below is the actual prose.
@@ -1377,7 +1367,7 @@ $${rule: {Step_pure/vreplace_lane}}
 
 .. _exec-vextadd_pairwise:
 
-$${rule-prose: exec/vextunop}
+$${rule-prose: Step_pure/vextunop}
 
 .. todo::
    Below is the actual prose.
@@ -1390,7 +1380,7 @@ $${rule-prose: exec/vextunop}
 
 4. Let :math:`i^\ast` be the result of computing :math:`\lanes_{t_1\K{x}M}(c_1)`.
 
-5. Let :math:`(j_1~j_2)^\ast` be the result of computing :math:`\ext^{\sx}_{|t_1|,|t_2|}(i^\ast)`.
+5. Let :math:`(j_1~j_2)^\ast` be the result of computing :math:`\extend^{\sx}_{|t_1|,|t_2|}(i^\ast)`.
 
 6. Let :math:`k^\ast` be the result of computing :math:`\iadd_{|t_2|}(j_1, j_2)^\ast`.
 
@@ -1407,7 +1397,7 @@ $${rule: {Step_pure/vextunop}}
    \end{array}
    \\ \qquad
      \begin{array}[t]{@{}r@{~}l@{}}
-     (\iff & (i_1~i_2)^\ast = \ext^{\sx}_{|t_1|,|t_2|}(\lanes_{t_1\K{x}M}(c_1)) \\
+     (\iff & (i_1~i_2)^\ast = \extend^{\sx}_{|t_1|,|t_2|}(\lanes_{t_1\K{x}M}(c_1)) \\
      \wedge & j^\ast = \iadd_{|t_2|}(i_1, i_2)^\ast \\
      \wedge & c = \lanes^{-1}_{t_2\K{x}N}(j^\ast))
      \end{array}
@@ -1416,7 +1406,7 @@ $${rule: {Step_pure/vextunop}}
 
 .. _exec-vextmul:
 
-$${rule-prose: exec/vextbinop}
+$${rule-prose: Step_pure/vextbinop}
 
 .. todo::
    Below is the actual prose.
@@ -1445,9 +1435,9 @@ $${rule-prose: exec/vextbinop}
 
    b. Let :math:`j_2^\ast` be the sequence :math:`i_2^\ast[N \slice N]`.
 
-9. Let :math:`k_1^\ast` be the result of computing :math:`\ext^{\sx}_{|t_1|,|t_2|}(j_1^\ast)`.
+9. Let :math:`k_1^\ast` be the result of computing :math:`\extend^{\sx}_{|t_1|,|t_2|}(j_1^\ast)`.
 
-10. Let :math:`k_2^\ast` be the result of computing :math:`\ext^{\sx}_{|t_1|,|t_2|}(j_2^\ast)`.
+10. Let :math:`k_2^\ast` be the result of computing :math:`\extend^{\sx}_{|t_1|,|t_2|}(j_2^\ast)`.
 
 11. Let :math:`k^\ast` be the result of computing :math:`\imul_{|t_2|}(k_1^\ast, k_2^\ast)`.
 
@@ -1465,7 +1455,7 @@ $${rule: {Step_pure/vextbinop}}
      \begin{array}[t]{@{}r@{~}l@{}}
      (\iff & i^\ast = \lanes_{t_1\K{x}M}(c_1)[\half(0, N) \slice N] \\
      \wedge & j^\ast = \lanes_{t_1\K{x}M}(c_2)[\half(0, N) \slice N] \\
-     \wedge & c = \lanes^{-1}_{t_2\K{x}N}(\imul_{|t_2|}(\ext^{\sx}_{|t_1|,|t_2|}(i^\ast), \ext^{\sx}_{|t_1|,|t_2|}(j^\ast))))
+     \wedge & c = \lanes^{-1}_{t_2\K{x}N}(\imul_{|t_2|}(\extend^{\sx}_{|t_1|,|t_2|}(i^\ast), \extend^{\sx}_{|t_1|,|t_2|}(j^\ast))))
      \end{array}
 
 where:
@@ -1492,11 +1482,11 @@ where:
 
 4. Let :math:`i_1^\ast` be the result of computing :math:`\lanes_{\I16X8}(c_1)`.
 
-5. Let :math:`j_1^\ast` be the result of computing :math:`\exts_{16,32}(i_1^\ast)`.
+5. Let :math:`j_1^\ast` be the result of computing :math:`\extends_{16,32}(i_1^\ast)`.
 
 6. Let :math:`i_2^\ast` be the result of computing :math:`\lanes_{\I16X8}(c_2)`.
 
-7. Let :math:`j_2^\ast` be the result of computing :math:`\exts_{16,32}(i_2^\ast)`.
+7. Let :math:`j_2^\ast` be the result of computing :math:`\extends_{16,32}(i_2^\ast)`.
 
 8. Let :math:`(k_1~k_2)^\ast` be the result of computing :math:`\imul_{32}(j_1^\ast, j_2^\ast)`.
 
@@ -1513,7 +1503,7 @@ where:
    \end{array}
    \\ \qquad
      \begin{array}[t]{@{}r@{~}l@{}}
-     (\iff & (i_1~i_2)^\ast = \imul_{32}(\exts_{16,32}(\lanes_{\I16X8}(c_1)), \exts_{16,32}(\lanes_{\I16X8}(c_2))) \\
+     (\iff & (i_1~i_2)^\ast = \imul_{32}(\extends_{16,32}(\lanes_{\I16X8}(c_1)), \extends_{16,32}(\lanes_{\I16X8}(c_2))) \\
      \wedge & j^\ast = \iadd_{32}(i_1, i_2)^\ast \\
      \wedge & c = \lanes^{-1}_{\I32X4}(j^\ast))
      \end{array}
@@ -1522,7 +1512,7 @@ where:
 
 .. _exec-vnarrow:
 
-$${rule-prose: exec/vnarrow}
+$${rule-prose: Step_pure/vnarrow}
 
 .. todo::
    Below is the actual prose.
@@ -1565,10 +1555,87 @@ $${rule: {Step_pure/vnarrow}}
    \end{array}
 
 
+.. _exec-vrelaxed_dot:
+
+.. todo:: move more of this to numerics
+
+1. Assert: due to :ref:`validation <valid-vextbinop>`, two values of :ref:`value type <syntax-valtype>` |V128| are on the top of the stack.
+
+2. Pop the value :math:`\V128.\VCONST~c_2` from the stack.
+
+3. Pop the value :math:`\V128.\VCONST~c_1` from the stack.
+
+4. Let :math:`(i_1~i_2)^8` be the result of computing :math:`\irelaxeddotmul_{8, 16}(\lanes_{\I8X16}(c_1), \lanes_{\I8X16}(c_2))`
+
+5. Let :math:`j^8` be the result of computing :math:`\iaddsats_{16}(i_1, i_2)^8`.
+
+6. Let :math:`c` be the result of computing :math:`\lanes^{-1}_{\I16X8}(j^8)`.
+
+7. Push the value :math:`\V128.\VCONST~c` onto the stack.
+
+.. math::
+   \begin{array}{l}
+   \begin{array}{llcl@{\qquad}l}
+   & (\V128\K{.}\VCONST~c_1)~(\V128\K{.}\VCONST~c_2)~\K{i16x8.}\VRELAXEDDOT\K{\_i8x16\_i7x16\_s} &\stepto& (\V128\K{.}\VCONST~c) \\
+   \end{array}
+   \\ \qquad
+     \begin{array}[t]{@{}r@{~}l@{}}
+     (\iff & (i_1~i_2)^8 = \irelaxeddotmul_{8,16}(\lanes_{\I8X16}(c_1), \lanes_{\I8X16}(c_2)) \\
+     \wedge & j^8 = \iaddsats_{16}(i_1, i_2)^8 \\
+     \wedge & c = \lanes^{-1}_{\I16X8}(j^8))
+     \end{array}
+   \end{array}
+
+
+.. _exec-vrelaxed_dot_add:
+
+.. todo:: move more of this to numerics
+
+1. Assert: due to :ref:`validation <valid-vextternop>`, three values of :ref:`value type <syntax-valtype>` |V128| are on the top of the stack.
+
+2. Pop the value :math:`\V128.\VCONST~c_3` from the stack.
+
+3. Pop the value :math:`\V128.\VCONST~c_2` from the stack.
+
+4. Pop the value :math:`\V128.\VCONST~c_1` from the stack.
+
+5. Let :math:`(i_1~i_2)^8` be the result of computing :math:`\irelaxeddotmul_{8, 16}(\lanes_{\I8X16}(c_1), \lanes_{\I8X16}(c_2))`
+
+6. Let :math:`(j_1~j_2)^4` be the result of computing :math:`\iaddsats_{16}(i_1, i_2)^8`.
+
+7. Let :math:`j^4` be the result of computing :math:`\iadd_{32}(\extend^{s}_{16, 32}(j_1), \extend^{s}_{16, 32}(j_2))^4`.
+
+8. Let :math:`k^4` be the result of computing :math:`\lanes_{\I32X4}(c_3)`.
+
+9. Let :math:`l^4` be the result of computing :math:`\iadd_{32}(j, k)^4`.
+
+10. Let :math:`c` be the result of computing :math:`\lanes^{-1}_{\I32X4}(l^4)`.
+
+11. Push the value :math:`\V128.\VCONST~c` onto the stack.
+
+.. math::
+   \begin{array}{l}
+   \begin{array}{llcl@{\qquad}l}
+   & (\V128\K{.}\VCONST~c_1)~(\V128\K{.}\VCONST~c_2)~(\V128\K{.}\VCONST~c_3)~\K{i32x4.}\VRELAXEDDOT\K{\_i8x16\_i7x16\_add\_s} &\stepto& (\V128\K{.}\VCONST~c) \\
+   \end{array}
+   \\ \qquad
+     \begin{array}[t]{@{}r@{~}l@{}}
+     (\iff & (i_1~i_2)^8 = \irelaxeddotmul_{8,16}(\lanes_{\I8X16}(c_1), \lanes_{\I8X16}(c_2)) \\
+     \wedge & (j_1~j_2)^4 = \iaddsats_{16}(i_1, i_2)^8 \\
+     \wedge & j^4 = \iadd_{32}(\extends_{16,32}(j_1), \extends_{16,32}(j_2))^4 \\
+     \wedge & k^4 = \lanes_{\I32X4}(c_3) \\
+     \wedge & l^4 = \iadd_{32}(j, k)^4 \\
+     \wedge & c = \lanes^{-1}_{\I32X4}(l^4))
+     \end{array}
+   \end{array}
+
+
 .. _exec-vcvtop:
 
 :math:`t_2\K{x}N\K{.}\vcvtop\K{\_}t_1\K{x}M\K{\_}\sx`
 .....................................................
+
+.. todo:: move more of this to numerics
 
 .. todo:: (*) Prose not spliced, for it has merged multiple rules for vcvtop into one algorithm.
 
@@ -1586,7 +1653,7 @@ $${rule: {Step_pure/vnarrow}}
 
 7. Push the value :math:`\V128.\VCONST~c` onto the stack.
 
-$${rule: {Step_pure/vcvtop-full}}
+$${rule: {Step_pure/vcvtop}}
 
 .. math::
    \begin{array}{l}
@@ -1602,6 +1669,8 @@ $${rule: {Step_pure/vcvtop-full}}
 
 :math:`t_2\K{x}N\K{.}\vcvtop\K{\_}\half\K{\_}t_1\K{x}M\K{\_}\sx^?`
 ..................................................................
+
+.. todo:: move more of this to numerics
 
 .. todo:: (*) Prose not spliced, for it has merged multiple rules for vcvtop into one algorithm.
 
@@ -1626,8 +1695,6 @@ $${rule: {Step_pure/vcvtop-full}}
 8. Let :math:`c` be the result of computing :math:`\lanes^{-1}_{t_2\K{x}N}(k^\ast)`.
 
 9. Push the value :math:`\V128.\VCONST~c` onto the stack.
-
-$${rule: {Step_pure/vcvtop-half}}
 
 .. math::
    \begin{array}{l}
@@ -1670,8 +1737,6 @@ where:
 
 8. Push the value :math:`\V128.\VCONST~c` onto the stack.
 
-$${rule: {Step_pure/vcvtop-zero}}
-
 .. math::
    \begin{array}{l}
    \begin{array}{lcl@{\qquad}l}
@@ -1694,35 +1759,35 @@ Variable Instructions
 
 .. _exec-local.get:
 
-$${rule-prose: exec/local.get}
+$${rule-prose: Step_read/local.get}
 
 $${rule: Step_read/local.get}
 
 
 .. _exec-local.set:
 
-$${rule-prose: exec/local.set}
+$${rule-prose: Step/local.set}
 
 $${rule: Step/local.set}
 
 
 .. _exec-local.tee:
 
-$${rule-prose: exec/local.tee}
+$${rule-prose: Step_pure/local.tee}
 
 $${rule: Step_pure/local.tee}
 
 
 .. _exec-global.get:
 
-$${rule-prose: exec/global.get}
+$${rule-prose: Step_read/global.get}
 
 $${rule: Step_read/global.get}
 
 
 .. _exec-global.set:
 
-$${rule-prose: exec/global.set}
+$${rule-prose: Step/global.set}
 
 $${rule: Step/global.set}
 
@@ -1737,28 +1802,29 @@ Table Instructions
 
 .. _exec-table.get:
 
-$${rule-prose: exec/table.get}
+$${rule-prose: Step_read/table.get}
 
 $${rule: {Step_read/table.get-*}}
 
 
 .. _exec-table.set:
 
-$${rule-prose: exec/table.set}
+$${rule-prose: Step/table.set}
 
 $${rule: {Step/table.set-*}}
 
 
 .. _exec-table.size:
 
-$${rule-prose: exec/table.size}
+$${rule-prose: Step_read/table.size}
 
 $${rule: Step_read/table.size}
 
 
+.. index:: determinism, non-determinism
 .. _exec-table.grow:
 
-$${rule-prose: exec/table.grow}
+$${rule-prose: Step/table.grow}
 
 .. todo:: (6) Maybe we want to be more precise than just saying "Either" in the prose, elaborating that it may succeed or fail non-deterministically.
 
@@ -1772,30 +1838,31 @@ $${rule: {Step/table.grow-*}}
    However, failure *can* occur in other cases as well.
    In practice, the choice depends on the :ref:`resources <impl-exec>` available to the :ref:`embedder <embedder>`.
 
+
 .. _exec-table.fill:
 
-$${rule-prose: exec/table.fill}
+$${rule-prose: Step_read/table.fill}
 
 $${rule: {Step_read/table.fill-*}}
 
 
 .. _exec-table.copy:
 
-$${rule-prose: exec/table.copy}
+$${rule-prose: Step_read/table.copy}
 
 $${rule: {Step_read/table.copy-*}}
 
 
 .. _exec-table.init:
 
-$${rule-prose: exec/table.init}
+$${rule-prose: Step_read/table.init}
 
 $${rule: {Step_read/table.init-*}}
 
 
 .. _exec-elem.drop:
 
-$${rule-prose: exec/elem.drop}
+$${rule-prose: Step/elem.drop}
 
 $${rule: Step/elem.drop}
 
@@ -1821,7 +1888,7 @@ Memory Instructions
 .. _exec-load-pack:
 .. _exec-vload-val:
 
-$${rule-prose: exec/load}
+$${rule-prose: Step_read/load}
 
 .. todo::
    Below is the actual prose.
@@ -1837,9 +1904,9 @@ $${rule-prose: exec/load}
 
 5. Let :math:`\X{mem}` be the :ref:`memory instance <syntax-meminst>` :math:`S.\SMEMS[a]`.
 
-6. Assert: due to :ref:`validation <valid-load-pack>`, a value of :ref:`value type <syntax-valtype>` |I32| is on the top of the stack.
+6. Assert: due to :ref:`validation <valid-load-pack>`, a value of some :ref:`address type <syntax-addrtype>` :math:`\X{at}` is on the top of the stack.
 
-7. Pop the value :math:`\I32.\CONST~i` from the stack.
+7. Pop the value :math:`\X{at}.\CONST~i` from the stack.
 
 8. Let :math:`\X{ea}` be the integer :math:`i + \memarg.\OFFSET`.
 
@@ -1857,7 +1924,7 @@ $${rule-prose: exec/load}
 
     a. Let :math:`n` be the integer for which :math:`\bytes_{\iN}(n) = b^\ast`.
 
-    b. Let :math:`c` be the result of computing :math:`\ext^{\sx}_{N,|t|}(n)`.
+    b. Let :math:`c` be the result of computing :math:`\extend^{\sx}_{N,|t|}(n)`.
 
 13. Else:
 
@@ -1885,9 +1952,9 @@ $${rule: {Step_read/load-*}}
 
 5. Let :math:`\X{mem}` be the :ref:`memory instance <syntax-meminst>` :math:`S.\SMEMS[a]`.
 
-6. Assert: due to :ref:`validation <valid-vload-pack>`, a value of :ref:`value type <syntax-valtype>` |I32| is on the top of the stack.
+6. Assert: due to :ref:`validation <valid-vload-pack>`, a value of some :ref:`address type <syntax-addrtype>` :math:`\X{at}` is on the top of the stack.
 
-7. Pop the value :math:`\I32.\CONST~i` from the stack.
+7. Pop the value :math:`\X{at}.\CONST~i` from the stack.
 
 8. Let :math:`\X{ea}` be the integer :math:`i + \memarg.\OFFSET`.
 
@@ -1901,7 +1968,7 @@ $${rule: {Step_read/load-*}}
 
 12. Let :math:`W` be the integer :math:`M \cdot 2`.
 
-13. Let :math:`n_k` be the result of computing :math:`\ext^{\sx}_{M,W}(m_k)`.
+13. Let :math:`n_k` be the result of computing :math:`\extend^{\sx}_{M,W}(m_k)`.
 
 14. Let :math:`c` be the result of computing :math:`\lanes^{-1}_{\K{i}W\K{x}N}(n_0 \dots n_{N-1})`.
 
@@ -1911,7 +1978,7 @@ $${rule: {Step_read/load-*}}
    ~\\[-1ex]
    \begin{array}{l}
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128.\VLOAD{M}\K{x}N\_\sx~x~\memarg) &\stepto&
+   S; F; (\X{at}.\CONST~i)~(\V128.\LOAD{M}\K{x}N\_\sx~x~\memarg) &\stepto&
      S; F; (\V128.\CONST~c)
    \end{array}
    \\ \qquad
@@ -1920,15 +1987,17 @@ $${rule: {Step_read/load-*}}
      \wedge & \X{ea} + M \cdot N / 8 \leq |S.\SMEMS[F.\AMODULE.\MIMEMS[x]].\MIBYTES| \\
      \wedge & \bytes_{\iM}(m_k) = S.\SMEMS[F.\AMODULE.\MIMEMS[x]].\MIBYTES[\X{ea} + k \cdot M/8 \slice M/8]) \\
      \wedge & W = M \cdot 2 \\
-     \wedge & c = \lanes^{-1}_{\K{i}W\K{x}N}(\ext^{\sx}_{M,W}(m_0) \dots \ext^{\sx}_{M,W}(m_{N-1})))
+     \wedge & c = \lanes^{-1}_{\K{i}W\K{x}N}(\extend^{\sx}_{M,W}(m_0) \dots \extend^{\sx}_{M,W}(m_{N-1})))
      \end{array}
    \\[1ex]
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128.\VLOAD{M}\K{x}N\K{\_}\sx~x~\memarg) &\stepto& S; F; \TRAP
+   S; F; (\X{at}.\CONST~i)~(\V128.\LOAD{M}\K{x}N\K{\_}\sx~x~\memarg) &\stepto& S; F; \TRAP
    \end{array}
    \\ \qquad
      (\otherwise) \\
    \end{array}
+
+$${rule: {Step_read/vload-pack-*}}
 
 
 .. _exec-vload-splat:
@@ -1948,9 +2017,9 @@ $${rule: {Step_read/load-*}}
 
 5. Let :math:`\X{mem}` be the :ref:`memory instance <syntax-meminst>` :math:`S.\SMEMS[a]`.
 
-6. Assert: due to :ref:`validation <valid-vload-splat>`, a value of :ref:`value type <syntax-valtype>` |I32| is on the top of the stack.
+6. Assert: due to :ref:`validation <valid-vload-splat>`, a value of some :ref:`address type <syntax-addrtype>` :math:`\X{at}` is on the top of the stack.
 
-7. Pop the value :math:`\I32.\CONST~i` from the stack.
+7. Pop the value :math:`\X{at}.\CONST~i` from the stack.
 
 8. Let :math:`\X{ea}` be the integer :math:`i + \memarg.\OFFSET`.
 
@@ -1972,7 +2041,7 @@ $${rule: {Step_read/load-*}}
    ~\\[-1ex]
    \begin{array}{l}
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128\K{.}\VLOAD{N}\K{\_splat}~x~\memarg) &\stepto& S; F; (\V128.\CONST~c)
+   S; F; (\X{at}.\CONST~i)~(\V128\K{.}\LOAD{N}\K{\_splat}~x~\memarg) &\stepto& S; F; (\V128.\CONST~c)
    \end{array}
    \\ \qquad
      \begin{array}[t]{@{}r@{~}l@{}}
@@ -1983,11 +2052,13 @@ $${rule: {Step_read/load-*}}
      \end{array}
    \\[1ex]
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128.\VLOAD{N}\K{\_splat}~x~\memarg) &\stepto& S; F; \TRAP
+   S; F; (\X{at}.\CONST~i)~(\V128.\LOAD{N}\K{\_splat}~x~\memarg) &\stepto& S; F; \TRAP
    \end{array}
    \\ \qquad
      (\otherwise) \\
    \end{array}
+
+$${rule: {Step_read/vload-splat-*}}
 
 
 .. _exec-vload-zero:
@@ -2007,9 +2078,9 @@ $${rule: {Step_read/load-*}}
 
 5. Let :math:`\X{mem}` be the :ref:`memory instance <syntax-meminst>` :math:`S.\SMEMS[a]`.
 
-6. Assert: due to :ref:`validation <valid-vload-zero>`, a value of :ref:`value type <syntax-valtype>` |I32| is on the top of the stack.
+6. Assert: due to :ref:`validation <valid-vload-zero>`, a value of some :ref:`address type <syntax-addrtype>` :math:`\X{at}` is on the top of the stack.
 
-7. Pop the value :math:`\I32.\CONST~i` from the stack.
+7. Pop the value :math:`\X{at}.\CONST~i` from the stack.
 
 8. Let :math:`\X{ea}` be the integer :math:`i + \memarg.\OFFSET`.
 
@@ -2021,7 +2092,7 @@ $${rule: {Step_read/load-*}}
 
 11. Let :math:`n` be the integer for which :math:`\bytes_{\iN}(n) = b^\ast`.
 
-12. Let :math:`c` be the result of computing :math:`\extu_{N,128}(n)`.
+12. Let :math:`c` be the result of computing :math:`\extendu_{N,128}(n)`.
 
 13. Push the value :math:`\V128.\CONST~c` to the stack.
 
@@ -2029,22 +2100,24 @@ $${rule: {Step_read/load-*}}
    ~\\[-1ex]
    \begin{array}{l}
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128\K{.}\VLOAD{N}\K{\_zero}~x~\memarg) &\stepto& S; F; (\V128.\CONST~c)
+   S; F; (\X{at}.\CONST~i)~(\V128\K{.}\LOAD{N}\K{\_zero}~x~\memarg) &\stepto& S; F; (\V128.\CONST~c)
    \end{array}
    \\ \qquad
      \begin{array}[t]{@{}r@{~}l@{}}
      (\iff & \X{ea} = i + \memarg.\OFFSET \\
      \wedge & \X{ea} + N/8 \leq |S.\SMEMS[F.\AMODULE.\MIMEMS[x]].\MIBYTES| \\
      \wedge & \bytes_{\iN}(n) = S.\SMEMS[F.\AMODULE.\MIMEMS[x]].\MIBYTES[\X{ea} \slice N/8]) \\
-     \wedge & c = \extu_{N,128}(n)
+     \wedge & c = \extendu_{N,128}(n)
      \end{array}
    \\[1ex]
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128.\VLOAD{N}\K{\_zero}~x~\memarg) &\stepto& S; F; \TRAP
+   S; F; (\X{at}.\CONST~i)~(\V128.\LOAD{N}\K{\_zero}~x~\memarg) &\stepto& S; F; \TRAP
    \end{array}
    \\ \qquad
      (\otherwise) \\
    \end{array}
+
+$${rule: {Step_read/vload-zero-*}}
 
 
 .. _exec-vload_lane:
@@ -2068,9 +2141,9 @@ $${rule: {Step_read/load-*}}
 
 7. Pop the value :math:`\V128.\CONST~v` from the stack.
 
-8. Assert: due to :ref:`validation <valid-vload_lane>`, a value of :ref:`value type <syntax-valtype>` |I32| is on the top of the stack.
+8. Assert: due to :ref:`validation <valid-vload_lane>`, a value of some :ref:`address type <syntax-addrtype>` :math:`\X{at}` is on the top of the stack.
 
-9. Pop the value :math:`\I32.\CONST~i` from the stack.
+9. Pop the value :math:`\X{at}.\CONST~i` from the stack.
 
 10. Let :math:`\X{ea}` be the integer :math:`i + \memarg.\OFFSET`.
 
@@ -2094,7 +2167,7 @@ $${rule: {Step_read/load-*}}
    ~\\[-1ex]
    \begin{array}{l}
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128.\CONST~v)~(\V128\K{.}\VLOAD{N}\K{\_lane}~x~\memarg~y) &\stepto& S; F; (\V128.\CONST~c)
+   S; F; (\X{at}.\CONST~i)~(\V128.\CONST~v)~(\V128\K{.}\LOAD{N}\K{\_lane}~x~\memarg~y) &\stepto& S; F; (\V128.\CONST~c)
    \end{array}
    \\ \qquad
      \begin{array}[t]{@{}r@{~}l@{}}
@@ -2106,20 +2179,22 @@ $${rule: {Step_read/load-*}}
      \end{array}
    \\[1ex]
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128.\CONST~v)~(\V128.\VLOAD{N}\K{\_lane}~x~\memarg~y) &\stepto& S; F; \TRAP
+   S; F; (\X{at}.\CONST~i)~(\V128.\CONST~v)~(\V128.\LOAD{N}\K{\_lane}~x~\memarg~y) &\stepto& S; F; \TRAP
    \end{array}
    \\ \qquad
      (\otherwise) \\
    \end{array}
+
+$${rule: {Step_read/vload_lane-*}}
 
 
 .. _exec-store-val:
 .. _exec-store-pack:
 .. _exec-vstore:
 
-$${rule-prose: exec/store}
+$${rule-prose: Step/store}
 
-$${rule: {Step/store-*}}
+$${rule: {Step/store-* Step/vstore-*}}
 
 
 .. _exec-vstore_lane:
@@ -2135,7 +2210,7 @@ $${rule: {Step/store-*}}
 
 3. Let :math:`a` be the :ref:`memory address <syntax-memaddr>` :math:`F.\AMODULE.\MIMEMS[x]`.
 
-4. Assert: due to :ref:`validation <valid-store-pack>`, :math:`S.\SMEMS[a]` exists.
+4. Assert: due to :ref:`validation <valid-vstore_lane>`, :math:`S.\SMEMS[a]` exists.
 
 5. Let :math:`\X{mem}` be the :ref:`memory instance <syntax-meminst>` :math:`S.\SMEMS[a]`.
 
@@ -2143,9 +2218,9 @@ $${rule: {Step/store-*}}
 
 7. Pop the value :math:`\V128.\CONST~c` from the stack.
 
-8. Assert: due to :ref:`validation <valid-vstore_lane>`, a value of :ref:`value type <syntax-valtype>` |I32| is on the top of the stack.
+8. Assert: due to :ref:`validation <valid-vstore_lane>`, a value of some :ref:`address type <syntax-addrtype>` :math:`\X{at}` is on the top of the stack.
 
-9. Pop the value :math:`\I32.\CONST~i` from the stack.
+9. Pop the value :math:`\X{at}.\CONST~i` from the stack.
 
 10. Let :math:`\X{ea}` be the integer :math:`i + \memarg.\OFFSET`.
 
@@ -2165,7 +2240,7 @@ $${rule: {Step/store-*}}
    ~\\[-1ex]
    \begin{array}{l}
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128.\CONST~c)~(\V128.\VSTORE{N}\K{\_lane}~x~\memarg~y) &\stepto& S'; F; \epsilon
+   S; F; (\X{at}.\CONST~i)~(\V128.\CONST~c)~(\V128.\STORE{N}\K{\_lane}~x~\memarg~y) &\stepto& S'; F; \epsilon
    \end{array}
    \\ \qquad
      \begin{array}[t]{@{}r@{~}l@{}}
@@ -2176,23 +2251,26 @@ $${rule: {Step/store-*}}
      \end{array}
    \\[1ex]
    \begin{array}{lcl@{\qquad}l}
-   S; F; (\I32.\CONST~i)~(\V128.\CONST~c)~(\V128.\VSTORE{N}\K{\_lane}~x~\memarg~y) &\stepto& S; F; \TRAP
+   S; F; (\X{at}.\CONST~i)~(\V128.\CONST~c)~(\V128.\STORE{N}\K{\_lane}~x~\memarg~y) &\stepto& S; F; \TRAP
    \end{array}
    \\ \qquad
      (\otherwise) \\
    \end{array}
 
+$${rule: {Step/vstore_lane-*}}
+
 
 .. _exec-memory.size:
 
-$${rule-prose: exec/memory.size}
+$${rule-prose: Step_read/memory.size}
 
 $${rule: {Step_read/memory.size}}
 
 
+.. index:: determinism, non-determinism
 .. _exec-memory.grow:
 
-$${rule-prose: exec/memory.grow}
+$${rule-prose: Step/memory.grow}
 
 .. todo:: (6) Maybe we want to be more precise than just saying "Either" in the prose, elaborating that it may succeed or fail non-deterministically.
 
@@ -2209,28 +2287,28 @@ $${rule: {Step/memory.grow-*}}
 
 .. _exec-memory.fill:
 
-$${rule-prose: exec/memory.fill}
+$${rule-prose: Step_read/memory.fill}
 
 $${rule: {Step_read/memory.fill-*}}
 
 
 .. _exec-memory.copy:
 
-$${rule-prose: exec/memory.copy}
+$${rule-prose: Step_read/memory.copy}
 
 $${rule: {Step_read/memory.copy-*}}
 
 
 .. _exec-memory.init:
 
-$${rule-prose: exec/memory.init}
+$${rule-prose: Step_read/memory.init}
 
 $${rule: {Step_read/memory.init-*}}
 
 
 .. _exec-data.drop:
 
-$${rule-prose: exec/data.drop}
+$${rule-prose: Step/data.drop}
 
 $${rule: {Step/data.drop}}
 
@@ -2246,49 +2324,49 @@ Control Instructions
 
 .. _exec-block:
 
-$${rule-prose: exec/block}
+$${rule-prose: Step_read/block}
 
 $${rule: {Step_read/block}}
 
 
 .. _exec-loop:
 
-$${rule-prose: exec/loop}
+$${rule-prose: Step_read/loop}
 
 $${rule: {Step_read/loop}}
 
 
 .. _exec-if:
 
-$${rule-prose: exec/if}
+$${rule-prose: Step_pure/if}
 
 $${rule: {Step_pure/if-*}}
 
 
 .. _exec-br:
 
-$${rule-prose: exec/br}
+$${rule-prose: Step_pure/br}
 
 $${rule: {Step_pure/br-*}}
 
 
 .. _exec-br_if:
 
-$${rule-prose: exec/br_if}
+$${rule-prose: Step_pure/br_if}
 
 $${rule: {Step_pure/br_if-*}}
 
 
 .. _exec-br_table:
 
-$${rule-prose: exec/br_table}
+$${rule-prose: Step_pure/br_table}
 
 $${rule: {Step_pure/br_table-*}}
 
 
 .. _exec-br_on_null:
 
-$${rule-prose: exec/br_on_null}
+$${rule-prose: Step_pure/br_on_null}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -2297,7 +2375,7 @@ $${rule: {Step_pure/br_on_null-*}}
 
 .. _exec-br_on_non_null:
 
-$${rule-prose: exec/br_on_non_null}
+$${rule-prose: Step_pure/br_on_non_null}
 
 .. todo:: (3) Introduce if-let instruction instead of "is of the case".
 
@@ -2306,7 +2384,7 @@ $${rule: {Step_pure/br_on_non_null-*}}
 
 .. _exec-br_on_cast:
 
-$${rule-prose: exec/br_on_cast}
+$${rule-prose: Step_read/br_on_cast}
 
 .. todo::
    Below is the acutal prose.
@@ -2337,7 +2415,7 @@ $${rule: {Step_read/br_on_cast-*}}
 
 .. _exec-br_on_cast_fail:
 
-$${rule-prose: exec/br_on_cast_fail}
+$${rule-prose: Step_read/br_on_cast_fail}
 
 .. todo::
    Below is the actual prose.
@@ -2368,14 +2446,14 @@ $${rule: {Step_read/br_on_cast_fail-*}}
 
 .. _exec-return:
 
-$${rule-prose: exec/return}
+$${rule-prose: Step_pure/return}
 
 $${rule: {Step_pure/return-*}}
 
 
 .. _exec-call:
 
-$${rule-prose: exec/call}
+$${rule-prose: Step_read/call}
 
 $${rule: {Step_read/call}}
 
@@ -2409,7 +2487,7 @@ $${rule: {Step_read/call_ref-null}}
 
 .. _exec-call_indirect:
 
-$${rule-prose: exec/call_indirect}
+$${rule-prose: Step_pure/call_indirect}
 
 .. todo::
    Below is the actual prose.
@@ -2464,7 +2542,7 @@ $${rule: {Step_pure/call_indirect}}
 
 .. _exec-return_call:
 
-$${rule-prose: exec/return_call}
+$${rule-prose: Step_read/return_call}
 
 $${rule: {Step_read/return_call}}
 
@@ -2496,7 +2574,7 @@ $${rule: {Step_read/return_call_ref-*}}
 
 .. _exec-return_call_indirect:
 
-$${rule-prose: exec/return_call_indirect}
+$${rule-prose: Step_pure/return_call_indirect}
 
 .. todo::
    Below is the actual prose.
@@ -2545,7 +2623,146 @@ $${rule-prose: exec/return_call_indirect}
 $${rule: {Step_pure/return_call_indirect}}
 
 
-.. index:: instruction, instruction sequence, block
+.. _exec-throw:
+
+$${rule-prose: Step/throw}
+
+.. todo:: check prose
+
+1. Let :math:`F` be the :ref:`current <exec-notation-textual>` :ref:`frame <syntax-frame>`.
+
+2. Assert: due to :ref:`validation <valid-throw>`, :math:`F.\AMODULE.\MITAGS[x]` exists.
+
+3. Let :math:`\X{ta}` be the :ref:`tag address <syntax-tagaddr>` :math:`F.\AMODULE.\MITAGS[x]`.
+
+4. Assert: due to :ref:`validation <valid-throw>`, :math:`S.\STAGS[\X{ta}]` exists.
+
+5. Let :math:`\X{ti}` be the :ref:`tag instance <syntax-taginst>` :math:`S.\STAGS[\X{ta}]`.
+
+6. Let :math:`[t^n] \toF [{t'}^\ast]` be the :ref:`tag type <syntax-tagtype>` :math:`\X{ti}.\HITYPE`.
+
+7. Assert: due to :ref:`validation <valid-throw>`, there are at least :math:`n` values on the top of the stack.
+
+8. Pop the :math:`n` values :math:`\val^n` from the stack.
+
+9. Let :math:`\X{exn}` be the :ref:`exception instance <syntax-exninst>` :math:`\{\EITAG~\X{ta}, \EIFIELDS~\val^n\}`.
+
+10. Let :math:`\X{ea}` be the length of :math:`S.\SEXNS`.
+
+11. Append :math:`\X{exn}` to :math:`S.\SEXNS`.
+
+12. Push the value :math:`\REFEXNADDR~\X{ea}` to the stack.
+
+13. Execute the instruction |THROWREF|.
+
+$${rule: Step/throw}
+
+
+.. _exec-throw_ref:
+
+.. todo:: Too deeply nested
+
+1. Assert: due to :ref:`validation <valid-throw_ref>`, a :ref:`reference <syntax-ref>` is on the top of the stack.
+
+2. Pop the reference :math:`\reff` from the stack.
+
+3. If :math:`\reff` is :math:`\REFNULL~\X{ht}`, then:
+
+   a. Trap.
+
+4. Assert: due to :ref:`validation <valid-throw_ref>`, :math:`\reff` is an :ref:`exception reference <syntax-ref.exn>`.
+
+5. Let :math:`\REFEXNADDR~\X{ea}` be :math:`\reff`.
+
+6. Assert: due to :ref:`validation <valid-throw_ref>`, :math:`S.\SEXNS[\X{ea}]` exists.
+
+7. Let :math:`\X{exn}` be the :ref:`exception instance <syntax-exninst>` :math:`S.\SEXNS[\X{ea}]`.
+
+8. Let :math:`a` be the :ref:`tag address <syntax-tagaddr>` :math:`\X{exn}.\EITAG`.
+
+9. While the stack is not empty and the top of the stack is not an :ref:`exception handler <syntax-handler>`, do:
+
+   a. Pop the top element from the stack.
+
+10. Assert: the stack is now either empty, or there is an exception handler on the top of the stack.
+
+11. If the stack is empty, then:
+
+   a. Return the exception :math:`(\REFEXNADDR~a)` as a :ref:`result <syntax-result>`.
+
+12. Assert: there is an :ref:`exception handler <syntax-handler>` on the top of the stack.
+
+13. Pop the exception handler  :math:`\HANDLER_n\{\catch^\ast\}` from the stack.
+
+14. If :math:`\catch^\ast` is empty, then:
+
+    a. Push the exception reference :math:`\REFEXNADDR~\X{ea}` back to the stack.
+
+    b. Execute the instruction |THROWREF| again.
+
+15. Else:
+
+    a. Let :math:`F` be the :ref:`current <exec-notation-textual>` :ref:`frame <syntax-frame>`.
+
+    b. Let :math:`\catch_1` be the first :ref:`catch clause <syntax-catch>` in :math:`\catch^\ast` and :math:`{\catch'}^\ast` the remaining clauses.
+
+    c. If :math:`\catch_1` is of the form :math:`\CATCH~x~l` and the :ref:`tag address <syntax-tagaddr>` :math:`a` equals :math:`F.\AMODULE.\MITAGS[x]`, then:
+
+       i. Push the values :math:`\X{exn}.\EIFIELDS` to the stack.
+
+       ii. Execute the instruction :math:`\BR~l`.
+
+    d. Else if :math:`\catch_1` is of the form :math:`\CATCHREF~x~l` and the :ref:`tag address <syntax-tagaddr>` :math:`a` equals :math:`F.\AMODULE.\MITAGS[x]`, then:
+
+       i. Push the values :math:`\X{exn}.\EIFIELDS` to the stack.
+
+       ii. Push the exception reference :math:`\REFEXNADDR~\X{ea}` to the stack.
+
+       iii. Execute the instruction :math:`\BR~l`.
+
+    e. Else if :math:`\catch_1` is of the form :math:`\CATCHALL~l`, then:
+
+       i. Execute the instruction :math:`\BR~l`.
+
+    f. Else if :math:`\catch_1` is of the form :math:`\CATCHALLREF~l`, then:
+
+       i. Push the exception reference :math:`\REFEXNADDR~\X{ea}` to the stack.
+
+       ii. Execute the instruction :math:`\BR~l`.
+
+    g. Else:
+
+       1. Push the modified handler  :math:`\HANDLER_n\{{\catch'}^\ast\}` back to the stack.
+
+       2. Push the exception reference :math:`\REFEXNADDR~\X{ea}` back to the stack.
+
+       3. Execute the instruction :math:`\THROWREF` again.
+
+$${rule: Step_read/throw_ref-*}
+
+
+.. _exec-try_table:
+
+$${rule-prose: Step_read/try_table}
+
+.. todo:: check prose
+
+1. Assert: due to :ref:`validation <valid-blocktype>`, :math:`\fblocktype_{S;F}(\blocktype)` is defined.
+
+2. Let :math:`[t_1^m] \to [t_2^n]` be the :ref:`instruction type <syntax-instrtype>` :math:`\fblocktype_{S;F}(\blocktype)`.
+
+3. Assert: due to :ref:`validation <valid-try_table>`, there are at least :math:`m` values on the top of the stack.
+
+4. Pop the values :math:`\val^m` from the stack.
+
+5. Let :math:`L` be the label whose arity is :math:`n` and whose continuation is the end of the |TRYTABLE| instruction.
+
+6. :ref:`Enter <exec-handler-enter>` the block :math:`\val^m~\instr_1^\ast` with label :math:`L` and exception handler :math:`\HANDLER_n\{\catch^\ast\}`.
+
+$${rule: Step_read/try_table}
+
+
+.. index:: instruction, instruction sequence, block, exception, trap
 .. _exec-instrs:
 
 Blocks
@@ -2574,7 +2791,7 @@ Entering :math:`\instr^\ast` with label :math:`L`
 Exiting :math:`\instr^\ast` with label :math:`L`
 ................................................
 
-When the end of a block is reached without a jump or trap aborting it, then the following steps are performed.
+When the end of a block is reached without a jump, :ref:`exception <exception>`, or :ref:`trap <trap>` aborting it, then the following steps are performed.
 
 1. Pop all values :math:`\val^\ast` from the top of the stack.
 
@@ -2589,8 +2806,58 @@ When the end of a block is reached without a jump or trap aborting it, then the 
 $${rule: Step_pure/label-vals}
 
 .. note::
-   This semantics also applies to the instruction sequence contained in a |LOOP| instruction.
+   This semantics also applies to the instruction sequence contained in a ${:LOOP} instruction.
    Therefore, execution of a loop falls off the end, unless a backwards branch is performed explicitly.
+
+
+.. index:: exception, handler, throw context, tag, exception tag
+
+.. _exec-handler:
+
+Exception Handling
+~~~~~~~~~~~~~~~~~~
+
+The following auxiliary rules define the semantics of entering and exiting ${:TRY_TABLE} blocks.
+
+.. _exec-handler-enter:
+
+Entering :math:`\instr^\ast` with label :math:`L` and exception handler :math:`H`
+.................................................................................
+
+1. Push :math:`H` to the stack.
+
+2. Push :math:`L` onto the stack.
+
+3. Jump to the start of the instruction sequence :math:`\instr^\ast`.
+
+.. note::
+   No formal reduction rule is needed for entering an exception :ref:`handler <syntax-handler>`
+   because it is an :ref:`administrative instruction <syntax-instr-admin>`
+   that the ${:TRY_TABLE} instruction reduces to directly.
+
+
+.. _exec-handler-exit:
+
+Exiting an exception handler
+............................
+
+When the end of a ${:TRY_TABLE} block is reached without a jump, :ref:`exception <exception>`, or :ref:`trap <trap>`, then the following steps are performed.
+
+1. Let :math:`m` be the number of values on the top of the stack.
+
+2. Pop the values :math:`\val^m` from the stack.
+
+3. Assert: due to :ref:`validation <valid-instrs>`, a handler and a label are now on the top of the stack.
+
+4. Pop the label from the stack.
+
+5. Pop the handler :math:`H` from the stack.
+
+6. Push :math:`\val^m` back to the stack.
+
+7. Jump to the position after the |END| of the administrative instruction associated with the handler :math:`H`.
+
+$${rule: Step_pure/handler-vals}
 
 
 .. index:: ! call, function, function instance, label, frame
@@ -2641,7 +2908,7 @@ $${rule: {Step_read/call_ref-func}}
 Returning from a function
 .........................
 
-When the end of a function is reached without a jump (i.e., |RETURN|) or trap aborting it, then the following steps are performed.
+When the end of a function is reached without a jump (including through |RETURN|), or an :ref:`exception <exception>` or :ref:`trap <trap>` aborting it, then the following steps are performed.
 
 1. Let :math:`F` be the :ref:`current <exec-notation-textual>` :ref:`frame <syntax-frame>`.
 
@@ -2669,7 +2936,7 @@ Host Functions
 ..............
 
 Invoking a :ref:`host function <syntax-hostfunc>` has non-deterministic behavior.
-It may either terminate with a :ref:`trap <trap>` or return regularly.
+It may either terminate with a :ref:`trap <trap>`, an :ref:`exception <exception>`, or return regularly.
 However, in the latter case, it must consume and produce the right number and types of WebAssembly :ref:`values <syntax-val>` on the stack,
 according to its :ref:`function type <syntax-functype>`.
 

@@ -153,7 +153,7 @@ rule Instrs_ok/empty:
 rule Instrs_ok/seq:
   C |- instr_1 instr_2* : t_1* -> t_3*
   -- Instr_ok: C |- instr_1 : t_1* -> t_2*
-  -- Instrs_ok: C |- instr_2 : t_2* -> t_3*
+  -- Instrs_ok: C |- instr_2* : t_2* -> t_3*
 
 rule Instrs_ok/sub:
   C |- instr* : t'_1* -> t'_2*
@@ -203,18 +203,18 @@ rule Blocktype_ok/typeidx:
 rule Instr_ok/block:
   C |- BLOCK bt instr* : t_1* -> t_2*
   -- Blocktype_ok: C |- bt : t_1* -> t_2*
-  -- Instrs_ok: C, LABELS (t_2*) |- instr* : t_1* -> t_2*
+  -- Instrs_ok: {LABELS (t_2*)} ++ C |- instr* : t_1* -> t_2*
 
 rule Instr_ok/loop:
   C |- LOOP bt instr* : t_1* -> t_2*
   -- Blocktype_ok: C |- bt : t_1* -> t_2*
-  -- Instrs_ok: C, LABELS (t_1*) |- instr* : t_1* -> t_2*
+  -- Instrs_ok: {LABELS (t_1*)} ++ C |- instr* : t_1* -> t_2*
 
 rule Instr_ok/if:
   C |- IF bt instr_1* ELSE instr_2* : t_1* I32 -> t_2*
   -- Blocktype_ok: C |- bt : t_1* -> t_2*
-  -- Instrs_ok: C, LABELS (t_2*) |- instr_1* : t_1* -> t_2*
-  -- Instrs_ok: C, LABELS (t_2*) |- instr_2* : t_1* -> t_2*
+  -- Instrs_ok: {LABELS (t_2*)} ++ C |- instr_1* : t_1* -> t_2*
+  -- Instrs_ok: {LABELS (t_2*)} ++ C |- instr_2* : t_1* -> t_2*
 
 
 ;; Branch instructions
@@ -228,7 +228,7 @@ rule Instr_ok/br_if:
   -- if C.LABELS[l] = t*
 
 rule Instr_ok/br_table:
-  C |- BR_TABLE l* l' : t_1* t* -> t_2*
+  C |- BR_TABLE l* l' : t_1* t* I32 -> t_2*
   -- (Resulttype_sub: |- t* <: C.LABELS[l])*
   -- Resulttype_sub: |- t* <: C.LABELS[l']
 
@@ -273,8 +273,7 @@ rule Instr_ok/cvtop-reinterpret:
   -- if $size(nt_1) = $size(nt_2)
 
 rule Instr_ok/cvtop-convert:
-  C |- CVTOP nt_1 nt_2 CONVERT sx? : nt_2 -> nt_1
-  -- if sx? = eps <=> nt_1 = Inn_1 /\ nt_2 = Inn_2 /\ $size(nt_1) > $size(nt_2) \/ nt_1 = Fnn_1 /\ nt_2 = Fnn_2
+  C |- CVTOP nt_1 nt_2 cvtop : nt_2 -> nt_1
 
 
 ;; Reference instructions
@@ -345,16 +344,16 @@ rule Instr_ok/vreplace_lane:
   -- if i < $dim(sh)
 
 rule Instr_ok/vextunop:
-  C |- VEXTUNOP sh_1 sh_2 vextunop sx : V128 -> V128
+  C |- VEXTUNOP sh_1 sh_2 vextunop : V128 -> V128
 
 rule Instr_ok/vextbinop:
-  C |- VEXTBINOP sh_1 sh_2 vextbinop sx : V128 V128 -> V128
+  C |- VEXTBINOP sh_1 sh_2 vextbinop : V128 V128 -> V128
 
 rule Instr_ok/vnarrow:
   C |- VNARROW sh_1 sh_2 sx : V128 V128 -> V128
 
 rule Instr_ok/vcvtop:
-  C |- VCVTOP sh_1 sh_2 vcvtop hf? sx? zero? : V128 -> V128
+  C |- VCVTOP sh_1 sh_2 vcvtop hf? zero? : V128 -> V128
 
 
 ;; Local instructions
@@ -447,19 +446,43 @@ rule Instr_ok/data.drop:
   C |- DATA.DROP x : eps -> eps
   -- if C.DATAS[x] = OK
 
+(;
 rule Instr_ok/load:
-  C |- LOAD nt (n _ sx)? memarg : I32 -> nt
+  C |- LOAD nt (n sx)? memarg : I32 -> nt
   -- if C.MEMS[0] = mt
   -- if $(2^(memarg.ALIGN) <= $size(nt)/8)
   -- if $(2^(memarg.ALIGN) <= n/8 < $size(nt)/8)?
   -- if n? = eps \/ nt = Inn
+;)
 
+rule Instr_ok/load-val:
+  C |- LOAD nt memarg : I32 -> nt
+  -- if C.MEMS[0] = mt
+  -- if $(2^(memarg.ALIGN) <= $size(nt)/8)
+
+rule Instr_ok/load-pack:
+  C |- LOAD Inn (M sx) memarg : I32 -> Inn
+  -- if C.MEMS[0] = mt
+  -- if $(2^(memarg.ALIGN) <= M/8)
+
+(;
 rule Instr_ok/store:
   C |- STORE nt n? memarg : I32 nt -> eps
   -- if C.MEMS[0] = mt
   -- if $(2^(memarg.ALIGN) <= $size(nt)/8)
   -- if $(2^(memarg.ALIGN) <= n/8 < $size(nt)/8)?
   -- if n? = eps \/ nt = Inn
+;)
+
+rule Instr_ok/store-val:
+  C |- STORE nt memarg : I32 nt -> eps
+  -- if C.MEMS[0] = mt
+  -- if $(2^(memarg.ALIGN) <= $size(nt)/8)
+
+rule Instr_ok/store-pack:
+  C |- STORE Inn M memarg : I32 Inn -> eps
+  -- if C.MEMS[0] = mt
+  -- if $(2^(memarg.ALIGN) <= M/8)
 
 rule Instr_ok/vload:
   C |- VLOAD V128 (SHAPE M X N sx) memarg : I32 -> V128
@@ -474,12 +497,12 @@ rule Instr_ok/vload-splat:
 rule Instr_ok/vload-zero:
   C |- VLOAD V128 (ZERO n) memarg : I32 -> V128
   -- if C.MEMS[0] = mt
-  -- if $(2^(memarg.ALIGN) < n/8)
+  -- if $(2^(memarg.ALIGN) <= n/8)
 
 rule Instr_ok/vload_lane:
   C |- VLOAD_LANE V128 n memarg laneidx : I32 V128 -> V128
   -- if C.MEMS[0] = mt
-  -- if $(2^(memarg.ALIGN) < n/8)
+  -- if $(2^(memarg.ALIGN) <= n/8)
   -- if $(laneidx < 128 / n)
 
 rule Instr_ok/vstore:
@@ -490,7 +513,7 @@ rule Instr_ok/vstore:
 rule Instr_ok/vstore_lane:
   C |- VSTORE_LANE V128 n memarg laneidx : I32 V128 -> eps
   -- if C.MEMS[0] = mt
-  -- if $(2^(memarg.ALIGN) < n/8)
+  -- if $(2^(memarg.ALIGN) <= n/8)
   -- if $(laneidx < 128 / n)
 
 
@@ -554,7 +577,7 @@ rule Type_ok:
 rule Func_ok:
   C |- FUNC x (LOCAL t)* expr : t_1* -> t_2*
   -- if C.TYPES[x] = t_1* -> t_2*
-  -- Expr_ok: C, LOCALS t_1* t*, LABELS (t_2*), RETURN (t_2*) |- expr : t_2*
+  -- Expr_ok: C ++ {LOCALS t_1* t*, LABELS (t_2*), RETURN (t_2*)} |- expr : t_2*
 
 rule Global_ok:
   C |- GLOBAL gt expr : gt

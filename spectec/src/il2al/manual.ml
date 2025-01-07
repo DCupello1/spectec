@@ -1,145 +1,70 @@
+open Util.Source
 open Al
 open Ast
 open Al_util
 
 type config = expr * expr * instr list
 
-let atom_of_name name typ = Il.Atom.Atom name, typ
+let varT id args = Il.Ast.VarT (id $ no_region, args) $ no_region
+let listT ty = Il.Ast.IterT (ty, Il.Ast.List) $ no_region
+
+let expA e = ExpA e $ e.at
 
 let eval_expr =
-  let instrs = iterE (varE "instr", ["instr"], List) in
-  let result = varE "val" in
+  let ty_instrs = listT instrT in
+  let ty_vals = listT valT in
+  let instrs = iter_var "instr" List instrT in
+  let result = varE "val" ~note:valT in
+
+  (* Add function definition to AL environment *)
+  let param = Il.Ast.ExpP ("_" $ no_region, ty_instrs) $ no_region in
+  Al.Valid.il_env :=
+    Il.Env.bind_def !Al.Valid.il_env ("eval_expr" $ no_region) ([param], ty_vals, []);
 
   FuncA (
     "eval_expr",
-    [instrs],
+    [expA instrs],
     [
-      executeseqI instrs;
+      executeI instrs;
       popI result;
-      returnI (Some (listE [ result ]))
+      returnI (Some (listE [ result ] ~note:ty_vals))
     ]
-  )
+  ) $ no_region
 
-(* Helper for the manual array_new.data algorithm *)
-
-let group_bytes_by =
-  let n = varE "n" in
-  let n' = varE "n'" in
-
-  let bytes_ = iterE (varE "byte", ["byte"], List) in
-  let bytes_left = listE [accE (bytes_, sliceP (numE Z.zero, n))] in
-  let bytes_right = callE
-    (
-      "group_bytes_by",
-      [ n; accE (bytes_, sliceP (n, binE (SubOp, n', n))) ]
-    )
-  in
-
-  FuncA (
-    "group_bytes_by",
-    [n; bytes_],
-    [
-      letI (n', lenE bytes_);
-      ifI (
-        binE (GeOp, n', n),
-        [ returnI (Some (catE (bytes_left, bytes_right))) ],
-        []
-      );
-      returnI (Some (listE []));
-    ]
-  )
-
-let array_new_data =
-  let i32 = caseE (atom_of_name "I32" "numtype", []) in
-
-  let x = varE "x" in
-  let y = varE "y" in
-  let z = varE "z" in
-
-  let n = varE "n" in
-  let i = varE "i" in
-
-  let y_0 = varE "y_0" in
-  let mut = varE "mut" in
-  let zt = varE "zt" in
-
-  let cnn = varE "cnn" in
-
-  let c = varE "c" in
-
-  let bstar = iterE (varE "b", ["b"], List) in
-  let gb = varE "gb" in
-  let gbstar = iterE (gb, ["gb"], List) in
-  let cn = iterE (c, ["c"], ListN (n, None)) in
-
-  let expanddt_with_type = callE ("expanddt", [callE ("type", [z; x])]) in
-  let zsize = callE ("zsize", [zt]) in
-  let cunpack = callE ("cunpack", [zt]) in
-  let data = callE ("data", [z; y]) in
-  let group_bytes_by = callE ("group_bytes_by", [binE (DivOp, zsize, numE (Z.of_int 8)); bstar]) in
-  let inverse_of_bytes_ = iterE (callE ("inverse_of_ibytes", [zsize; gb]), ["gb"], List) in
-
-  RuleA (
-    atom_of_name "ARRAY.NEW_DATA" "admininstr",
-    [x; y],
-    [
-      assertI (topValueE (Some i32));
-      popI (caseE (atom_of_name "CONST" "admininstr", [i32; n]));
-      assertI (topValueE (Some i32));
-      popI (caseE (atom_of_name "CONST" "admininstr", [i32; i]));
-      ifI (
-        isCaseOfE (expanddt_with_type, atom_of_name "ARRAY" "comptype"),
-        [
-          letI (caseE (atom_of_name "ARRAY" "comptype", [y_0]), expanddt_with_type);
-          letI (tupE [ mut; zt ], y_0);
-          ifI (
-            binE (
-              GtOp,
-              binE (AddOp, i, binE (DivOp, binE (MulOp, n, zsize), numE (Z.of_int 8))),
-              lenE (accE (callE ("data", [z; y]), dotP (atom_of_name "BYTES" "datainst")))
-            ),
-            [ trapI () ],
-            []
-          );
-          letI (cnn, cunpack);
-          letI (
-            bstar,
-            accE (
-              accE (data, dotP (atom_of_name "BYTES" "datainst")),
-              sliceP (i, binE (DivOp, binE (MulOp, n, zsize), numE (Z.of_int 8)))
-            )
-          );
-          letI (gbstar, group_bytes_by);
-          letI (cn, inverse_of_bytes_);
-          pushI (iterE (caseE (atom_of_name "CONST" "admininstr", [cnn; c]), ["c"], ListN (n, None)));
-          executeI (caseE (atom_of_name "ARRAY.NEW_FIXED" "admininstr", [x; n]));
-        ],
-        []
-      );
-    ]
-  )
-
-let manual_algos = [eval_expr; group_bytes_by; array_new_data;]
+let manual_algos = [eval_expr]
 
 let return_instrs_of_instantiate config =
   let store, frame, rhs = config in
+  let vals, instrs = rhs in
+  let ty = listT admininstrT in
+  let ty' = varT "moduleinst" [] in
+  let ty'' = Il.Ast.TupT (List.map (fun t -> no_name, t) [store.note; ty']) $ no_region in
   [
     enterI (
-      frameE (Some (numE Z.zero), frame),
-      listE ([ caseE (atom_of_name "FRAME_" "admininstr", []) ]), rhs
+      frameE (natE Z.zero ~note:natT, frame) ~note:evalctxT,
+      catE (instrs, (listE [caseE ([[atom_of_name "FRAME_" "admininstr"]], []) ~note:admininstrT] ~note:ty)) ~note:ty,
+      vals
     );
-    returnI (Some (tupE [ store; varE "mm" ]))
+    returnI (Some (tupE [
+      store;
+      accE (frame, DotP (atom_of_name "MODULE" "") $ no_region) ~note:ty'
+    ] ~note:ty''))
   ]
 let return_instrs_of_invoke config =
   let _, frame, rhs = config in
+  let vals, instrs = rhs in
+  let arity = varE "k" ~note:natT in
+  let e_vals = iter_var "val" (ListN (arity, None)) valT in
+  let ty = listT admininstrT in
+  let valtype = varT "valtype" [] in
+  let len_expr = lenE (iter_var "t_2" List valtype) ~note:natT in
   [
-    letI (varE "k", lenE (iterE (varE "t_2", ["t_2"], List)));
+    letI (arity,  len_expr);
     enterI (
-      frameE (Some (varE "k"), frame),
-      listE ([caseE (atom_of_name "FRAME_" "admininstr", [])]), rhs
+      frameE (arity, frame) ~note:evalctxT,
+      catE (instrs, listE [caseE ([[atom_of_name "FRAME_" "admininstr"]], []) ~note:admininstrT] ~note:ty) ~note:ty,
+      vals
     );
-    popI (iterE (varE "val", ["val"], ListN (varE "k", None)));
-    returnI (Some (iterE (varE "val", ["val"], ListN (varE "k", None))))
+    popI e_vals;
+    returnI (Some e_vals)
   ]
-
-

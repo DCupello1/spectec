@@ -13,6 +13,7 @@ variable x and require e=?x. Maybe later.)
 open Util
 open Source
 open Il.Ast
+open Il.Free
 
 (* Errors *)
 
@@ -23,71 +24,72 @@ module Env = Map.Make(String)
 (* Smart constructor for LenE that optimizes |x^n| into n *)
 let lenE e = match e.it with
 | IterE (_, (ListN (ne, _), _)) -> ne
-| _ -> LenE e $$ e.at % (NumT NatT $ e.at)
+| _ -> LenE e $$ e.at % (NumT `NatT $ e.at)
 
-let is_null e = CmpE (EqOp, e, OptE None $$ e.at % e.note) $$ e.at % (BoolT $ e.at)
-let iffE e1 e2 = IfPr (BinE (EquivOp, e1, e2) $$ e1.at % (BoolT $ e1.at)) $ e1.at
-let same_len e1 e2 = IfPr (CmpE (EqOp, lenE e1, lenE e2) $$ e1.at % (BoolT $ e1.at)) $ e1.at
-let has_len ne e = IfPr (CmpE (EqOp, lenE e, ne) $$ e.at % (BoolT $ e.at)) $ e.at
+(* Smart constructor for IterPr that removes dead iter-variables *)
+let iterPr (pr, (iter, vars)) =
+  let frees = free_prem pr in
+  let vars' = List.filter (fun (id, _) ->
+    Set.mem id.it frees.varid
+  ) vars in
+  (* Must keep at least one variable to keep the iteration well-formed *)
+  let vars'' = if vars' <> [] then vars' else [List.hd vars] in
+  IterPr (pr, (iter, vars''))
 
-(* Takes bound variable and its binding type (type plus iter) and fully wrapps it in IterE *)
-let fully_iterated v t is =
-  let rec go = function
-    | [] -> VarE v $$ v.at % t
-    | (i::is) ->
-      let e = go is in
-      IterE (e, (i, [(v, t)])) $$ v.at % (IterT (e.note, i) $ v.at)
-  in
-  go (List.rev is)
+let is_null e = CmpE (`EqOp, `BoolT, e, OptE None $$ e.at % e.note) $$ e.at % (BoolT $ e.at)
+let iffE e1 e2 = IfPr (BinE (`EquivOp, `BoolT, e1, e2) $$ e1.at % (BoolT $ e1.at)) $ e1.at
+let same_len e1 e2 = IfPr (CmpE (`EqOp, `BoolT, lenE e1, lenE e2) $$ e1.at % (BoolT $ e1.at)) $ e1.at
+(* let has_len ne e = IfPr (CmpE (`EqOp, None, lenE e, ne) $$ e.at % (BoolT $ e.at)) $ e.at *)
 
 (* updates the types in the environment as we go under iteras *)
 let env_under_iter env ((_, vs) : iterexp) =
-  let vs' = List.map (fun (v, _) -> v.it) vs in
-  Env.mapi (fun v (t,is) ->
-    if List.mem v vs' then (t, fst (Lib.List.split_last is)) else (t, is)
-  ) env
+  List.fold_left (fun env (v, e) -> Env.add v.it e.note env) env vs
 
-let iter_side_conditions env ((iter, vs) : iterexp) : prem list =
+let iter_side_conditions _env ((iter, vs) : iterexp) : prem list =
   (* let iter' = if iter = Opt then Opt else List in *)
-  let ves = List.map (fun (v, _) ->
-    let (t,is) = Env.find v.it env in
-    fully_iterated v t is
-  ) vs in
- match iter, ves with
-  | _, [] -> []
+  match iter, List.map snd vs with
   | Opt, (e::es) -> List.map (fun e' -> iffE (is_null e) (is_null e')) es
   | (List|List1), (e::es) -> List.map (same_len e) es
-  | ListN (ne, _), es -> List.map (has_len ne) es
+  (* | ListN (ne, None), es -> List.map (has_len ne) es *)
+  | ListN _, _ -> []
+  | _ -> []
 
 (* Expr traversal *)
 let rec t_exp env e : prem list =
   (* First the conditions to be generated here *)
   begin match e.it with
+  | CvtE (_exp, t1, t2) when t1 > t2 ->
+    []  (* TODO *)
   | IdxE (exp1, exp2) ->
-    [IfPr (CmpE (LtOp NatT, exp2, LenE exp1 $$ e.at % exp2.note) $$ e.at % (BoolT $ e.at)) $ e.at]
+    [IfPr (CmpE (`LtOp, `NatT, exp2, LenE exp1 $$ e.at % exp2.note) $$ e.at % (BoolT $ e.at)) $ e.at]
   | TheE exp ->
-    [IfPr (CmpE (NeOp, exp, OptE None $$ e.at % exp.note) $$ e.at % (BoolT $ e.at)) $ e.at]
-  | IterE (_exp, iterexp) -> iter_side_conditions env iterexp
+    [IfPr (CmpE (`NeOp, `BoolT, exp, OptE None $$ e.at % exp.note) $$ e.at % (BoolT $ e.at)) $ e.at]
+  | IterE ({it= CmpE (`EqOp, _,  _, _); _}, iterexp) -> iter_side_conditions env iterexp
+  | MemE (_exp, exp) ->
+    [IfPr (CmpE (`GtOp, `NatT, LenE exp $$ exp.at % (NumT `NatT $ exp.at), NumE (`Nat Z.zero) $$ no_region % (NumT `NatT $ no_region)) $$ e.at % (BoolT $ e.at)) $ e.at]
   | _ -> []
   end @
   (* And now descend *)
   match e.it with
-  | VarE _ | BoolE _ | NatE _ | TextE _ | OptE None
+  | VarE _ | BoolE _ | NumE _ | TextE _ | OptE None
   -> []
-  | UnE (_, exp)
+  | UnE (_, _, exp)
   | DotE (exp, _)
   | LenE exp
   | ProjE (exp, _)
   | UncaseE (exp, _)
   | OptE (Some exp)
   | TheE exp
+  | LiftE exp
   | CaseE (_, exp)
+  | CvtE (exp, _, _)
   | SubE (exp, _, _)
   -> t_exp env exp
-  | BinE (_, exp1, exp2)
-  | CmpE (_, exp1, exp2)
+  | BinE (_, _, exp1, exp2)
+  | CmpE (_, _, exp1, exp2)
   | IdxE (exp1, exp2)
   | CompE (exp1, exp2)
+  | MemE (exp1, exp2)
   | CatE (exp1, exp2)
   -> t_exp env exp1 @ t_exp env exp2
   | SliceE (exp1, exp2, exp3)
@@ -105,7 +107,7 @@ let rec t_exp env e : prem list =
   ->
     t_iterexp env iterexp @
     let env' = env_under_iter env iterexp in
-    List.map (fun pr -> IterPr (pr, iterexp) $ e.at) (t_exp env' e1)
+    List.map (fun pr -> iterPr (pr, iterexp) $ e.at) (t_exp env' e1)
 
 and t_iterexp env (iter, _) = t_iter env iter
 
@@ -122,9 +124,12 @@ and t_path env path = match path.it with
 and t_arg env arg = match arg.it with
   | ExpA exp -> t_exp env exp
   | TypA _ -> []
+  | DefA _ -> []
+  | GramA _ -> []
 
 
-let rec t_prem env prem = match prem.it with
+let rec t_prem env prem =
+  (match prem.it with
   | RulePr (_, _, exp) -> t_exp env exp
   | IfPr e -> t_exp env e
   | LetPr (e1, e2, _) -> t_exp env e1 @ t_exp env e2
@@ -133,13 +138,18 @@ let rec t_prem env prem = match prem.it with
   -> iter_side_conditions env iterexp @
      t_iterexp env iterexp @
      let env' = env_under_iter env iterexp in
-     List.map (fun pr -> IterPr (pr, iterexp) $ prem.at) (t_prem env' prem)
+     List.map (fun pr -> iterPr (pr, iterexp) $ prem.at) (t_prem env' prem)
+  ) @ [prem]
 
 let t_prems env = List.concat_map (t_prem env)
 
-let is_identity e = match e.it with
-  | CmpE (EqOp, e1, e2) -> Il.Eq.eq_exp e1 e2
-  | _ -> false
+let is_identity e =
+  try
+    let e' = (Il.Eval.reduce_exp Il.Env.empty e) in
+    match e'.it with
+    | BoolE b -> b
+    | _ -> false
+  with _ -> false
 
 (* Is prem always true? *)
 let is_true prem = match prem.it with
@@ -160,12 +170,13 @@ let t_rule' = function
   | RuleD (id, binds, mixop, exp, prems) ->
     let env = List.fold_left (fun env bind ->
       match bind.it with
-      | ExpB (v, t, i) -> Env.add v.it (t, i) env
-      | TypB _ -> error bind.at "unexpected type argument in rule") Env.empty binds
+      | ExpB (v, t) -> Env.add v.it t env
+      | TypB _ | DefB _ | GramB _ -> error bind.at "unexpected type argument in rule") Env.empty binds
     in
-    let extra_prems = t_prems env prems @ t_exp env exp in
-    let prems' = reduce_prems (extra_prems @ prems) in
-    RuleD (id, binds, mixop, exp, prems')
+    let prems' = t_prems env prems in
+    let extra_prems = t_exp env exp in
+    let reduced_prems = reduce_prems (extra_prems @ prems') in
+    RuleD (id, binds, mixop, exp, reduced_prems)
 
 let t_rule x = { x with it = t_rule' x.it }
 

@@ -1,5 +1,5 @@
 ;;
-;; Auxiliary definitions used for describing meta conventions
+;; Auxiliary definitions used for describing meta notation
 ;;
 
 ;; Syntax notation
@@ -47,12 +47,12 @@ rule NotationTypingInstrScheme/global.get:
 rule NotationTypingInstrScheme/block:
   C |- BLOCK blocktype instr* : t_1* -> t_2*
   -- Blocktype_ok: C |- blocktype : t_1* -> t_2*
-  -- NotationTypingInstrScheme: C, LABELS (t_2*) |- instr* : t_1* -> t_2*
+  -- NotationTypingInstrScheme: {LABELS (t_2*)} ++ C |- instr* : t_1* -> t_2*
 
 
 ;; Execution notation
 
-relation NotationReduct: ~> instr*
+relation NotationReduct: ~> instr* hint(tabular)
 
 rule NotationReduct/2:
   ~> (CONST F64 q_1) (CONST F64 q_4) (CONST F64 q_3) $($(BINOP F64 ADD)) $($(BINOP F64 MUL))
@@ -102,3 +102,13 @@ def $allocXs2(syntax X, syntax Y, s*[0], X^n, Y^n) = (s*[n], a^n)
    x_n &=& |\deftype^\ast| \\
    \end{array}
 ;)
+
+
+;; Binary format
+
+grammar Btypewriter : () hint(macro none) = 0x00 => ()
+
+syntax symdots hint(show `...) hint(macro none) = 0
+def $var(syntax X) : nat hint(show %) hint(macro none) def $var(syntax X) = 0x00
+grammar Bvar(syntax X) : () hint(show %) hint(macro none) = 0x00 => ()
+grammar Bsym : A hint(macro none) = Bvar(B_1) => $var(A_1) | Bvar(symdots) | Bvar(B_n) => $var(A_n)

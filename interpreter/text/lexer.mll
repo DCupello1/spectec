@@ -48,6 +48,11 @@ let string s =
   done;
   Buffer.contents b
 
+let annot_id lexbuf s =
+  let s' = string s in
+  if s' = "" then error lexbuf "empty annotation id";
+  try Utf8.decode s' with Utf8.Utf8 -> error lexbuf "malformed UTF-8 encoding"
+
 let opt = Lib.Option.get
 }
 
@@ -102,8 +107,7 @@ let float =
 let string = '"' character* '"'
 
 let idchar = letter | digit | '_' | symbol
-let name = idchar+
-let id = '$' name
+let id = idchar+
 
 let keyword = ['a'-'z'] (letter | digit | '_' | '.' | ':')+
 let reserved = (idchar | string)+ | ',' | ';' | '[' | ']' | '{' | '}'
@@ -165,6 +169,10 @@ rule token = parse
       | "nofunc" -> NOFUNC
       | "funcref" -> FUNCREF
       | "nullfuncref" -> NULLFUNCREF
+      | "exn" -> EXN
+      | "noexn" -> NOEXN
+      | "exnref" -> EXNREF
+      | "nullexnref" -> NULLEXNREF
       | "extern" -> EXTERN
       | "noextern" -> NOEXTERN
       | "externref" -> EXTERNREF
@@ -204,6 +212,13 @@ rule token = parse
       | "return_call" -> RETURN_CALL
       | "return_call_ref" -> RETURN_CALL_REF
       | "return_call_indirect" -> RETURN_CALL_INDIRECT
+      | "throw" -> THROW
+      | "throw_ref" -> THROW_REF
+      | "try_table" -> TRY_TABLE
+      | "catch" -> CATCH
+      | "catch_ref" -> CATCH_REF
+      | "catch_all" -> CATCH_ALL
+      | "catch_all_ref" -> CATCH_ALL_REF
 
       | "local.get" -> LOCAL_GET
       | "local.set" -> LOCAL_SET
@@ -312,6 +327,7 @@ rule token = parse
       | "ref.func" -> REF_FUNC
       | "ref.struct" -> REF_STRUCT
       | "ref.array" -> REF_ARRAY
+      | "ref.exn" -> REF_EXN
       | "ref.extern" -> REF_EXTERN
       | "ref.host" -> REF_HOST
 
@@ -726,6 +742,27 @@ rule token = parse
       | "f32x4.replace_lane" -> VEC_REPLACE f32x4_replace_lane
       | "f64x2.replace_lane" -> VEC_REPLACE f64x2_replace_lane
 
+      | "i8x16.relaxed_swizzle" -> VEC_BINARY i8x16_relaxed_swizzle
+      | "i32x4.relaxed_trunc_f32x4_u" -> VEC_UNARY i32x4_relaxed_trunc_f32x4_u
+      | "i32x4.relaxed_trunc_f32x4_s" -> VEC_UNARY i32x4_relaxed_trunc_f32x4_s
+      | "i32x4.relaxed_trunc_f64x2_u_zero" -> VEC_UNARY i32x4_relaxed_trunc_f64x2_u_zero
+      | "i32x4.relaxed_trunc_f64x2_s_zero" -> VEC_UNARY i32x4_relaxed_trunc_f64x2_s_zero
+      | "f32x4.relaxed_madd" -> VEC_UNARY f32x4_relaxed_madd
+      | "f64x2.relaxed_madd" -> VEC_UNARY f64x2_relaxed_madd
+      | "f32x4.relaxed_nmadd" -> VEC_UNARY f32x4_relaxed_nmadd
+      | "f64x2.relaxed_nmadd" -> VEC_UNARY f64x2_relaxed_nmadd
+      | "i8x16.relaxed_laneselect" -> VEC_TERNARY i8x16_relaxed_laneselect
+      | "i16x8.relaxed_laneselect" -> VEC_TERNARY i16x8_relaxed_laneselect
+      | "i32x4.relaxed_laneselect" -> VEC_TERNARY i32x4_relaxed_laneselect
+      | "i64x2.relaxed_laneselect" -> VEC_TERNARY i64x2_relaxed_laneselect
+      | "f32x4.relaxed_min" -> VEC_UNARY f32x4_relaxed_min
+      | "f64x2.relaxed_min" -> VEC_UNARY f64x2_relaxed_min
+      | "f32x4.relaxed_max" -> VEC_UNARY f32x4_relaxed_max
+      | "f64x2.relaxed_max" -> VEC_UNARY f64x2_relaxed_max
+      | "i16x8.relaxed_q15mulr_s" -> VEC_BINARY i16x8_relaxed_q15mulr_s
+      | "i16x8.relaxed_dot_i8x16_i7x16_s" -> VEC_BINARY i16x8_relaxed_dot_i8x16_i7x16_s
+      | "i32x4.relaxed_dot_i8x16_i7x16_add_s" -> VEC_BINARY i32x4_relaxed_dot_i8x16_i7x16_add_s
+
       | "type" -> TYPE
       | "func" -> FUNC
       | "param" -> PARAM
@@ -735,6 +772,7 @@ rule token = parse
       | "global" -> GLOBAL
       | "table" -> TABLE
       | "memory" -> MEMORY
+      | "tag" -> TAG
       | "elem" -> ELEM
       | "data" -> DATA
       | "declare" -> DECLARE
@@ -746,6 +784,8 @@ rule token = parse
       | "module" -> MODULE
       | "binary" -> BIN
       | "quote" -> QUOTE
+      | "definition" -> DEFINITION
+      | "instance" -> INSTANCE
 
       | "script" -> SCRIPT
       | "register" -> REGISTER
@@ -753,12 +793,16 @@ rule token = parse
       | "get" -> GET
       | "assert_malformed" -> ASSERT_MALFORMED
       | "assert_invalid" -> ASSERT_INVALID
+      | "assert_malformed_custom" -> ASSERT_MALFORMED_CUSTOM
+      | "assert_invalid_custom" -> ASSERT_INVALID_CUSTOM
       | "assert_unlinkable" -> ASSERT_UNLINKABLE
       | "assert_return" -> ASSERT_RETURN
       | "assert_trap" -> ASSERT_TRAP
+      | "assert_exception" -> ASSERT_EXCEPTION
       | "assert_exhaustion" -> ASSERT_EXHAUSTION
       | "nan:canonical" -> NAN Script.CanonicalNan
       | "nan:arithmetic" -> NAN Script.ArithmeticNan
+      | "either" -> EITHER
       | "input" -> INPUT
       | "output" -> OUTPUT
 
@@ -768,7 +812,21 @@ rule token = parse
   | "offset="(nat as s) { OFFSET_EQ_NAT s }
   | "align="(nat as s) { ALIGN_EQ_NAT s }
 
-  | id as s { VAR s }
+  | '$'(id as s) { VAR s }
+  | '$'(string as s)
+    { let s' = string s in
+      if s' = "" then error lexbuf "empty identifier"; VAR s' }
+  | '$' { error lexbuf "empty identifier" }
+
+  | "(@"(id as n)
+    { let r = region lexbuf in
+      let items = annot (Lexing.lexeme_start_p lexbuf) lexbuf in
+      Annot.record (Annot.{name = Utf8.decode n; items} @@ r); token lexbuf }
+  | "(@"(string as s)
+    { let r = region lexbuf in
+      let items = annot (Lexing.lexeme_start_p lexbuf) lexbuf in
+      Annot.record (Annot.{name = annot_id lexbuf s; items} @@ r); token lexbuf }
+  | "(@" { error lexbuf "empty annotation id" }
 
   | ";;"utf8_no_nl*eof { EOF }
   | ";;"utf8_no_nl*newline { Lexing.new_line lexbuf; token lexbuf }
@@ -781,6 +839,64 @@ rule token = parse
   | reserved { unknown lexbuf }
   | control { error lexbuf "misplaced control character" }
   | utf8enc { error lexbuf "misplaced unicode character" }
+  | _ { error lexbuf "malformed UTF-8 encoding" }
+
+and annot start = parse
+  | ")" { [] }
+  | "("
+    { let r = region lexbuf in
+      let items = annot (Lexing.lexeme_start_p lexbuf) lexbuf in
+      (Annot.Parens items @@ r) :: annot start lexbuf }
+  | "(@"(id as n)
+    { let r = region lexbuf in
+      let items = annot (Lexing.lexeme_start_p lexbuf) lexbuf in
+      let ann = Annot.{name = Utf8.decode n; items} @@ r in
+      (Annot.Annot ann @@ r) :: annot start lexbuf }
+  | "(@"(string as s)
+    { let r = region lexbuf in
+      let items = annot (Lexing.lexeme_start_p lexbuf) lexbuf in
+      let ann = Annot.{name = annot_id lexbuf s; items} @@ r in
+      (Annot.Annot ann @@ r) :: annot start lexbuf }
+
+  | nat as s
+    { let r = region lexbuf in
+      (Annot.Nat s @@ r) :: annot start lexbuf }
+  | int as s
+    { let r = region lexbuf in
+      (Annot.Int s @@ r) :: annot start lexbuf }
+  | float as s
+    { let r = region lexbuf in
+      (Annot.Float s @@ r) :: annot start lexbuf }
+  | '$'(id as s)
+    { let r = region lexbuf in
+      (Annot.Var s @@ r) :: annot start lexbuf }
+  | '$'(string as s)
+    { let r = region lexbuf in
+      let s' = string s in
+      if s' = "" then error lexbuf "empty identifier";
+      (Annot.Var s' @@ r) :: annot start lexbuf }
+  | '$' { error lexbuf "empty identifier" }
+  | string as s
+    { let r = region lexbuf in
+      (Annot.String (string s) @@ r) :: annot start lexbuf }
+  | reserved as s
+    { let r = region lexbuf in
+      (Annot.Atom s @@ r) :: annot start lexbuf }
+  | '"'character*('\n'|eof)
+    { error lexbuf "unclosed string literal" }
+  | '"'character*['\x00'-'\x09''\x0b'-'\x1f''\x7f']
+    { error lexbuf "illegal control character in string literal" }
+  | '"'character*'\\'_
+    { error_nest (Lexing.lexeme_end_p lexbuf) lexbuf "illegal escape" }
+
+  | (";;"utf8_no_nl*)? eof { error_nest start lexbuf "unclosed annotation" }
+  | ";;"utf8_no_nl*'\n' { Lexing.new_line lexbuf; annot start lexbuf }
+  | ";;"utf8_no_nl* { annot start lexbuf (* error on following position *) }
+  | "(;" { comment (Lexing.lexeme_start_p lexbuf) lexbuf; annot start lexbuf }
+  | space#'\n' { annot start lexbuf }
+  | '\n' { Lexing.new_line lexbuf; annot start lexbuf }
+  | eof { error_nest start lexbuf "unclosed annotation" }
+  | utf8 { error lexbuf "illegal character" }
   | _ { error lexbuf "malformed UTF-8 encoding" }
 
 and comment start = parse

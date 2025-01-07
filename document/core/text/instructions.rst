@@ -32,11 +32,11 @@ The following grammar handles the corresponding update to the :ref:`identifier c
 .. math::
    \begin{array}{llcllll}
    \production{label} & \Tlabel_I &::=&
-     v{:}\Tid &\Rightarrow& \{\ILABELS~v\} \compose I
+     v{:}\Tid &\Rightarrow& v, \{\ILABELS~v\} \compose I
        & (\iff v \notin I.\ILABELS) \\ &&|&
-     v{:}\Tid &\Rightarrow& \{\ILABELS~v\} \compose (I \with \ILABELS[i] = \epsilon)
+     v{:}\Tid &\Rightarrow& v, \{\ILABELS~v\} \compose (I \with \ILABELS[i] = \epsilon)
        & (\iff I.\ILABELS[i] = v) \\ &&|&
-     \epsilon &\Rightarrow& \{\ILABELS~(\epsilon)\} \compose I \\
+     \epsilon &\Rightarrow& \epsilon, \{\ILABELS~(\epsilon)\} \compose I \\
    \end{array}
 
 .. note::
@@ -48,7 +48,7 @@ The following grammar handles the corresponding update to the :ref:`identifier c
    then it is shadowed and the earlier label becomes inaccessible.
 
 
-.. index:: control instructions, structured control, label, block, branch, result type, label index, function index, type index, list, polymorphism, reference
+.. index:: control instructions, structured control, label, block, branch, result type, label index, function index, tag index, type index, list, polymorphism, reference
    pair: text format; instruction
 .. _text-blockinstr:
 .. _text-plaininstr:
@@ -62,9 +62,11 @@ Control Instructions
 .. _text-loop:
 .. _text-if:
 .. _text-instr-block:
+.. _text-try_table:
+.. _text-catch:
 
 :ref:`Structured control instructions <syntax-instr-control>` can bind an optional symbolic :ref:`label identifier <text-label>`.
-The same label identifier may optionally be repeated after the corresponding :math:`\T{end}` and :math:`\T{else}` pseudo instructions, to indicate the matching delimiters.
+The same label identifier may optionally be repeated after the corresponding :math:`\T{end}` or :math:`\T{else}` keywords, to indicate the matching delimiters.
 
 Their :ref:`block type <syntax-blocktype>` is given as a :ref:`type use <text-typeuse>`, analogous to the type of :ref:`functions <text-func>`.
 However, the special case of a type use that is syntactically empty or consists of only a single :ref:`result <text-result>` is not regarded as an :ref:`abbreviation <text-typeuse-abbrev>` for an inline :ref:`function type <syntax-functype>`, but is parsed directly into an optional :ref:`value type <syntax-valtype>`.
@@ -79,16 +81,32 @@ However, the special case of a type use that is syntactically empty or consists 
      x,I'{:}\Ttypeuse_I &\Rightarrow& x & (\iff I' = \{\ILOCALS~(\epsilon)^\ast\}) \\
    \end{array} \\
    \production{block instruction} & \Tblockinstr_I &::=&
-     \text{block}~~I'{:}\Tlabel_I~~\X{bt}{:}\Tblocktype_I~~(\X{in}{:}\Tinstr_{I'})^\ast~~\text{end}~~\Tid^?
+     \text{block}~~(v^?,I'){:}\Tlabel_I~~\X{bt}{:}\Tblocktype_I~~(\X{in}{:}\Tinstr_{I'})^\ast~~\text{end}~~{v'}^?{:}\Tid^?
        \\ &&&\qquad \Rightarrow\quad \BLOCK~\X{bt}~\X{in}^\ast~\END
-       \qquad\quad~~ (\iff \Tid^? = \epsilon \vee \Tid^? = \Tlabel) \\ &&|&
-     \text{loop}~~I'{:}\Tlabel_I~~\X{bt}{:}\Tblocktype_I~~(\X{in}{:}\Tinstr_{I'})^\ast~~\text{end}~~\Tid^?
+       \qquad\quad~~ (\iff {v'}^? = \epsilon \vee {v'}^? = v^?) \\ &&|&
+     \text{loop}~~(v^?,I'){:}\Tlabel_I~~\X{bt}{:}\Tblocktype_I~~(\X{in}{:}\Tinstr_{I'})^\ast~~\text{end}~~{v'}^?{:}\Tid^?
        \\ &&&\qquad \Rightarrow\quad \LOOP~\X{bt}~\X{in}^\ast~\END
-       \qquad\qquad (\iff \Tid^? = \epsilon \vee \Tid^? = \Tlabel) \\ &&|&
-     \text{if}~~I'{:}\Tlabel_I~~\X{bt}{:}\Tblocktype_I~~(\X{in}_1{:}\Tinstr_{I'})^\ast~~
-       \text{else}~~\Tid_1^?~~(\X{in}_2{:}\Tinstr_{I'})^\ast~~\text{end}~~\Tid_2^?
+       \qquad\qquad (\iff {v'}^? = \epsilon \vee {v'}^? = v^?) \\ &&|&
+     \text{if}~~(v^?,I'){:}\Tlabel_I~~\X{bt}{:}\Tblocktype_I~~(\X{in}_1{:}\Tinstr_{I'})^\ast~~
+       \text{else}~~v_1^?{:}\Tid_1^?~~(\X{in}_2{:}\Tinstr_{I'})^\ast~~\text{end}~~v_2^?{:}\Tid_2^?
        \\ &&&\qquad \Rightarrow\quad \IF~\X{bt}~\X{in}_1^\ast~\ELSE~\X{in}_2^\ast~\END
-       \qquad (\iff \Tid_1^? = \epsilon \vee \Tid_1^? = \Tlabel, \Tid_2^? = \epsilon \vee \Tid_2^? = \Tlabel) \\
+       \qquad (\iff v_1^? = \epsilon \vee v_1^? = v^?, v_2^? = \epsilon \vee v_2^? = v^?) \\ &&|&
+     \text{try\_table}~~I'{:}\Tlabel_I~~\X{bt}{:}\Tblocktype~~(c{:}\Tcatch_I)^\ast~~(\X{in}{:}\Tinstr_{I'})^\ast~~\text{end}~~\Tid^?
+       \\ &&&\qquad \Rightarrow\quad \TRYTABLE~\X{bt}~c^\ast~\X{in}^\ast~~\END
+       \qquad\qquad (\iff \Tid^? = \epsilon \vee \Tid^? = \Tlabel) \\
+   \production{catch clause} & \Tcatch_I &
+   \begin{array}[t]{@{}c@{}} ::= \\ | \\ | \\ | \\ \end{array}
+   &
+   \begin{array}[t]{@{}lcll@{}}
+     \text{(}~\text{catch}~~x{:}\Ttagidx_I~~l{:}\Tlabelidx_I~\text{)}
+       &\Rightarrow& \CATCH~x~l \\
+     \text{(}~\text{catch\_ref}~~x{:}\Ttagidx_I~~l{:}\Tlabelidx_I~\text{)}
+       &\Rightarrow& \CATCHREF~x~l \\
+     \text{(}~\text{catch\_all}~~l{:}\Tlabelidx_I~\text{)}
+       &\Rightarrow& \CATCHALL~l \\
+     \text{(}~\text{catch\_all\_ref}~~l{:}\Tlabelidx_I~\text{)}
+       &\Rightarrow& \CATCHALLREF~l \\
+   \end{array} \\
    \end{array}
 
 .. note::
@@ -110,6 +128,8 @@ However, the special case of a type use that is syntactically empty or consists 
 .. _text-call_indirect:
 .. _text-return_call:
 .. _text-return_call_indirect:
+.. _text-throw:
+.. _text-throw_ref:
 
 All other control instruction are represented verbatim.
 
@@ -134,7 +154,9 @@ All other control instruction are represented verbatim.
      \text{return\_call}~~x{:}\Tfuncidx_I &\Rightarrow& \RETURNCALL~x \\ &&|&
      \text{return\_call\_ref}~~x{:}\Ttypeidx &\Rightarrow& \RETURNCALLREF~x \\ &&|&
      \text{return\_call\_indirect}~~x{:}\Ttableidx~~y,I'{:}\Ttypeuse_I &\Rightarrow& \RETURNCALLINDIRECT~x~y
-       & (\iff I' = \{\ILOCALS~(\epsilon)^\ast\}) \\
+       & (\iff I' = \{\ILOCALS~(\epsilon)^\ast\}) \\ &&|&
+     \text{throw}~~x{:}\Ttagidx_I &\Rightarrow& \THROW~x \\ &&|&
+     \text{throw\_ref} &\Rightarrow& \THROWREF \\
    \end{array}
 
 .. note::
@@ -702,7 +724,7 @@ Numeric Instructions
 Vector Instructions
 ~~~~~~~~~~~~~~~~~~~
 
-Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` descriptor, which determines how the following values are parsed.
+Vector constant instructions have a mandatory :ref:`shape <syntax-shape>` descriptor, which determines how the following values are parsed.
 
 .. math::
    \begin{array}{llclll}
@@ -879,7 +901,7 @@ Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` de
      \text{i8x16.min\_u} &\Rightarrow& \I8X16.\VMIN\K{\_u}\\ &&|&
      \text{i8x16.max\_s} &\Rightarrow& \I8X16.\VMAX\K{\_s}\\ &&|&
      \text{i8x16.max\_u} &\Rightarrow& \I8X16.\VMAX\K{\_u}\\ &&|&
-     \text{i8x16.avgr\_u} &\Rightarrow& \I8X16.\VAVGRU\\ &&|&
+     \text{i8x16.avgr\_u} &\Rightarrow& \I8X16.\VAVGR\K{\_u}\\ &&|&
      \text{i8x16.popcnt} &\Rightarrow& \I8X16.\VPOPCNT\\
    \end{array}
 
@@ -910,8 +932,8 @@ Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` de
      \text{i16x8.min\_u} &\Rightarrow& \I16X8.\VMIN\K{\_u}\\ &&|&
      \text{i16x8.max\_s} &\Rightarrow& \I16X8.\VMAX\K{\_s}\\ &&|&
      \text{i16x8.max\_u} &\Rightarrow& \I16X8.\VMAX\K{\_u}\\ &&|&
-     \text{i16x8.avgr\_u} &\Rightarrow& \I16X8.\VAVGRU\\ &&|&
-     \text{i16x8.q15mulr\_sat\_s} &\Rightarrow& \I16X8.\VQ15MULRSATS\\ &&|&
+     \text{i16x8.avgr\_u} &\Rightarrow& \I16X8.\VAVGR\K{\_u}\\ &&|&
+     \text{i16x8.q15mulr\_sat\_s} &\Rightarrow& \I16X8.\VQ15MULRSAT\K{\_s}\\ &&|&
      \text{i16x8.extmul\_low\_i8x16\_s} &\Rightarrow& \I16X8.\VEXTMUL\K{\_low\_i8x16\_s}\\ &&|&
      \text{i16x8.extmul\_high\_i8x16\_s} &\Rightarrow& \I16X8.\VEXTMUL\K{\_high\_i8x16\_s}\\ &&|&
      \text{i16x8.extmul\_low\_i8x16\_u} &\Rightarrow& \I16X8.\VEXTMUL\K{\_low\_i8x16\_u}\\ &&|&
@@ -928,6 +950,7 @@ Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` de
      \text{i32x4.all\_true} &\Rightarrow& \I32X4.\VALLTRUE\\ &&|&
      \text{i32x4.bitmask} &\Rightarrow& \I32X4.\VBITMASK\\ &&|&
      \text{i32x4.extadd\_pairwise\_i16x8\_s} &\Rightarrow& \I32X4.\VEXTADDPAIRWISE\K{\_i16x8\_s}\\ &&|&
+     \text{i32x4.extadd\_pairwise\_i16x8\_u} &\Rightarrow& \I32X4.\VEXTADDPAIRWISE\K{\_i16x8\_u}\\ &&|&
      \text{i32x4.extend\_low\_i16x8\_s} &\Rightarrow& \I32X4.\VEXTEND\K{\_low\_i16x8\_s}\\ &&|&
      \text{i32x4.extend\_high\_i16x8\_s} &\Rightarrow& \I32X4.\VEXTEND\K{\_high\_i16x8\_s}\\ &&|&
      \text{i32x4.extend\_low\_i16x8\_u} &\Rightarrow& \I32X4.\VEXTEND\K{\_low\_i16x8\_u}\\ &&|&
@@ -1030,6 +1053,31 @@ Vector constant instructions have a mandatory :ref:`shape <syntax-vec-shape>` de
      \text{f64x2.promote\_low\_f32x4} &\Rightarrow& \F64X2.\VPROMOTE\K{\_low\_f32x4}\\
    \end{array}
 
+.. math::
+   \begin{array}{llclll}
+   \phantom{\production{instruction}} & \phantom{\Tplaininstr_I} &\phantom{::=}& \phantom{averylonginstructionnameforvectext} && \phantom{vechasreallyreallyreallylonginstructionnames} \\[-2ex] &&|&
+     \text{i16x8.relaxed\_swizzle} &\Rightarrow& \I16X8.\VRELAXEDSWIZZLE \\ &&|&
+     \text{i32x4.relaxed\_trunc\_f32x4\_s} &\Rightarrow& \I32X4.\VRELAXEDTRUNC\K{\_f32x4\_s} \\ &&|&
+     \text{i32x4.relaxed\_trunc\_f32x4\_u} &\Rightarrow& \I32X4.\VRELAXEDTRUNC\K{\_f32x4\_u} \\ &&|&
+     \text{i32x4.relaxed\_trunc\_f32x4\_s\_zero} &\Rightarrow& \I32X4.\VRELAXEDTRUNC\K{\_f32x4\_s\_zero} \\ &&|&
+     \text{i32x4.relaxed\_trunc\_f32x4\_u\_zero} &\Rightarrow& \I32X4.\VRELAXEDTRUNC\K{\_f32x4\_u\_zero} \\ &&|&
+     \text{f32x4.relaxed\_madd} &\Rightarrow& \F32X4.\VRELAXEDMADD \\ &&|&
+     \text{f32x4.relaxed\_nmadd} &\Rightarrow& \F32X4.\VRELAXEDNMADD \\ &&|&
+     \text{f64x2.relaxed\_madd} &\Rightarrow& \F64X2.\VRELAXEDMADD \\ &&|&
+     \text{f64x2.relaxed\_nmadd} &\Rightarrow& \F64X2.\VRELAXEDNMADD \\ &&|&
+     \text{i8x16.relaxed\_laneselect} &\Rightarrow& \I8X16.\VRELAXEDLANESELECT \\ &&|&
+     \text{i16x8.relaxed\_laneselect} &\Rightarrow& \I16X8.\VRELAXEDLANESELECT \\ &&|&
+     \text{i32x4.relaxed\_laneselect} &\Rightarrow& \I32X4.\VRELAXEDLANESELECT \\ &&|&
+     \text{i64x2.relaxed\_laneselect} &\Rightarrow& \I64X2.\VRELAXEDLANESELECT \\ &&|&
+     \text{f32x4.relaxed\_min} &\Rightarrow& \F32X4.\VRELAXEDMIN \\ &&|&
+     \text{f32x4.relaxed\_max} &\Rightarrow& \F32X4.\VRELAXEDMAX \\ &&|&
+     \text{f64x2.relaxed\_min} &\Rightarrow& \F64X2.\VRELAXEDMIN \\ &&|&
+     \text{f64x2.relaxed\_max} &\Rightarrow& \F64X2.\VRELAXEDMAX \\ &&|&
+     \text{i16x8.relaxed\_q15mulr\_s} &\Rightarrow& \I16X8.\VRELAXEDQ15MULR\K{\_s} \\ &&|&
+     \text{i16x8.relaxed\_dot\_i8x16\_i7x16\_s} &\Rightarrow& \I16X8.\VRELAXEDDOT\K{\_i8x16\_i7x16\_s} \\ &&|&
+     \text{i16x8.relaxed\_dot\_i8x16\_i7x16\_add\_s} &\Rightarrow& \I16X8.\VRELAXEDDOT\K{\_i8x16\_i7x16\_add\_s}
+   \end{array}
+
 
 .. index:: ! folded instruction, S-expression
 .. _text-foldedinstr:
@@ -1059,8 +1107,13 @@ Such a folded instruction can appear anywhere a regular instruction can.
      \text{(}~\text{if}~~\Tlabel~~\Tblocktype~~\Tfoldedinstr^\ast
        &\hspace{-3ex} \text{(}~\text{then}~~\Tinstr_1^\ast~\text{)}~~(\text{(}~\text{else}~~\Tinstr_2^\ast~\text{)})^?~~\text{)}
        \quad\equiv \\ &\qquad
-         \Tfoldedinstr^\ast~~\text{if}~~\Tlabel~~\Tblocktype &\hspace{-1ex} \Tinstr_1^\ast~~\text{else}~~(\Tinstr_2^\ast)^?~\text{end} \\
+       \Tfoldedinstr^\ast~~\text{if}~~\Tlabel
+       &\hspace{-12ex} \Tblocktype~~\Tinstr_1^\ast~~\text{else}~~(\Tinstr_2^\ast)^?~\text{end} \\ &
+     \text{(}~\text{try\_table}~~\Tlabel~~\Tblocktype~~\Tcatch^\ast~~\Tinstr^\ast~\text{)}
+       \quad\equiv \\ &\qquad
+       \text{try\_table}~~\Tlabel~~\Tblocktype~~\Tcatch^\ast~~\Tinstr^\ast~~\text{end} \\
    \end{array}
+
 
 .. note::
    For example, the instruction sequence

@@ -19,11 +19,16 @@ The sequence of :ref:`types <syntax-type>` defined in a module is validated incr
 :math:`\type`
 .............
 
+$${rule-prose: Type_ok}
+
 $${rule: Type_ok}
 
 
 :math:`\type^\ast`
 ..................
+$${rule-prose: Types_ok}
+.. todo::
+ below is the official specification
 
 * If the sequence is empty, then:
 
@@ -47,7 +52,7 @@ $${rule: Type_ok}
 
   * Then the type sequence is valid.
 
-$${rule: Types_ok/*}
+$${rule: {Types_ok/*}}
 
 
 .. index:: function, local, function index, local index, type index, function type, value type, local type, expression, import
@@ -63,6 +68,9 @@ Functions ${:func} are classified by :ref:`defined types <syntax-deftype>` that 
 
 :math:`\{ \FTYPE~x, \FLOCALS~t^\ast, \FBODY~\expr \}`
 .....................................................
+$${rule-prose: Func_ok}
+.. todo::
+ below is the official specification
 
 * The :ref:`defined type <syntax-deftype>` :math:`C.\CTYPES[x]` must be a :ref:`function type <syntax-functype>`.
 
@@ -88,7 +96,7 @@ Functions ${:func} are classified by :ref:`defined types <syntax-deftype>` that 
 
 * Then the function definition is valid with type :math:`C.\CTYPES[x]`.
 
-$${rule: Func_ok Local_ok}
+$${rule: Func_ok}
 
 
 .. index:: local, local type, value type
@@ -103,6 +111,9 @@ Locals ${:local} are classified with :ref:`local types <syntax-localtype>`.
 
 :math:`\{ \LTYPE~\valtype \}`
 .............................
+$${rule-prose: Local_ok}
+.. todo::
+ below is the official specification
 
 * The :ref:`value type <syntax-valtype>` :math:`\valtype` must be :ref:`valid <valid-valtype>`.
 
@@ -114,7 +125,7 @@ Locals ${:local} are classified with :ref:`local types <syntax-localtype>`.
 
   * The local is valid with :ref:`local type <syntax-localtype>` :math:`\UNSET~\valtype`.
 
-$${rule: Local_ok/*}
+$${rule: {Local_ok/*}}
 
 .. note::
    For cases where both rules are applicable, the former yields the more permissable type.
@@ -132,6 +143,9 @@ Tables ${:table} are classified by :ref:`table types <syntax-tabletype>`.
 
 :math:`\{ \TTYPE~\tabletype, \TINIT~\expr \}`
 .............................................
+$${rule-prose: Table_ok}
+.. todo::
+ below is the official specification
 
 * The :ref:`table type <syntax-tabletype>` :math:`\tabletype` must be :ref:`valid <valid-tabletype>`.
 
@@ -158,6 +172,9 @@ Memories ${:mem} are classified by :ref:`memory types <syntax-memtype>`.
 
 :math:`\{ \MTYPE~\memtype \}`
 .............................
+$${rule-prose: Mem_ok}
+.. todo::
+ below is the official specification
 
 * The :ref:`memory type <syntax-memtype>` :math:`\memtype` must be :ref:`valid <valid-memtype>`.
 
@@ -182,6 +199,9 @@ Sequences of globals are handled incrementally, such that each definition has ac
 
 :math:`\{ \GTYPE~\mut~t, \GINIT~\expr \}`
 .........................................
+$${rule-prose: Global_ok}
+.. todo::
+ below is the official specification
 
 * The :ref:`global type <syntax-globaltype>` :math:`\mut~t` must be :ref:`valid <valid-globaltype>`.
 
@@ -196,6 +216,9 @@ $${rule: Global_ok}
 
 :math:`\global^\ast`
 ....................
+$${rule-prose: Globals_ok}
+.. todo::
+ below is the official specification
 
 * If the sequence is empty, then it is valid with the empty sequence of :ref:`global types <syntax-globaltype>`.
 
@@ -209,7 +232,33 @@ $${rule: Global_ok}
 
   * Then the sequence is valid with the sequence of :ref:`global types <syntax-globaltype>` consisting of :math:`\X{gt}_1` prepended to :math:`\X{gt}^\ast`.
 
-$${rule: Globals_ok/*}
+$${rule: {Globals_ok/*}}
+
+
+.. index:: tag, tag type, function type, exception tag
+   pair: validation; tag
+   single: abstract syntax; tag
+.. _valid-tag:
+
+Tags
+~~~~
+
+Tags :math:`\tag` are classified by their :ref:`tag type <syntax-tagtype>`,
+each containing an index to a :ref:`function type <syntax-functype>` with empty result.
+
+:math:`\{ \TAGTYPE~x \}`
+........................
+$${rule-prose: Tag_ok}
+.. todo::
+ below is the official specification
+
+* The type :math:`C.\CTYPES[x]` must be defined in the context.
+
+* Let :math:`[t_1^\ast] \to [t_2^\ast]` be the :ref:`function type <syntax-functype>` :math:`C.\CTYPES[x]`.
+
+* Then the tag definition is valid with :ref:`tag type <syntax-tagtype>` :math:`[t_1^\ast]\to[t_2^\ast]`.
+
+$${rule: Tag_ok}
 
 
 .. index:: element, table, table index, expression, constant, function index
@@ -226,10 +275,13 @@ Element segments ${:elem} are classified by the :ref:`reference type <syntax-ref
 
 :math:`\{ \ETYPE~t, \EINIT~e^\ast, \EMODE~\elemmode \}`
 .......................................................
+$${rule-prose: Elem_ok}
+.. todo::
+ below is the official specification
 
 * The :ref:`reference type <syntax-reftype>` :math:`t` must be :ref:`valid <valid-reftype>`.
 
-* For each :math:`e_i` in :math:`e^\ast`,
+* For each :math:`e_i` in :math:`e^\ast`:
 
   * The expression :math:`e_i` must be :ref:`valid <valid-expr>` with some :ref:`result type <syntax-resulttype>` :math:`[t]`.
 
@@ -245,6 +297,10 @@ $${rule: Elem_ok}
 
 
 .. _valid-elemmode:
+
+$${rule-prose:Elemmode_ok}
+.. todo::
+ below is the official specification
 
 :math:`\EPASSIVE`
 .................
@@ -291,6 +347,9 @@ Data segments ${:data} are not classified by any type but merely checked for wel
 
 :math:`\{ \DINIT~b^\ast, \DMODE~\datamode \}`
 .............................................
+$${rule-prose: Data_ok}
+.. todo::
+ below is the official specification
 
 * The data mode :math:`\datamode` must be valid.
 
@@ -300,6 +359,10 @@ $${rule: Data_ok}
 
 
 .. _valid-datamode:
+
+$${rule-prose: Datamode_ok}
+.. todo::
+ below is the official specification
 
 :math:`\DPASSIVE`
 .................
@@ -335,6 +398,9 @@ Start function declarations ${:start} are not classified by any type.
 
 :math:`\{ \SFUNC~x \}`
 ......................
+$${rule-prose: Start_ok}
+.. todo::
+ below is the official specification
 
 * The function :math:`C.\CFUNCS[x]` must be defined in the context.
 
@@ -345,7 +411,7 @@ Start function declarations ${:start} are not classified by any type.
 $${rule: Start_ok}
 
 
-.. index:: export, name, index, function index, table index, memory index, global index
+.. index:: export, name, index, function index, table index, memory index, global index, tag index
    pair: validation; export
    single: abstract syntax; export
 .. _valid-exportdesc:
@@ -358,8 +424,11 @@ Exports
 Exports ${:export} are classified by their :ref:`external type <syntax-externtype>`.
 
 
-:math:`\{ \ENAME~\name, \EDESC~\exportdesc \}`
+:math:`\{ \XNAME~\name, \XDESC~\exportdesc \}`
 ..............................................
+$${rule-prose: Export_ok}
+.. todo::
+ below is the official specification
 
 * The export description :math:`\exportdesc` must be valid with :ref:`external type <syntax-externtype>` :math:`\externtype`.
 
@@ -368,50 +437,72 @@ Exports ${:export} are classified by their :ref:`external type <syntax-externtyp
 $${rule: Export_ok}
 
 
-:math:`\EDFUNC~x`
+:math:`\XDFUNC~x`
 .................
+$${rule-prose: Externidx_ok/func}
+.. todo::
+ below is the official specification
 
 * The function :math:`C.\CFUNCS[x]` must be defined in the context.
 
 * Let :math:`\X{dt}` be the :ref:`defined type <syntax-deftype>` :math:`C.\CFUNCS[x]`.
 
-* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\ETFUNC~\X{dt}`.
+* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\XTFUNC~\X{dt}`.
 
 $${rule: Externidx_ok/func}
 
 
-:math:`\EDTABLE~x`
+:math:`\XDTABLE~x`
 ..................
+$${rule-prose: Externidx_ok/table}
+.. todo::
+ below is the official specification
 
 * The table :math:`C.\CTABLES[x]` must be defined in the context.
 
-* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\ETTABLE~C.\CTABLES[x]`.
+* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\XTTABLE~C.\CTABLES[x]`.
 
 $${rule: Externidx_ok/table}
 
 
-:math:`\EDMEM~x`
+:math:`\XDMEM~x`
 ................
+$${rule-prose: Externidx_ok/mem}
+.. todo::
+ below is the official specification
 
 * The memory :math:`C.\CMEMS[x]` must be defined in the context.
 
-* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\ETMEM~C.\CMEMS[x]`.
+* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\XTMEM~C.\CMEMS[x]`.
 
 $${rule: Externidx_ok/mem}
 
 
-:math:`\EDGLOBAL~x`
+:math:`\XDGLOBAL~x`
 ...................
+$${rule-prose: Externidx_ok/global}
+.. todo::
+ below is the official specification
 
 * The global :math:`C.\CGLOBALS[x]` must be defined in the context.
 
-* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\ETGLOBAL~C.\CGLOBALS[x]`.
+* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\XTGLOBAL~C.\CGLOBALS[x]`.
 
 $${rule: Externidx_ok/global}
 
 
 
-.. index:: import, name, function type, table type, memory type, global type
+:math:`\XDTAG~x`
+................
+
+* The tag :math:`C.\CTAGS[x]` must be defined in the context.
+
+* Then the export description is valid with :ref:`external type <syntax-externtype>` :math:`\XTTAG~C.\CTAGS[x]`.
+
+$${rule: Externidx_ok/tag}
+
+
+.. index:: import, name, function type, table type, memory type, global type, tag type
    pair: validation; import
    single: abstract syntax; import
 .. _valid-importdesc:
@@ -425,6 +516,9 @@ Imports ${:import} are classified by :ref:`external types <syntax-externtype>`.
 
 :math:`\{ \IMODULE~\name_1, \INAME~\name_2, \IDESC~\importdesc \}`
 ..................................................................
+$${rule-prose: Import_ok}
+.. todo::
+ below is the official specification
 
 * The import description :math:`\importdesc` must be valid with type :math:`\externtype`.
 
@@ -433,7 +527,7 @@ Imports ${:import} are classified by :ref:`external types <syntax-externtype>`.
 $${rule: Import_ok}
 
 
-.. index:: module, type definition, function type, function, table, memory, global, element, data, start function, import, export, context
+.. index:: module, type definition, function type, function, table, memory, global, tag, element, data, start function, import, export, context
    pair: validation; module
    single: abstract syntax; module
 .. _valid-module:
@@ -450,6 +544,10 @@ Consequently, no initial :ref:`context <context>` is required.
 Instead, the :ref:`context <context>` ${:C} for validation of the module's content is constructed from the definitions in the module.
 
 The :ref:`external types <syntax-externtype>` classifying a module may contain free :ref:`type indices <syntax-typeidx>` that refer to types defined within the module.
+
+$${rule-prose: Module_ok}
+.. todo::
+ below is the official specification
 
 
 * Let :math:`\module` be the module to validate.
@@ -471,6 +569,9 @@ The :ref:`external types <syntax-externtype>` classifying a module may contain f
 
   * :math:`C.\CGLOBALS` is :math:`\globalsxt(\X{it}^\ast)` concatenated with :math:`\X{gt}^\ast`,
     with the import's :ref:`external types <syntax-externtype>` :math:`\X{it}^\ast` and the internal :ref:`global types <syntax-globaltype>` :math:`\X{gt}^\ast` as determined below,
+
+  * :math:`C.\CTAGS` is :math:`\tagsxt(\X{it}^\ast)` concatenated with :math:`\X{ht}^\ast`,
+    with the import's :ref:`external types <syntax-externtype>` :math:`\X{it}^\ast` and the internal :ref:`tag types <syntax-tagtype>` :math:`\X{ht}^\ast` as determined below,
 
   * :math:`C.\CELEMS` is :math:`{\X{rt}}^\ast` as determined below,
 
@@ -515,6 +616,9 @@ The :ref:`external types <syntax-externtype>` classifying a module may contain f
   * For each :math:`\func_i` in :math:`\module.\MFUNCS`,
     the definition :math:`\func_i` must be :ref:`valid <valid-func>` with a :ref:`defined type <syntax-deftype>` :math:`\X{dt}_i`.
 
+  * For each :math:`\tag_i` in :math:`\module.\MTAGS`,
+    the definition :math:`\tag_i` must be :ref:`valid <valid-tag>` with a :ref:`tag type <syntax-tagtype>` :math:`\X{ht}_i`.
+
   * For each :math:`\elem_i` in :math:`\module.\MELEMS`,
     the segment :math:`\elem_i` must be :ref:`valid <valid-elem>` with :ref:`reference type <syntax-reftype>` :math:`\X{rt}_i`.
 
@@ -536,6 +640,10 @@ The :ref:`external types <syntax-externtype>` classifying a module may contain f
 
 * Let :math:`\X{mt}^\ast` be the concatenation of the internal :ref:`memory types <syntax-memtype>` :math:`\X{mt}_i`, in index order.
 
+* Let :math:`\X{gt}^\ast` be the concatenation of the internal :ref:`global types <syntax-globaltype>` :math:`\X{gt}_i`, in index order.
+
+* Let :math:`\X{ht}^\ast` be the concatenation of the internal :ref:`tag types <syntax-tagtype>` :math:`\X{ht}_i`, in index order.
+
 * Let :math:`\X{rt}^\ast` be the concatenation of the :ref:`reference types <syntax-reftype>` :math:`\X{rt}_i`, in index order.
 
 * Let :math:`\X{ok}^\ast` be the concatenation of the :ref:`data types <syntax-datatype>` :math:`\X{ok}_i`, in index order.
@@ -546,7 +654,7 @@ The :ref:`external types <syntax-externtype>` classifying a module may contain f
 
 * The length of :math:`C.\CMEMS` must not be larger than :math:`1`.
 
-* All export names :math:`\export_i.\ENAME` must be different.
+* All export names :math:`\export_i.\XNAME` must be different.
 
 * Then the module is valid with :ref:`external types <syntax-externtype>` :math:`\X{it}^\ast \to \X{et}^\ast`.
 
@@ -563,6 +671,3 @@ $${rule: Module_ok}
    All types needed to construct ${:C} can easily be determined from a simple pre-pass over the module that does not perform any actual validation.
 
    Globals, however, are not recursive but evaluated sequentially, such that each :ref:`constant expressions <valid-const>` only has access to imported or previously defined globals.
-
-.. note::
-   The restriction on the number of memories may be lifted in future versions of WebAssembly.

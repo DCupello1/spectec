@@ -13,10 +13,13 @@ type num = (I32.t, I64.t, F32.t, F64.t) op
 type vec = (V128.t) vecop
 
 type ref_ = ..
-type ref_ += NullRef of heap_type
 
 type value = Num of num | Vec of vec | Ref of ref_
 type t = value
+
+type ref_ += NullRef of heap_type
+
+type address = I64.t
 
 
 (* Injection & projection *)
@@ -280,6 +283,23 @@ let storage_bits_of_val st v =
 
 let value_of_bool b = Num (I32 (if b then 1l else 0l))
 
+let num_of_addr at i =
+  match at with
+  | I64AT -> I64 i
+  | I32AT -> I32 (I32_convert.wrap_i64 i)
+
+let addr_of_num x =
+  match x with
+  | I32 i -> I64_convert.extend_i32_u i
+  | I64 i -> i
+  | _ -> raise Type
+
+let addr_add n i =
+  num_of_addr (addr_type_of_num_type (type_of_num n)) (I64.add (addr_of_num n) i)
+let addr_sub n i =
+  num_of_addr (addr_type_of_num_type (type_of_num n)) (I64.sub (addr_of_num n) i)
+
+
 let string_of_num = function
   | I32 i -> I32.to_string_s i
   | I64 i -> I64.to_string_s i
@@ -298,8 +318,10 @@ let string_of_vec = function
 let hex_string_of_vec = function
   | V128 v -> V128.to_hex_string v
 
-let string_of_ref' = ref (function NullRef t -> "null" | _ -> "ref")
-let string_of_ref r = !string_of_ref' r
+let string_of_ref' = ref (function _ -> "ref")
+let string_of_ref = function
+  | NullRef _ -> "null"
+  | r -> !string_of_ref' r
 
 let string_of_value = function
   | Num n -> string_of_num n

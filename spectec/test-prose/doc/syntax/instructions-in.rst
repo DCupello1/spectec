@@ -24,7 +24,7 @@ $${syntax+:
   binop_
   testop_
   relop_
-  cvtop}
+  cvtop__}
 }
 
 
@@ -69,7 +69,7 @@ Memory Instructions
 
 $${syntax+: 
   instr/memory instr/data
-  memarg
+  memarg loadop_ vloadop_
 }
 
 .. _def-memarg0:

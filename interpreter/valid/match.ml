@@ -20,10 +20,17 @@ let rec top_of_str_type c st =
 and top_of_heap_type c = function
   | AnyHT | NoneHT | EqHT | StructHT | ArrayHT | I31HT -> AnyHT
   | FuncHT | NoFuncHT -> FuncHT
+  | ExnHT | NoExnHT -> ExnHT
   | ExternHT | NoExternHT -> ExternHT
   | DefHT dt -> top_of_str_type c (expand_def_type dt)
   | VarHT (StatX x) -> top_of_str_type c (expand_def_type (lookup c x))
   | VarHT (RecX _) | BotHT -> assert false
+
+let top_of_val_type c = function
+  | NumT _ as t -> t
+  | VecT _ as t -> t
+  | RefT (_, ht) -> RefT (Null, top_of_heap_type c ht)
+  | BotT -> BotT (* well.. *)
 
 let rec bot_of_str_type c st =
   bot_of_heap_type c (abs_of_str_type c st)
@@ -31,6 +38,7 @@ let rec bot_of_str_type c st =
 and bot_of_heap_type c = function
   | AnyHT | NoneHT | EqHT | StructHT | ArrayHT | I31HT -> NoneHT
   | FuncHT | NoFuncHT -> NoFuncHT
+  | ExnHT | NoExnHT -> NoExnHT
   | ExternHT | NoExternHT -> NoExternHT
   | DefHT dt -> bot_of_str_type c (expand_def_type dt)
   | VarHT (StatX x) -> bot_of_str_type c (expand_def_type (lookup c x))
@@ -45,11 +53,11 @@ let match_null _c nul1 nul2 =
   | _, _ -> nul1 = nul2
 
 let match_limits _c lim1 lim2 =
-  I32.ge_u lim1.min lim2.min &&
+  I64.ge_u lim1.min lim2.min &&
   match lim1.max, lim2.max with
   | _, None -> true
   | None, Some _ -> false
-  | Some i, Some j -> I32.le_u i j
+  | Some i, Some j -> I64.le_u i j
 
 
 let match_num_type _c t1 t2 =
@@ -60,7 +68,6 @@ let match_vec_type _c t1 t2 =
 
 let rec match_heap_type c t1 t2 =
   match t1, t2 with
-  | AnyHT, AnyHT -> true
   | EqHT, AnyHT -> true
   | StructHT, AnyHT -> true
   | ArrayHT, AnyHT -> true
@@ -68,9 +75,9 @@ let rec match_heap_type c t1 t2 =
   | I31HT, EqHT -> true
   | StructHT, EqHT -> true
   | ArrayHT, EqHT -> true
-  | ExternHT, ExternHT -> true
   | NoneHT, t -> match_heap_type c t AnyHT
   | NoFuncHT, t -> match_heap_type c t FuncHT
+  | NoExnHT, t -> match_heap_type c t ExnHT
   | NoExternHT, t -> match_heap_type c t ExternHT
   | VarHT (StatX x1), _ -> match_heap_type c (DefHT (lookup c x1)) t2
   | _, VarHT (StatX x2) -> match_heap_type c t1 (DefHT (lookup c x2))
@@ -154,11 +161,15 @@ let match_global_type c (GlobalT (mut1, t1)) (GlobalT (mut2, t2)) =
   | Cons -> true
   | Var -> match_val_type c t2 t1
 
-let match_table_type c (TableT (lim1, t1)) (TableT (lim2, t2)) =
-  match_limits c lim1 lim2 && match_ref_type c t1 t2 && match_ref_type c t2 t1
+let match_table_type c (TableT (at1, lim1, t1)) (TableT (at2, lim2, t2)) =
+  at1 = at2 && match_limits c lim1 lim2 &&
+  match_ref_type c t1 t2 && match_ref_type c t2 t1
 
-let match_memory_type c (MemoryT lim1) (MemoryT lim2) =
-  match_limits c lim1 lim2
+let match_memory_type c (MemoryT (at1, lim1)) (MemoryT (at2, lim2)) =
+  at1 = at2 && match_limits c lim1 lim2
+
+let match_tag_type c (TagT dt1) (TagT dt2) =
+  match_def_type c dt1 dt2 && match_def_type c dt2 dt1
 
 
 let match_extern_type c et1 et2 =
@@ -167,4 +178,5 @@ let match_extern_type c et1 et2 =
   | ExternTableT tt1, ExternTableT tt2 -> match_table_type c tt1 tt2
   | ExternMemoryT mt1, ExternMemoryT mt2 -> match_memory_type c mt1 mt2
   | ExternGlobalT gt1, ExternGlobalT gt2 -> match_global_type c gt1 gt2
+  | ExternTagT tt1, ExternTagT tt2 -> match_tag_type c tt1 tt2
   | _, _ -> false

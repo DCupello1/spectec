@@ -19,9 +19,10 @@ ci: all
 EXE = exe-$(NAME)/main.exe
 SRCDIR = src
 OUTDIR = _build/default/src
+ROOTDIR = ..
+REFINTERPDIR = $(ROOTDIR)/interpreter
 CLONEDIR = src/backend-interpreter/reference-interpreter
 CLONERM = dune-project jslib
-ROOTDIR = ..
 
 .PHONY: exe
 
@@ -30,8 +31,9 @@ exe: $(CLONEDIR)
 	dune build $(SRCDIR)/$(EXE)
 	ln -f $(OUTDIR)/$(EXE) ./$(NAME)
 
-$(CLONEDIR):
-	cp -R $(ROOTDIR)/interpreter $(CLONEDIR)
+$(CLONEDIR): $(shell find $(REFINTERPDIR) -type f)
+	rm -rf $(CLONEDIR)
+	cp -R $(REFINTERPDIR) $(CLONEDIR)
 	rm -r $(CLONERM:%=$@/%)
 	cp $@/../dune-ref-interp $@/dune
 
@@ -50,7 +52,7 @@ TESTDIRS = $(shell ls -d test-*)
 
 .PHONY: test testpromote $(TESTDIRS)
 
-test: exe $(TESTDIRS) dunetest
+test: exe $(TESTDIRS)
 
 dunetest:
 	@echo "#### Running (dune runtest)"
@@ -62,6 +64,19 @@ testpromote:
 $(TESTDIRS): test-%: exe
 	@echo "#### Running (cd $@; make test)"
 	@(cd $@ && ((make test >$(LOG) 2>&1 && (grep warning $(LOG) || true)) || (cat $(LOG) && echo "####>" Failure running $@. See log above. && false)))
+	@echo "#### Running (cd $@; dune runtest)"
+	@(cd $@ && dune runtest)
+
+
+# Spec
+
+.PHONY: spec spec-pdf
+
+spec:
+	(cd ../document/core && make main)
+
+spec-pdf:
+	(cd ../document/core && make pdf)
 
 
 # Cleanup

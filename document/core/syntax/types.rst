@@ -103,6 +103,11 @@ The type ${:FUNC} denotes the common supertype of all :ref:`function types <synt
 Dually, the type ${:NOFUNC} denotes the common subtype of all :ref:`function types <syntax-functype>`, regardless of their concrete definition.
 This type has no values.
 
+The type ${:EXN} denotes the common supertype of all :ref:`exception references <syntax-ref.exn>`.
+This type has no concrete subtypes.
+Dually, the type ${:NOEXN} denotes the common subtype of all forms of exception references.
+This type has no values.
+
 The type ${:EXTERN} denotes the common supertype of all external references received through the :ref:`embedder <embedder>`.
 This type has no concrete subtypes.
 Dually, the type ${:NOEXTERN} denotes the common subtype of all forms of external references.
@@ -125,7 +130,7 @@ Their observable value range is limited to 31 bits.
    Engines need to perform some form of *pointer tagging* to achieve this,
    which is why one bit is reserved.
 
-   Although the types ${:NONE}, ${:NOFUNC}, and ${:NOEXTERN} are not inhabited by any values,
+   Although the types ${:NONE}, ${:NOFUNC}, ${:NOEXN}, and ${:NOEXTERN} are not inhabited by any values,
    they can be used to form the types of all null :ref:`references <syntax-reftype>` in their respective hierarchy.
    For example, ${:(REF NULL NOFUNC)} is the generic type of a null reference compatible with all function reference types.
 
@@ -168,11 +173,15 @@ Conventions
 
 * The reference type ${:$FUNCREF} is an abbreviation for ${reftype: (REF NULL FUNC)}.
 
+* The reference type ${:$EXNREF} is an abbreviation for ${reftype: (REF NULL EXN)}.
+
 * The reference type ${:$EXTERNREF} is an abbreviation for ${reftype: (REF NULL EXTERN)}.
 
 * The reference type ${:$NULLREF} is an abbreviation for ${reftype: (REF NULL NONE)}.
 
 * The reference type ${:$NULLFUNCREF} is an abbreviation for ${reftype: (REF NULL NOFUNC)}.
+
+* The reference type ${:$NULLEXNREF} is an abbreviation for ${reftype: (REF NULL NOEXN)}.
 
 * The reference type ${:$NULLEXTERNREF} is an abbreviation for ${reftype: (REF NULL NOEXTERN)}.
 
@@ -300,6 +309,30 @@ $${syntax: {rectype subtype}}
 In a :ref:`module <syntax-module>`, each member of a recursive type is assigned a separate :ref:`type index <syntax-typeidx>`.
 
 
+.. _index:: ! address type, number type, bit width
+   pair: abstract syntax; address type
+   single: memory; address type
+   single: table; address type
+.. _syntax-addrtype:
+
+Address Type
+~~~~~~~~~~~~
+
+*Address types* are a subset of :ref:`number types <syntax-numtype>` that classify the values that can be used as offsets into
+:ref:`memories <syntax-mem>` and :ref:`tables <syntax-table>`.
+
+$${syntax: {addrtype}}
+
+.. _aux-addrtype-min:
+
+Conventions
+...........
+
+The *minimum* of two address types is defined as the address type whose :ref:`bit width <bitwidth-numtype>` is the minimum of the two.
+
+$${definition: minat}
+
+
 .. index:: ! limits, memory type, table type
    pair: abstract syntax; limits
    single: memory; limits
@@ -394,7 +427,31 @@ Since the contents of a data segment requires no further classification, they me
 $${syntax: datatype}
 
 
-.. index:: ! external type, defined type, function type, table type, memory type, global type, import, external value
+.. index:: ! tag, tag type, function type, exception tag
+   pair: abstract syntax; tag
+   pair: tag; exception tag
+   single: tag; type; exception
+.. _syntax-tagtype:
+
+Tag Types
+~~~~~~~~~
+
+*Tag types* classify the signature of :ref:`tags <syntax-tag>` with a function type.
+
+.. math::
+   \begin{array}{llll}
+   \production{tag type} &\tagtype &::=& \functype \\
+   \end{array}
+
+Currently tags are only used for categorizing exceptions.
+The parameters of |functype| define the list of values associated with the exception thrown with this tag.
+Furthermore, it is an invariant of the semantics that every |functype| in a :ref:`valid <valid-tagtype>` tag type for an exception has an empty result type.
+
+.. note::
+   Future versions of WebAssembly may have additional uses for tags, and may allow non-empty result types in the function types of tags.
+
+
+.. index:: ! external type, defined type, function type, table type, memory type, global type, tag type, import, external address
    pair: abstract syntax; external type
    pair: external; type
 .. _syntax-externtype:
@@ -402,7 +459,7 @@ $${syntax: datatype}
 External Types
 ~~~~~~~~~~~~~~
 
-*External types* classify :ref:`imports <syntax-import>` and :ref:`external values <syntax-externval>` with their respective types.
+*External types* classify :ref:`imports <syntax-import>` and :ref:`external addresses <syntax-externaddr>` with their respective types.
 
 $${syntax: externtype}
 
@@ -413,4 +470,4 @@ Conventions
 The following auxiliary notation is defined for sequences of external types.
 It filters out entries of a specific kind in an order-preserving fashion:
 
-$${definition: funcsxt tablesxt memsxt globalsxt}
+$${definition: funcsxt tablesxt memsxt globalsxt tagsxt}

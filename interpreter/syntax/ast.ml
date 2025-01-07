@@ -64,13 +64,19 @@ struct
               | AddSatS | AddSatU | SubSatS | SubSatU | DotS | Q15MulRSatS
               | ExtMulLowS | ExtMulHighS | ExtMulLowU | ExtMulHighU
               | Swizzle | Shuffle of int list | NarrowS | NarrowU
+              | RelaxedSwizzle | RelaxedQ15MulRS | RelaxedDot
   type fbinop = Add | Sub | Mul | Div | Min | Max | Pmin | Pmax
+              | RelaxedMin | RelaxedMax
+  type iternop = RelaxedLaneselect | RelaxedDotAdd
+  type fternop = RelaxedMadd | RelaxedNmadd
   type irelop = Eq | Ne | LtS | LtU | LeS | LeU | GtS | GtU | GeS | GeU
   type frelop = Eq | Ne | Lt | Le | Gt | Ge
   type icvtop = ExtendLowS | ExtendLowU | ExtendHighS | ExtendHighU
               | ExtAddPairwiseS | ExtAddPairwiseU
               | TruncSatSF32x4 | TruncSatUF32x4
               | TruncSatSZeroF64x2 | TruncSatUZeroF64x2
+              | RelaxedTruncSF32x4 | RelaxedTruncUF32x4
+              | RelaxedTruncSZeroF64x2 | RelaxedTruncUZeroF64x2
   type fcvtop = DemoteZeroF64x2 | PromoteLowF32x4
               | ConvertSI32x4 | ConvertUI32x4
   type ishiftop = Shl | ShrS | ShrU
@@ -84,6 +90,7 @@ struct
   type testop = (itestop, itestop, itestop, itestop, void, void) V128.laneop
   type unop = (iunop, iunop, iunop, iunop, funop, funop) V128.laneop
   type binop = (ibinop, ibinop, ibinop, ibinop, fbinop, fbinop) V128.laneop
+  type ternop = (iternop, iternop, iternop, iternop, fternop, fternop) V128.laneop
   type relop = (irelop, irelop, irelop, irelop, frelop, frelop) V128.laneop
   type cvtop = (icvtop, icvtop, icvtop, icvtop, fcvtop, fcvtop) V128.laneop
   type shiftop = (ishiftop, ishiftop, ishiftop, ishiftop, void, void) V128.laneop
@@ -108,6 +115,7 @@ type vec_testop = (V128Op.testop) Value.vecop
 type vec_relop = (V128Op.relop) Value.vecop
 type vec_unop = (V128Op.unop) Value.vecop
 type vec_binop = (V128Op.binop) Value.vecop
+type vec_ternop = (V128Op.ternop) Value.vecop
 type vec_cvtop = (V128Op.cvtop) Value.vecop
 type vec_shiftop = (V128Op.shiftop) Value.vecop
 type vec_bitmaskop = (V128Op.bitmaskop) Value.vecop
@@ -119,7 +127,7 @@ type vec_splatop = (V128Op.splatop) Value.vecop
 type vec_extractop = (V128Op.extractop) Value.vecop
 type vec_replaceop = (V128Op.replaceop) Value.vecop
 
-type ('t, 'p) memop = {ty : 't; align : int; offset : int32; pack : 'p}
+type ('t, 'p) memop = {ty : 't; align : int; offset : int64; pack : 'p}
 type loadop = (num_type, (pack_size * extension) option) memop
 type storeop = (num_type, pack_size option) memop
 
@@ -163,6 +171,9 @@ and instr' =
   | ReturnCall of idx                 (* tail-call function *)
   | ReturnCallRef of idx              (* tail call through reference *)
   | ReturnCallIndirect of idx * idx   (* tail-call function through table *)
+  | Throw of idx                      (* throw exception *)
+  | ThrowRef                          (* rethrow exception *)
+  | TryTable of block_type * catch list * instr list  (* handle exceptions *)
   | LocalGet of idx                   (* read local idxiable *)
   | LocalSet of idx                   (* write local idxiable *)
   | LocalTee of idx                   (* write local idxiable and keep value *)
@@ -223,6 +234,7 @@ and instr' =
   | VecCompare of vec_relop           (* vector comparison *)
   | VecUnary of vec_unop              (* unary vector operator *)
   | VecBinary of vec_binop            (* binary vector operator *)
+  | VecTernary of vec_ternop          (* ternary vector operator *)
   | VecConvert of vec_cvtop           (* vector conversion *)
   | VecShift of vec_shiftop           (* vector shifts *)
   | VecBitmask of vec_bitmaskop       (* vector masking *)
@@ -233,6 +245,13 @@ and instr' =
   | VecSplat of vec_splatop           (* number to vector conversion *)
   | VecExtract of vec_extractop       (* extract lane from vector *)
   | VecReplace of vec_replaceop       (* replace lane in vector *)
+
+and catch = catch' Source.phrase
+and catch' =
+  | Catch of idx * idx
+  | CatchRef of idx * idx
+  | CatchAll of idx
+  | CatchAllRef of idx
 
 
 (* Locals, globals & Functions *)
@@ -276,6 +295,13 @@ and memory' =
   mtype : memory_type;
 }
 
+type tag = tag' Source.phrase
+and tag' =
+{
+  tgtype : idx;
+}
+
+
 type segment_mode = segment_mode' Source.phrase
 and segment_mode' =
   | Passive
@@ -308,6 +334,7 @@ and export_desc' =
   | TableExport of idx
   | MemoryExport of idx
   | GlobalExport of idx
+  | TagExport of idx
 
 type export = export' Source.phrase
 and export' =
@@ -322,6 +349,7 @@ and import_desc' =
   | TableImport of table_type
   | MemoryImport of memory_type
   | GlobalImport of global_type
+  | TagImport of idx
 
 type import = import' Source.phrase
 and import' =
@@ -344,6 +372,7 @@ and module_' =
   globals : global list;
   tables : table list;
   memories : memory list;
+  tags : tag list;
   funcs : func list;
   start : start option;
   elems : elem_segment list;
@@ -361,6 +390,7 @@ let empty_module =
   globals = [];
   tables = [];
   memories = [];
+  tags = [];
   funcs = [];
   start = None;
   elems = [];
@@ -387,6 +417,7 @@ let import_type_of (m : module_) (im : import) : import_type =
     | TableImport tt -> ExternTableT tt
     | MemoryImport mt -> ExternMemoryT mt
     | GlobalImport gt -> ExternGlobalT gt
+    | TagImport x -> ExternTagT (TagT (Lib.List32.nth dts x.it))
   in ImportT (subst_extern_type (subst_of dts) et, module_name, item_name)
 
 let export_type_of (m : module_) (ex : export) : export_type =
@@ -409,6 +440,10 @@ let export_type_of (m : module_) (ex : export) : export_type =
     | GlobalExport x ->
       let gts = globals ets @ List.map (fun g -> g.it.gtype) m.it.globals in
       ExternGlobalT (Lib.List32.nth gts x.it)
+    | TagExport x ->
+      let tts = tags ets @ List.map (fun t ->
+        TagT (Lib.List32.nth dts t.it.tgtype.it)) m.it.tags in
+      ExternTagT (Lib.List32.nth tts x.it)
   in ExportT (subst_extern_type (subst_of dts) et, name)
 
 let module_type_of (m : module_) : module_type =

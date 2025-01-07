@@ -9,7 +9,7 @@ let version = "0.4"
 type target =
  | Check
  | Latex
- | Prose
+ | Prose of bool
  | Splice of Backend_splice.Config.t
  | Interpreter of string list
  | Coq
@@ -18,9 +18,7 @@ type pass =
   | Sub
   | Totalize
   | Unthe
-  | Wild
   | Sideconditions
-  | Animate
 
 (* This list declares the intended order of passes.
 
@@ -29,7 +27,7 @@ passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
 let _skip_passes = [ Sub; Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ Totalize; Wild; Sideconditions; Animate ]
+let all_passes = [ Totalize; Sideconditions ]
 
 type file_kind =
   | Spec
@@ -55,6 +53,7 @@ let print_elab_il = ref false
 let print_final_il = ref false
 let print_all_il = ref false
 let print_al = ref false
+let print_al_o = ref ""
 let print_no_pos = ref false
 
 module PS = Set.Make(struct type t = pass let compare = compare; end)
@@ -72,25 +71,19 @@ let pass_flag = function
   | Sub -> "sub"
   | Totalize -> "totalize"
   | Unthe -> "the-elimination"
-  | Wild -> "wildcards"
   | Sideconditions -> "sideconditions"
-  | Animate -> "animate"
 
 let pass_desc = function
   | Sub -> "Synthesize explicit subtype coercions"
   | Totalize -> "Run function totalization"
   | Unthe -> "Eliminate the ! operator in relations"
-  | Wild -> "Eliminate wildcards and equivalent expressions"
   | Sideconditions -> "Infer side conditions"
-  | Animate -> "Animate equality conditions"
 
 let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
   | Sub -> Middlend.Sub.transform
   | Totalize -> Middlend.Totalize.transform
   | Unthe -> Middlend.Unthe.transform
-  | Wild -> Middlend.Wild.transform
   | Sideconditions -> Middlend.Sideconditions.transform
-  | Animate -> Il2al.Animate.transform
 
 
 (* Argument parsing *)
@@ -111,7 +104,7 @@ let add_arg source =
 let pass_argspec pass : Arg.key * Arg.spec * Arg.doc =
   "--" ^ pass_flag pass, Arg.Unit (fun () -> enable_pass pass), " " ^ pass_desc pass
 
-let argspec = Arg.align
+let argspec = Arg.align (
 [
   "-v", Arg.Unit banner, " Show version";
   "-p", Arg.Unit (fun () -> file_kind := Patch), " Patch files";
@@ -133,11 +126,16 @@ let argspec = Arg.align
     " Splice Sphinx";
   "--splice-sphinx", Arg.Unit (fun () -> target := Splice Backend_splice.Config.sphinx),
     " Splice Sphinx";
-  "--prose", Arg.Unit (fun () -> target := Prose), " Generate prose";
+  "--prose", Arg.Unit (fun () -> target := Prose true), " Generate prose";
+  "--prose-rst", Arg.Unit (fun () -> target := Prose false), " Generate prose";
   "--interpreter", Arg.Rest_all (fun args -> target := Interpreter args),
     " Generate interpreter";
   "--coq", Arg.Unit (fun () -> target := Coq), " Generate Coq";
 
+  "--debug", Arg.Unit (fun () -> Backend_interpreter.Debugger.debug := true),
+    " Debug interpreter";
+  "--no-unified-vars", Arg.Unit (fun () -> Il2al.Unify.rename := true),
+    " Do not use unified variables in AL";
   "--latex-macros", Arg.Set latex_macros, " Splice Latex with macro invocations";
 
   "--print-el", Arg.Set print_el, " Print EL";
@@ -145,15 +143,16 @@ let argspec = Arg.align
   "--print-final-il", Arg.Set print_final_il, " Print final IL";
   "--print-all-il", Arg.Set print_all_il, " Print IL after each step";
   "--print-al", Arg.Set print_al, " Print al";
+  "--print-al-o", Arg.Set_string print_al_o, " Print al with given name";
   "--print-no-pos", Arg.Set print_no_pos, " Suppress position info in output";
 ] @ List.map pass_argspec all_passes @ [
   "--all-passes", Arg.Unit (fun () -> List.iter enable_pass all_passes)," Run all passes";
 
-  "--test-version", Arg.Int (fun i -> Backend_interpreter.Construct.version := i), " The version of wasm, default to 3";
+  "--test-version", Arg.Int (fun i -> Backend_interpreter.Construct.version := i), " Wasm version to assume for tests (default: 3)";
 
   "-help", Arg.Unit ignore, "";
   "--help", Arg.Unit ignore, "";
-]
+] )
 
 
 (* Main *)
@@ -176,10 +175,12 @@ let () =
     Il.Valid.valid il;
 
     (match !target with
-    | Prose | Splice _ | Interpreter _ ->
-      enable_pass Sideconditions; enable_pass Animate
     | Coq ->
-      enable_pass Sub; enable_pass Totalize; enable_pass Unthe; enable_pass Wild; enable_pass Sideconditions
+      enable_pass Sub; enable_pass Totalize; enable_pass Unthe; enable_pass Sideconditions
+    | Prose _ | Splice _ | Interpreter _ ->
+      enable_pass Sideconditions;
+    | _ when !print_al || !print_al_o <> "" ->
+      enable_pass Sideconditions;
     | _ -> ()
     );
 
@@ -202,16 +203,33 @@ let () =
     if !print_final_il && not !print_all_il then print_il il;
 
     let al =
-      if !target = Check || !target = Latex || not (PS.mem Animate !selected_passes)
-      then [] else (
+      if not (!print_al || !print_al_o <> "") && (!target = Check || !target = Latex) then []
+      else (
         log "Translating to AL...";
         (Il2al.Translate.translate il @ Il2al.Manual.manual_algos)
       )
     in
 
+    let match_algo_name algo_name al_elt =
+      algo_name = "" ||
+      (match al_elt.Util.Source.it with
+      | Al.Ast.RuleA (a, _, _, _) ->
+        Al.Print.string_of_atom a = String.uppercase_ascii algo_name
+      | Al.Ast.FuncA (id , _, _) ->
+        id = String.lowercase_ascii algo_name)
+    in
+
     if !print_al then
       Printf.printf "%s\n%!"
-        (List.map Al.Print.string_of_algorithm al |> String.concat "\n");
+        (List.map Al.Print.string_of_algorithm al |> String.concat "\n")
+    else if !print_al_o <> "" then
+      Printf.printf "%s\n%!"
+        (List.filter (match_algo_name !print_al_o) al |> List.map Al.Print.string_of_algorithm |> String.concat "\n");
+
+    (* WIP
+    log "AL Validation...";
+    Al.Valid.valid al;
+    *)
 
     (match !target with
     | Check -> ()
@@ -228,22 +246,28 @@ let () =
         exit 2
       )
 
-    | Prose ->
+    | Prose as_plaintext ->
       log "Prose Generation...";
-      let prose = Backend_prose.Gen.gen_prose il al in
-      let oc =
-        match !odsts with
-        | [] -> stdout
-        | [odst] -> open_out odst
-        | _ ->
-          prerr_endline "too many output file names";
-          exit 2
-      in
-      output_string oc "=================\n";
-      output_string oc " Generated prose \n";
-      output_string oc "=================\n";
-      output_string oc (Backend_prose.Print.string_of_prose prose);
-      if oc != stdout then close_out oc
+      let config_latex = Backend_latex.Config.default in
+      let config_prose = Backend_prose.Config.{panic_on_error = false} in
+      (match !odsts with
+      | [] ->
+          if as_plaintext then
+            Backend_prose.Gen.gen_prose el il al
+            |> Backend_prose.Print.string_of_prose
+            |> print_endline
+          else
+            print_endline (Backend_prose.Gen.gen_string config_latex config_prose el il al)
+      | [odst] ->
+          if as_plaintext then
+            Backend_prose.Gen.gen_prose el il al
+            |> Backend_prose.Print.file_of_prose odst
+          else
+            Backend_prose.Gen.gen_file config_latex config_prose odst el il al
+      | _ ->
+        prerr_endline "too many output file names";
+        exit 2
+      )
 
     | Splice config ->
       if !in_place then
@@ -260,7 +284,7 @@ let () =
           exit 2
       );
       log "Prose Generation...";
-      let prose = Backend_prose.Gen.gen_prose il al in
+      let prose = Backend_prose.Gen.gen_prose el il al in
       log "Splicing...";
       let config' =
         Backend_splice.Config.{config with latex = Backend_latex.Config.{config.latex with
