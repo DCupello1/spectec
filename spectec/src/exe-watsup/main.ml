@@ -203,7 +203,7 @@ let () =
     if !print_final_il && not !print_all_il then print_il il;
 
     let al =
-      if not (!print_al || !print_al_o <> "") && (!target = Check || !target = Latex) then []
+      if not (!print_al || !print_al_o <> "") && (!target = Check || !target = Latex || !target = Coq) then []
       else (
         log "Translating to AL...";
         (Il2al.Translate.translate il @ Il2al.Manual.manual_algos)

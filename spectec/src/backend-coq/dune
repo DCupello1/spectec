@@ -1,5 +1,5 @@
 (library
   (name backend_coq)
   (libraries util il)
-  (modules case gen coqast il2coq print else lemmagen)
+  (modules case coqast il2coq print else lemmagen)
 )

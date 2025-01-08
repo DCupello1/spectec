@@ -95,8 +95,10 @@ let get_typ_name (t : typ) =
     | _ -> None
 let gen_bind_name (bind : bind) =
   match bind.it with
-    | ExpB (id, _, _) -> transform_id id
+    | ExpB (id, _) -> transform_id id
     | TypB id -> transform_id id
+    | DefB (id, _, _) -> transform_id id
+    | GramB (id, _, _) -> transform_id id 
     
 let gen_arg_names (arg : arg) = 
   match arg.it with
@@ -109,6 +111,7 @@ let gen_arg_names (arg : arg) =
       ) in 
       gen_argexp_name e
     | TypA _ -> []
+    | _ -> []
       
 (* Family types infer function *)
 let infer_match_name (args : arg list) (type_name : text) =
@@ -180,10 +183,10 @@ let transform_itertyp (it : iter) =
 
 let transform_numtyp (typ : numtyp) = 
   match typ with
-    | NatT -> T_type_basic T_nat
-    | IntT -> T_type_basic T_nat
-    | RatT -> T_type_basic T_nat (*T_unsupported "rat"*)
-    | RealT -> T_type_basic T_nat (*T_unsupported "real"*)
+    | `NatT -> T_type_basic T_nat
+    | `IntT -> T_type_basic T_nat
+    | `RatT -> T_type_basic T_nat (*T_unsupported "rat"*)
+    | `RealT -> T_type_basic T_nat (*T_unsupported "real"*)
 
 let rec transform_type (typ : typ) =
   match typ.it with
@@ -246,11 +249,11 @@ and transform_exp (exp : exp) =
   match exp.it with 
     | VarE id -> if (Hashtbl.mem family_helper (gen_typ_name exp.note)) then T_cast (T_ident [transform_var_id id], erase_dependent_type exp.note) else T_ident [transform_var_id id]
     | BoolE b -> T_exp_basic (T_bool b)
-    | NatE n -> T_exp_basic (T_nat n)
+    | NumE (`Nat n) -> T_exp_basic (T_nat n)
     | TextE txt -> T_exp_basic (T_string txt)
-    | UnE (unop, exp) -> transform_unop unop exp
-    | BinE (binop, exp1, exp2) -> T_app_infix (transform_binop binop, transform_exp exp1, transform_exp exp2)
-    | CmpE (cmpop, exp1, exp2) -> T_app_infix (transform_cmpop cmpop, transform_exp exp1, transform_exp exp2)
+    | UnE (unop, _, exp) -> transform_unop unop exp
+    | BinE (binop, _, exp1, exp2) -> T_app_infix (transform_binop binop, transform_exp exp1, transform_exp exp2)
+    | CmpE (cmpop, _, exp1, exp2) -> T_app_infix (transform_cmpop cmpop, transform_exp exp1, transform_exp exp2)
     | TupE [] -> T_exp_basic T_exp_unit
     | TupE exps -> T_match (List.map transform_exp exps) 
     | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, [transform_exp e; T_exp_basic (T_nat (Z.of_int n))])
@@ -285,6 +288,7 @@ and transform_exp (exp : exp) =
         | _ -> exp1
       ) 
     | SubE (e, _, typ2) -> T_cast (transform_exp e, transform_type typ2)
+    | _ -> T_unsupported "" (* TODO *)
 
 and transform_match_exp (exp : exp) =
   match exp.it with
@@ -303,7 +307,7 @@ and transform_match_exp (exp : exp) =
     | Some a -> T_app (T_ident [a; family_type_suffix], [T_app (T_ident [a; transform_mixop m], transform_tuple_exp transform_match_exp e)])
     | _ -> transform_exp exp
   )
-  | BinE (AddOp _, exp1, {it = NatE n ;_}) -> let rec get_succ n = (match n with
+  | BinE (`AddOp, `NatT, exp1, {it = NumE (`Nat n);_}) -> let rec get_succ n = (match n with
     | 0 -> transform_match_exp exp1
     | m -> T_app (T_exp_basic T_succ, [get_succ (m - 1)])
   ) in get_succ (Z.to_int n)
@@ -327,66 +331,72 @@ and transform_return_exp (r_typ : typ option) (exp : exp) =
 
 and transform_unop (u : unop) (exp : exp) = 
   match u with
-    | NotOp ->  T_app (T_exp_basic T_sub, [transform_exp exp])
-    | PlusOp _ -> T_app_infix (T_exp_basic T_add, T_exp_basic (T_nat Z.zero), transform_exp exp)
-    | MinusOp _ -> T_app_infix (T_exp_basic T_sub, T_exp_basic (T_nat Z.zero), transform_exp exp)
-    | MinusPlusOp _ -> T_app (T_exp_basic T_minusplus, [transform_exp exp])
-    | PlusMinusOp _ -> T_app (T_exp_basic T_plusminus, [transform_exp exp])
+    | `NotOp ->  T_app (T_exp_basic T_not, [transform_exp exp])
+    | `PlusOp -> T_app_infix (T_exp_basic T_add, T_exp_basic (T_nat Z.zero), transform_exp exp)
+    | `MinusOp -> T_app_infix (T_exp_basic T_sub, T_exp_basic (T_nat Z.zero), transform_exp exp)
+    | `MinusPlusOp -> T_app (T_exp_basic T_minusplus, [transform_exp exp])
+    | `PlusMinusOp -> T_app (T_exp_basic T_plusminus, [transform_exp exp])
 
 and transform_binop (b : binop) = 
   match b with
-    | AndOp -> T_exp_basic T_and
-    | OrOp -> T_exp_basic T_or
-    | ImplOp -> T_exp_basic T_impl
-    | EquivOp -> T_exp_basic T_equiv
-    | AddOp _ -> T_exp_basic T_add
-    | SubOp _ -> T_exp_basic T_sub
-    | MulOp _ -> T_exp_basic T_mul
-    | DivOp _ -> T_exp_basic T_div
-    | ExpOp _ -> T_exp_basic T_exp
-    | ModOp _ -> T_exp_basic T_mod
+    | `AndOp -> T_exp_basic T_and
+    | `OrOp -> T_exp_basic T_or
+    | `ImplOp -> T_exp_basic T_impl
+    | `EquivOp -> T_exp_basic T_equiv
+    | `AddOp -> T_exp_basic T_add
+    | `SubOp -> T_exp_basic T_sub
+    | `MulOp -> T_exp_basic T_mul
+    | `DivOp -> T_exp_basic T_div
+    | `PowOp -> T_exp_basic T_exp
+    | `ModOp -> T_exp_basic T_mod
 
 and transform_cmpop (c : cmpop) =
   match c with
-    | EqOp -> T_exp_basic T_eq
-    | NeOp -> T_exp_basic T_neq
-    | LtOp _ -> T_exp_basic T_lt
-    | GtOp _ -> T_exp_basic T_gt
-    | LeOp _ -> T_exp_basic T_le
-    | GeOp _ -> T_exp_basic T_ge
+    | `EqOp -> T_exp_basic T_eq
+    | `NeOp -> T_exp_basic T_neq
+    | `LtOp -> T_exp_basic T_lt
+    | `GtOp -> T_exp_basic T_gt
+    | `LeOp -> T_exp_basic T_le
+    | `GeOp -> T_exp_basic T_ge
 
 (* Binds, args, and params functions *)
 and transform_arg (arg : arg) =
   match arg.it with
     | ExpA exp -> transform_exp exp
     | TypA typ -> erase_dependent_type typ
+    | _ -> T_unsupported "" (* TODO *)
 
 and transform_match_arg (arg : arg) =
   match arg.it with
     | ExpA exp -> transform_match_exp exp
     | TypA _ -> T_ident ["_"]
+    | _ -> T_unsupported "" (* TODO *)
 
 and transform_bind (bind : bind) =
   match bind.it with
-    | ExpB (id, typ, _) -> (transform_var_id id, erase_dependent_type typ)
+    | ExpB (id, typ) -> (transform_var_id id, erase_dependent_type typ)
     | TypB id -> (transform_id id, T_ident ["Type"])
+    | _ -> ("", T_unsupported "")
 
-and transform_relation_bind (bind : bind) =
-  let rec transform_iter_bind iters typ = (match iters with
+and transform_relation_bind (bind : bind) = (* TODO FIX relation binds to work as they used to *)
+  (* let rec transform_iter_bind iters typ = (match iters with
     | [] -> typ
     | it :: its -> IterT (transform_iter_bind its typ, it) $ typ.at
-  ) in
+  ) in *)
   match bind.it with
-    | ExpB (id, ({it = VarT (t_id, args); _} as t), its) -> 
+    | ExpB (id, ({it = VarT (t_id, args); _} as t)) -> 
       let id_transformed = transform_id t_id in 
       let a = find_typ args id_transformed in
         (transform_var_id id, (match a with
-          | Some typ -> transform_type (transform_iter_bind (List.rev its) typ)
-          | None -> erase_dependent_type (transform_iter_bind (List.rev its) t)
+          | Some typ -> transform_type typ
+          | None -> erase_dependent_type t
+          (* | Some typ -> transform_type (transform_iter_bind (List.rev its) typ)
+          | None -> erase_dependent_type (transform_iter_bind (List.rev its) t) *)
         ))
-    | ExpB (id, typ, its) -> 
-      (transform_var_id id, erase_dependent_type (transform_iter_bind (List.rev its) typ))
+    | ExpB (id, typ) -> 
+      (transform_var_id id, erase_dependent_type typ)
     | TypB id -> (transform_var_id id, T_ident ["Type"])
+    | _ -> ("", T_unsupported "") (* TODO *)
 
 and transform_param (arg : int * param) =
   let (n, p) = arg in 
@@ -394,6 +404,7 @@ and transform_param (arg : int * param) =
     | ExpP (id, typ) -> 
       (transform_var_id id ^ "_" ^ string_of_int n, erase_dependent_type typ)
     | TypP id -> transform_id id, T_ident ["Type"]
+    | _ -> "", T_unsupported "" (* TODO *)
 
 (* PATH Functions *)
 and transform_list_path (p : path) = 
@@ -494,7 +505,7 @@ let rec transform_def (d : def) : coq_def =
       else (
         let family_type_exists = List.fold_left (fun acc param -> acc || (match param.it with
           | ExpP (_, typ') -> check_family_dependent_type typ'
-          | TypP _ -> false 
+          | _ -> false
         )) false params in
         let new_clause = if family_type_exists then [(T_ident ["_"], T_ident ["default_val"])] else [] in
         let is_family_return_type = check_family_dependent_type typ in 
@@ -503,7 +514,7 @@ let rec transform_def (d : def) : coq_def =
         DefinitionD (transform_fun_id id, binds, return_type, (List.map (transform_clause base_return_type) clauses) @ new_clause)
       )
     | RecD defs -> MutualRecD (List.map transform_def defs)
-    | HintD _ -> UnsupportedD ""
+    | _ -> UnsupportedD ""
 
 let is_not_hintdef (d : def) : bool =
   match d.it with
@@ -516,8 +527,8 @@ let sub_hastable = Hashtbl.create 16
 
 let rec get_sube_exp (exp : exp) =
   match exp.it with
-    | UnE (_, e) -> get_sube_exp e
-    | BinE (_, e1, e2) | CmpE (_, e1, e2) -> List.append (get_sube_exp e1) (get_sube_exp e2)
+    | UnE (_, _, e) -> get_sube_exp e
+    | BinE (_, _, e1, e2) | CmpE (_, _, e1, e2) -> List.append (get_sube_exp e1) (get_sube_exp e2)
     | TupE exps -> List.concat_map get_sube_exp exps
     | ProjE (e, _) -> get_sube_exp e
     | CaseE (_, e) -> get_sube_exp e
@@ -543,6 +554,7 @@ and get_sube_arg (arg : arg) =
   match arg.it with
     | ExpA e -> get_sube_exp e
     | TypA _ -> []
+    | _ -> []
 
 let rec get_sube_prem (premise : prem) =
   match premise.it with
