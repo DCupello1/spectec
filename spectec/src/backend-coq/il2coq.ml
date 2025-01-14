@@ -61,11 +61,14 @@ let rec get_struct_type (env : env) (id : id) =
 (* Id transformation *)
 let transform_id' (s : text) = match s with
   | s when IdSet.mem s reserved_ids -> "reserved__" ^ s
-  | s -> String.map (function
+  | s -> String.trim (String.map (function
      | '.' -> '_'
      | '-' -> '_'
+     | '*' -> ' '
+     | '?' -> ' '
+     | '^' -> ' '
      | c -> c
-     ) s
+     ) s)
 
 let transform_id (id : id) = transform_id' id.it
 
@@ -250,6 +253,7 @@ and transform_exp (exp : exp) =
     | VarE id -> if (Hashtbl.mem family_helper (gen_typ_name exp.note)) then T_cast (T_ident [transform_var_id id], erase_dependent_type exp.note) else T_ident [transform_var_id id]
     | BoolE b -> T_exp_basic (T_bool b)
     | NumE (`Nat n) -> T_exp_basic (T_nat n)
+    | NumE _ -> T_unsupported (string_of_exp exp)
     | TextE txt -> T_exp_basic (T_string txt)
     | UnE (unop, _, exp) -> transform_unop unop exp
     | BinE (binop, _, exp1, exp2) -> T_app_infix (transform_binop binop, transform_exp exp1, transform_exp exp2)
@@ -259,7 +263,7 @@ and transform_exp (exp : exp) =
     | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, [transform_exp e; T_exp_basic (T_nat (Z.of_int n))])
     | CaseE (mixop, e) -> let actual_id, num_args = gen_case_name !env_ref exp.note in 
       T_app (T_ident [transform_id actual_id; transform_mixop mixop], List.append (List.init num_args (fun _ -> T_ident ["_ "])) (transform_tuple_exp transform_exp e))
-    | UncaseE (_e, _mixop) -> T_unsupported ("Uncase: " ^ string_of_exp exp)
+    | UncaseE (e, _mixop) -> transform_exp e (* TODO check if this is fine *)
     | OptE (Some e) -> T_app (T_exp_basic T_some, [transform_exp e])
     | OptE None -> T_exp_basic T_none
     | TheE e -> T_app (T_exp_basic T_the, [transform_exp e])
@@ -288,7 +292,9 @@ and transform_exp (exp : exp) =
         | _ -> exp1
       ) 
     | SubE (e, _, typ2) -> T_cast (transform_exp e, transform_type typ2)
-    | _ -> T_unsupported "" (* TODO *)
+    | LiftE e -> transform_exp e (* TODO *)
+    | CvtE (e, _t1, _t2) -> transform_exp e (* TODO *)
+    | MemE _ -> T_unsupported ("MemE: " ^ string_of_exp exp) (* TODO *)
 
 and transform_match_exp (exp : exp) =
   match exp.it with
