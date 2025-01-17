@@ -2,6 +2,7 @@
   (name middlend)
   (libraries util il)
   (modules
+    monomorphization
     sub
     totalize
     unthe

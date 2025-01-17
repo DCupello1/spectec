@@ -19,6 +19,7 @@ type pass =
   | Totalize
   | Unthe
   | Sideconditions
+  | Monomorphization
 
 (* This list declares the intended order of passes.
 
@@ -27,7 +28,7 @@ passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
 let _skip_passes = [ Sub; Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ Totalize; Sideconditions ]
+let all_passes = [ Totalize; Sideconditions; Monomorphization ]
 
 type file_kind =
   | Spec
@@ -72,18 +73,21 @@ let pass_flag = function
   | Totalize -> "totalize"
   | Unthe -> "the-elimination"
   | Sideconditions -> "sideconditions"
+  | Monomorphization -> "monomorphization"
 
 let pass_desc = function
   | Sub -> "Synthesize explicit subtype coercions"
   | Totalize -> "Run function totalization"
   | Unthe -> "Eliminate the ! operator in relations"
   | Sideconditions -> "Infer side conditions"
+  | Monomorphization -> "Transform polymorphic to monomorphic functions/types"
 
 let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
   | Sub -> Middlend.Sub.transform
   | Totalize -> Middlend.Totalize.transform
   | Unthe -> Middlend.Unthe.transform
   | Sideconditions -> Middlend.Sideconditions.transform
+  | Monomorphization -> Middlend.Monomorphization.transform
 
 
 (* Argument parsing *)
