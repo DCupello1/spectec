@@ -19,6 +19,7 @@ open Util.Error
 (* Env Creation and utility functions *)
 
 module Env = Map.Make(String)
+module IdSet = Set.Make(String)
 
 type env = 
 {
@@ -61,6 +62,61 @@ let to_string_mixop (m : mixop) = match m with
       fun atoms -> String.concat "" (List.map transform_atom (List.filter is_atomid atoms))) mixop
     )
 
+(* Checking the existance of dependent types in a argument list *)
+
+let rec get_var_exp (exp : exp) : string list = 
+  match exp.it with
+    | VarE id -> [id.it]
+    | TupE exps -> List.concat_map get_var_exp exps
+    | CaseE (_, e) -> get_var_exp e
+    | _ -> []
+
+and get_var_typ (typ : typ) : string list =
+  match typ.it with
+    | VarT (_, args) -> List.concat_map get_var_arg args 
+    | TupT exp_typ_pairs -> List.concat_map (fun (_, t) -> get_var_typ t) exp_typ_pairs
+    | IterT (t, _) -> get_var_typ t
+    | _ -> []
+
+and get_var_arg (arg : arg) : string list =
+  match arg.it with
+    | ExpA exp -> get_var_exp exp
+    | TypA typ -> get_var_typ typ
+    | _ -> []
+
+let rec check_dependent_types (arglist : arg list) (return_type : typ) : int list = 
+  let rec f n arglist = 
+    match arglist with
+      | [] -> []
+      | arg :: args -> let ids_used = get_var_typ return_type @ List.concat_map get_var_arg args |> IdSet.of_list in
+        (if List.filter (fun a -> IdSet.mem a ids_used) (get_var_arg arg) <> [] 
+          then [n]
+          else []) @ f (n + 1) args in
+  f 0 arglist 
+
+
+(* Checking the existance of parametric types in a argument list *)
+
+and get_param_id_typ (typ : typ) : string  =
+  match typ.it with
+    | VarT (id, _) -> id.it
+    | _ -> ""
+
+and get_param_id_arg (arg : arg) : string =
+  match arg.it with
+    | TypA typ -> get_param_id_typ typ
+    | _ -> ""
+
+let rec check_parametric_types (arglist : arg list) (return_type : typ) : int list = 
+  let rec f n arglist = 
+    match arglist with
+      | [] -> []
+      | arg :: args -> let ids_used = get_var_typ return_type @ List.concat_map get_var_arg args |> IdSet.of_list in
+        (if IdSet.mem (get_param_id_arg arg) ids_used
+          then [n]
+          else []) @ f (n + 1) args in
+  f 0 arglist 
+
 (* String transformation Args *)
 
 let rec to_string_exp (exp : exp) : string = 
@@ -90,9 +146,7 @@ and to_string_arg (arg : arg): string =
 
 let rec check_terminal_exp (exp : exp) : bool =
   match exp.it with
-    | BoolE _ -> true
-    | NumE _ -> true
-    | TextE _ -> true
+    | BoolE _ | NumE _ | TextE _ -> true
     | UnE (_, _, e) -> check_terminal_exp e
     | BinE (_, _, e1, e2) -> check_terminal_exp e1 && check_terminal_exp e2
     | CmpE (_, _, e1, e2) -> check_terminal_exp e1 && check_terminal_exp e2
@@ -105,9 +159,7 @@ let rec check_terminal_exp (exp : exp) : bool =
 
 and check_terminal_typ (typ: typ): bool =
   match typ.it with
-    | BoolT -> true
-    | NumT _ -> true
-    | TextT -> true
+    | BoolT | NumT _ | TextT -> true
     | IterT (t, _iter) -> check_terminal_typ t
     | _ -> false
 
@@ -221,17 +273,21 @@ let rec populate_env_def (env : env) (def : def) =
 
 (* Monomorphization Pass *)
 
-let transform_type_creation (env : env) (inst : inst) =
+let transform_type_creation (env : env) (id : id) (inst : inst) : def list =
   match inst.it with 
     | InstD (binds, args, deftyp) -> (match deftyp.it with 
-      | AliasT typ -> []
+      | AliasT typ -> (match Env.find_opt id.it env.concrete_dependent_types with
+        | None -> [] (* TODO check if any names must be changed *)
+        | Some typs -> []
+      )
       | StructT typfields -> []
       | VariantT typcases -> [] 
     )
 
 let rec transform_def (env : env) (def : def) : def list =
   match def.it with
-    | TypD (id, params, [inst]) -> []
+    | TypD (id, params, [inst]) -> transform_type_creation env id inst
+    | TypD (id, params, insts) -> []
     | RelD (id, mixop, typ, rules) -> []
     | DecD (id, params, typ, clauses) -> []
     | RecD defs -> List.concat_map (transform_def env) defs 
