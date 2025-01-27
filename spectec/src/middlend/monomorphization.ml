@@ -23,8 +23,8 @@ module IdSet = Set.Make(String)
 
 type env = 
 {
-  mutable calls: (Il.Ast.exp list) Env.t;
-  mutable concrete_dependent_types: (Il.Ast.typ list) Env.t;
+  mutable calls: (Il.Ast.exp Queue.t) Env.t;
+  mutable concrete_dependent_types: (Il.Ast.typ Queue.t) Env.t;
 }
 
 let new_env() = 
@@ -37,14 +37,14 @@ let mono = "Monomorphization"
 
 let print_env (env : env) = 
   print_endline "Printing the Env: ";
-  Env.iter (fun _ exps -> List.iter (fun exp -> print_endline ("Call: " ^ string_of_exp exp ^ " at: " ^ string_of_region exp.at)) exps ) env.calls;
-  Env.iter (fun _ typs -> List.iter (fun typ -> print_endline ("Concrete Dependent Type: " ^ string_of_typ typ ^ " at: " ^ string_of_region typ.at)) typs ) env.concrete_dependent_types
+  Env.iter (fun _ exps -> Queue.iter (fun exp -> print_endline ("Call: " ^ string_of_exp exp ^ " at: " ^ string_of_region exp.at)) exps ) env.calls;
+  Env.iter (fun _ typs -> Queue.iter (fun typ -> print_endline ("Concrete Dependent Type: " ^ string_of_typ typ ^ " at: " ^ string_of_region typ.at)) typs ) env.concrete_dependent_types
 
 let bind env' id t =
   if id = "_" then env' else
     if Env.mem id env' 
-      then Env.update id (Option.map (fun lst -> t :: lst)) env'
-      else Env.add id [t] env'
+      then Env.update id (Option.map (fun q -> Queue.push t q; q)) env'
+      else Env.add id (let q = Queue.create () in Queue.push t q; q) env'
 
 let transform_atom (a : atom) = 
   match a.it with
@@ -97,22 +97,22 @@ let rec check_dependent_types (arglist : arg list) (return_type : typ) : int lis
 
 (* Checking the existance of parametric types in a argument list *)
 
-and get_param_id_typ (typ : typ) : string  =
+let get_param_id_typ (typ : typ) : string  =
   match typ.it with
     | VarT (id, _) -> id.it
     | _ -> ""
 
-and get_param_id_arg (arg : arg) : string =
+let get_param_id_arg (arg : arg) : string =
   match arg.it with
     | TypA typ -> get_param_id_typ typ
     | _ -> ""
 
-let rec check_parametric_types (arglist : arg list) (return_type : typ) : int list = 
+let check_parametric_types (arglist : arg list) : int list = 
   let rec f n arglist = 
     match arglist with
       | [] -> []
-      | arg :: args -> let ids_used = get_var_typ return_type @ List.concat_map get_var_arg args |> IdSet.of_list in
-        (if IdSet.mem (get_param_id_arg arg) ids_used
+      | arg :: args -> 
+        (if (get_param_id_arg arg) <> ""
           then [n]
           else []) @ f (n + 1) args in
   f 0 arglist 
@@ -141,6 +141,9 @@ and to_string_arg (arg : arg): string =
     | ExpA exp -> to_string_exp exp
     | TypA typ -> to_string_typ typ
     | _ -> ""
+
+and transform_id (id : id) (args : arg list): id =
+  id.it ^ "_mono_" ^ String.concat "__" (List.map to_string_arg args) $ id.at
 
 (* Terminal cases traversal *)
 
@@ -186,7 +189,8 @@ let rec populate_env_typ (env : env) (typ : typ) =
 
 and populate_env_exp (env : env) (exp : exp) =
   match exp.it with
-    | CallE (id, args) -> env.calls <- bind env.calls id.it exp; List.iter (populate_env_arg env) args
+    | CallE (id, args) when List.length (check_parametric_types args) <> 0 -> env.calls <- bind env.calls id.it exp; List.iter (populate_env_arg env) args
+    | CallE (_id, args) -> List.iter (populate_env_arg env) args
     | UnE (_, _, e) -> populate_env_exp env e
     | BinE (_, _, e1, e2) -> populate_env_exp env e1; populate_env_exp env e2
     | CmpE (_, _, e1, e2) -> populate_env_exp env e1; populate_env_exp env e2
@@ -273,23 +277,64 @@ let rec populate_env_def (env : env) (def : def) =
 
 (* Monomorphization Pass *)
 
-let transform_type_creation (env : env) (id : id) (inst : inst) : def list =
+let create_args_pairings (args : arg list) (concrete_args : arg list) =
+  let tbl = Hashtbl.create 10 in
+  List.iter (fun (a, c_a) -> Hashtbl.add tbl a c_a) (List.combine args concrete_args);
+  tbl
+
+let replace_args (arg_map: (arg, arg) Hashtbl.t) (args: arg list): arg list =
+  List.fold_left (fun acc arg -> match Hashtbl.find_opt arg_map arg with
+    | None -> arg :: acc
+    | Some a -> a :: acc) [] args
+
+
+let get_dependent_type_args (typ : typ) = 
+  match typ.it with  
+    | VarT (_, concrete_args) -> concrete_args
+    | _ -> error typ.at mono "Applied monomorphization on a non-concrete dependent type"
+  
+let rec transform_dependent_type (env : env) (typ : typ) (arg_map: (arg, arg) Hashtbl.t): typ = 
+  (match typ.it with
+    | VarT (id, args) -> 
+      let args_replaced = replace_args arg_map args in
+      (if check_terminal_args args_replaced 
+        then env.concrete_dependent_types <- bind env.concrete_dependent_types id.it typ
+        else ()
+      );
+      VarT (transform_id id args_replaced, []) (* TODO check replaced args for function calls *)
+    | TupT exp_typ_pairs -> TupT (List.map (fun (e, t) -> (e, transform_dependent_type env t arg_map)) exp_typ_pairs)
+    | IterT (t, iter) -> IterT (transform_dependent_type env t arg_map, iter)
+    | t -> t
+  ) $ typ.at
+
+
+
+let transform_type_creation (env : env) (id : id) (inst : inst) (at : Util.Source.region) : def list =
   match inst.it with 
     | InstD (binds, args, deftyp) -> (match deftyp.it with 
       | AliasT typ -> (match Env.find_opt id.it env.concrete_dependent_types with
         | None -> [] (* TODO check if any names must be changed *)
-        | Some typs -> []
+        | Some q -> 
+          let rec loop () = 
+            (match Queue.take_opt q with
+              | None -> []
+              | Some t -> let dep_args = get_dependent_type_args t in 
+                let arg_map = create_args_pairings args dep_args in
+                let new_deftyp = AliasT (transform_dependent_type env typ arg_map) $ deftyp.at in 
+                (TypD (transform_id id dep_args, [], [InstD (binds, [], new_deftyp) $ inst.at]) $ at) :: loop ()
+            )
+          in loop()
       )
       | StructT typfields -> []
-      | VariantT typcases -> [] 
+      | VariantT typcases -> []
     )
 
 let rec transform_def (env : env) (def : def) : def list =
   match def.it with
-    | TypD (id, params, [inst]) -> transform_type_creation env id inst
-    | TypD (id, params, insts) -> []
-    | RelD (id, mixop, typ, rules) -> []
-    | DecD (id, params, typ, clauses) -> []
+    | TypD (id, [], [inst]) -> transform_type_creation env id inst def.at
+    | TypD (id, params, insts) -> [def]
+    | RelD (id, mixop, typ, rules) -> [def]
+    | DecD (id, params, typ, clauses) -> [def]
     | RecD defs -> List.concat_map (transform_def env) defs 
     | _ -> [def]    
 
@@ -297,4 +342,5 @@ let rec transform_def (env : env) (def : def) : def list =
 let transform (script: Il.Ast.script) =
   let env = new_env() in 
   List.iter (populate_env_def env) script;
+  print_env env;
   script
