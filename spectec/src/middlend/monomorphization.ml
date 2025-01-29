@@ -20,21 +20,21 @@ open Util.Error
 
 (* Env Creation and utility functions *)
 
-module MonoEnv = Map.Make(String)
+module StringMap = Map.Make(String)
 module IdSet = Set.Make(String)
 
 type monoenv = 
 {
-  mutable calls: (Il.Ast.exp Queue.t) MonoEnv.t;
-  mutable concrete_dependent_types: (Il.Ast.typ Queue.t) MonoEnv.t;
+  mutable calls: (Il.Ast.exp Queue.t) StringMap.t;
+  mutable concrete_dependent_types: (Il.Ast.typ Queue.t) StringMap.t;
   mutable il_env: env;
 
 }
 
 let new_env() = 
 {
-    calls = MonoEnv.empty;
-    concrete_dependent_types = MonoEnv.empty;
+    calls = StringMap.empty;
+    concrete_dependent_types = StringMap.empty;
     il_env = Il.Env.empty;
 }
 
@@ -42,14 +42,17 @@ let mono = "Monomorphization"
 
 let print_env (m_env : monoenv) = 
   print_endline "Printing the Env: ";
-  MonoEnv.iter (fun _ exps -> Queue.iter (fun exp -> print_endline ("Call: " ^ string_of_exp exp ^ " at: " ^ string_of_region exp.at)) exps ) m_env.calls;
-  MonoEnv.iter (fun _ typs -> Queue.iter (fun typ -> print_endline ("Concrete Dependent Type: " ^ string_of_typ typ ^ " at: " ^ string_of_region typ.at)) typs ) m_env.concrete_dependent_types
+  StringMap.iter (fun id exps -> Queue.iter (fun exp -> print_endline ("Call of id " ^ id ^ " : " ^ string_of_exp exp ^ " at: " ^ string_of_region exp.at)) exps ) m_env.calls;
+  StringMap.iter (fun id typs -> Queue.iter (fun typ -> print_endline ("Concrete Dependent Type of id: " ^ id ^ " : " ^ string_of_typ typ ^ " at: " ^ string_of_region typ.at)) typs ) m_env.concrete_dependent_types
 
 let bind m_env' id t =
   if id = "_" then m_env' else
-    if MonoEnv.mem id m_env' 
-      then MonoEnv.update id (Option.map (fun q -> Queue.push t q; q)) m_env'
-      else MonoEnv.add id (let q = Queue.create () in Queue.push t q; q) m_env'
+    if StringMap.mem id m_env' 
+      then StringMap.update id (Option.map (fun q -> Queue.push t q; q)) m_env'
+      else StringMap.add id (let q = Queue.create () in Queue.push t q; q) m_env'
+
+let concrete_dep_types_bind m_env id t =
+  m_env.concrete_dependent_types <- bind m_env.concrete_dependent_types id t
 
 let transform_atom (a : atom) = 
   match a.it with
@@ -67,9 +70,15 @@ let to_string_mixop (m : mixop) = match m with
       fun atoms -> String.concat "" (List.map transform_atom (List.filter is_atomid atoms))) mixop
     )
 
-(* Checking the existance of dependent types in a argument list *)
+let rec subst_and_reduce_prems (m_env : monoenv) (subst : subst) (prem : prem): prem = 
+  match prem.it with
+    | IfPr exp -> IfPr (Il.Eval.reduce_exp m_env.il_env (Il.Subst.subst_exp subst exp)) $ prem.at
+    | IterPr (p, _) -> subst_and_reduce_prems m_env subst p
+    | _ -> prem
 
-let rec get_var_exp (exp : exp) : string list = 
+(* Checking the existance of dependent types in a function argument list *)
+
+(* let rec get_var_exp (exp : exp) : string list = 
   match exp.it with
     | VarE id -> [id.it]
     | TupE exps -> List.concat_map get_var_exp exps
@@ -97,10 +106,10 @@ let rec check_dependent_types (arglist : arg list) (return_type : typ) : int lis
         (if List.filter (fun a -> IdSet.mem a ids_used) (get_var_arg arg) <> [] 
           then [n]
           else []) @ f (n + 1) args in
-  f 0 arglist 
+  f 0 arglist  *)
 
 
-(* Checking the existance of parametric types in a argument list *)
+(* Checking the existance of parametric types in a call argument list *)
 
 let get_param_id_typ (typ : typ) : string  =
   match typ.it with
@@ -152,40 +161,41 @@ and transform_id (id : id) (args : arg list): id =
 
 (* Terminal cases traversal *)
 
-let rec check_terminal_exp (exp : exp) : bool =
+let rec check_reducible_exp (exp : exp) : bool =
   match exp.it with
     | BoolE _ | NumE _ | TextE _ -> true
-    | UnE (_, _, e) -> check_terminal_exp e
-    | BinE (_, _, e1, e2) -> check_terminal_exp e1 && check_terminal_exp e2
-    | CmpE (_, _, e1, e2) -> check_terminal_exp e1 && check_terminal_exp e2
-    | TupE exps -> List.fold_left (fun acc e -> acc && check_terminal_exp e) true exps 
-    | CvtE (e, _, _) -> check_terminal_exp e
-    | SubE (e, _, _) -> check_terminal_exp e
-    | ListE exps -> List.fold_left (fun acc e -> acc && check_terminal_exp e) true exps 
-    | CaseE (_, e) -> check_terminal_exp e
+    | UnE (_, _, e) -> check_reducible_exp e
+    | BinE (_, _, e1, e2) -> check_reducible_exp e1 && check_reducible_exp e2
+    | CmpE (_, _, e1, e2) -> check_reducible_exp e1 && check_reducible_exp e2
+    | TupE exps -> List.fold_left (fun acc e -> acc && check_reducible_exp e) true exps 
+    | CvtE (e, _, _) -> check_reducible_exp e
+    | SubE (e, _, _) -> check_reducible_exp e
+    | ListE exps -> List.fold_left (fun acc e -> acc && check_reducible_exp e) true exps 
+    | CaseE (_, e) -> check_reducible_exp e
     | _ -> false
 
-and check_terminal_typ (typ: typ): bool =
+and check_reducible_typ (typ: typ): bool =
   match typ.it with
-    | BoolT | NumT _ | TextT -> true
-    | IterT (t, _iter) -> check_terminal_typ t
-    | _ -> false
+    | IterT (t, _iter) -> check_reducible_typ t
+    | VarT (_, args) -> check_reducible_args args
+    | TupT exp_typ_pairs -> List.fold_left (fun acc (_e, t) -> acc && check_reducible_typ t) true exp_typ_pairs
+    | _ -> true
 
-and check_terminal_arg (arg: arg): bool =
+and check_reducible_arg (arg: arg): bool =
   match arg.it with
-    | TypA typ -> check_terminal_typ typ
-    | ExpA exp -> check_terminal_exp exp
+    | TypA typ -> check_reducible_typ typ
+    | ExpA exp -> check_reducible_exp exp
     | _ -> false
 
-let check_terminal_args (args: arg list): bool =
-  List.fold_left (fun acc arg -> acc && check_terminal_arg arg) true args
+and check_reducible_args (args: arg list): bool =
+  List.fold_left (fun acc arg -> acc && check_reducible_arg arg) true args
 
 
 (* Populating the Environment Traversal *)
 
 let rec populate_env_typ (m_env : monoenv) (typ : typ) = 
   match typ.it with
-    | VarT (id, args) when List.length args <> 0 && check_terminal_args args ->
+    | VarT (id, args) when args <> [] && check_reducible_args args ->
       m_env.concrete_dependent_types <- bind m_env.concrete_dependent_types id.it typ
     | VarT (_id, args) -> List.iter (populate_env_arg m_env) args
     | IterT (t, _) -> populate_env_typ m_env t
@@ -194,7 +204,7 @@ let rec populate_env_typ (m_env : monoenv) (typ : typ) =
 
 and populate_env_exp (m_env : monoenv) (exp : exp) =
   match exp.it with
-    | CallE (id, args) when List.length (check_parametric_types args) <> 0 -> m_env.calls <- bind m_env.calls id.it exp; List.iter (populate_env_arg m_env) args
+    | CallE (id, args) when check_parametric_types args <> [] -> m_env.calls <- bind m_env.calls id.it exp; List.iter (populate_env_arg m_env) args
     | CallE (_id, args) -> List.iter (populate_env_arg m_env) args
     | UnE (_, _, e) -> populate_env_exp m_env e
     | BinE (_, _, e1, e2) -> populate_env_exp m_env e1; populate_env_exp m_env e2
@@ -307,11 +317,15 @@ let get_variables_from_arg (arg : arg): id =
     | _ -> error arg.at mono "Arguments on LHS have something other than id"
   
 let rec transform_dependent_type (m_env : monoenv) (typ : typ) (subst: subst): typ = 
+  let subst_empty = (subst = Il.Subst.empty) in 
   (match typ.it with
-    | VarT (id, args) -> 
+    | VarT (id, args) when args <> [] -> 
       let args_replaced = replace_args subst args in
-      if check_terminal_args args_replaced 
-        then (m_env.concrete_dependent_types <- bind m_env.concrete_dependent_types id.it typ; VarT (transform_id id (evaluate_args m_env args_replaced), [])) 
+      if check_reducible_args args_replaced 
+        then 
+          let args_evaluated = evaluate_args m_env args_replaced in
+          (if not subst_empty then concrete_dep_types_bind m_env id.it (VarT(id, args_evaluated) $ typ.at)); 
+          VarT (transform_id id args_evaluated, []) 
         else error typ.at mono "Cannot monomorphize correctly"
     | TupT exp_typ_pairs -> TupT (List.map (fun (e, t) -> (e, transform_dependent_type m_env t subst)) exp_typ_pairs)
     | IterT (t, iter) -> IterT (transform_dependent_type m_env t subst, iter)
@@ -321,8 +335,9 @@ let rec transform_dependent_type (m_env : monoenv) (typ : typ) (subst: subst): t
 let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) (at : Util.Source.region) : def list =
   match inst.it with 
     | InstD (binds, args, deftyp) -> (match deftyp.it with 
-      | AliasT typ -> (match MonoEnv.find_opt id.it m_env.concrete_dependent_types with
-        | None -> [] (* TODO check if any names must be changed *)
+      | AliasT typ -> (match StringMap.find_opt id.it m_env.concrete_dependent_types with
+        | None -> let new_deftyp = AliasT (transform_dependent_type m_env typ Il.Subst.empty) $ deftyp.at in 
+          [(TypD (id, [], [InstD (binds, [], new_deftyp) $ inst.at]) $ at)]
         | Some q -> 
           let rec loop () = 
             (match Queue.take_opt q with
@@ -331,25 +346,37 @@ let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) (at : Util
                 let args_ids = List.map get_variables_from_arg args in  
                 let subst = create_args_pairings args_ids dep_args in
                 let new_deftyp = AliasT (transform_dependent_type m_env typ subst) $ deftyp.at in 
-                (TypD (transform_id id dep_args, [], [InstD (binds, [], new_deftyp) $ inst.at]) $ at) :: loop ()
-            )
-          in loop ()
+                (TypD (transform_id id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at) :: loop ()
+            ) in 
+          loop () 
       )
       | StructT typfields -> (
         let new_deftyp = StructT (List.map (fun (a, (bs, t, prems), hints) -> (a, (bs, transform_dependent_type m_env t Il.Subst.empty, prems), hints)) typfields) $ deftyp.at in
-        [TypD (id, [], [InstD (binds, [], new_deftyp) $ inst.at]) $ at]
+        [TypD (id, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at] (* Ignore args for now, there shouldn't be any here *)
       )
-      | VariantT typcases -> (
-        []
+      | VariantT typcases -> (match StringMap.find_opt id.it m_env.concrete_dependent_types with
+        | None -> let new_deftyp = VariantT (List.map (fun (m, (bs, t, prems), hints) -> (m, (bs, transform_dependent_type m_env t Il.Subst.empty, prems), hints)) typcases) $ deftyp.at in
+          [TypD (id, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at] 
+        | Some q ->
+          let rec loop () = 
+            (match Queue.take_opt q with
+              | None -> []
+              | Some t -> let dep_args = evaluate_args m_env (get_dependent_type_args t) in 
+                let args_ids = List.map get_variables_from_arg args in  
+                let subst = create_args_pairings args_ids dep_args in
+                let new_deftyp = VariantT (List.map (fun (m, (bs, t, prems), hints) -> (m, (bs, transform_dependent_type m_env t subst, List.map (subst_and_reduce_prems m_env subst) prems), hints)) typcases) $ deftyp.at in 
+                (TypD (transform_id id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at) :: loop ()
+            ) in 
+          loop ()
       )
     )
 
 let rec transform_def (m_env : monoenv) (def : def) : def list =
   match def.it with
-    | TypD (id, [], [inst]) -> transform_type_creation m_env id inst def.at
-    | TypD (id, params, insts) -> [def] (* TODO: Ignore family types for now *)
-    | RelD (id, mixop, typ, rules) -> [def]
-    | DecD (id, params, typ, clauses) -> [def]
+    | TypD (id, _, [inst]) -> transform_type_creation m_env id inst def.at
+    | TypD (_id, _params, _insts) -> [def] (* TODO: Ignore family types for now *)
+    | RelD (_id, _mixop, _typ, _rules) -> [def]
+    | DecD (_id, _params, _typ, _clauses) -> [def]
     | RecD defs -> List.concat_map (transform_def m_env) defs 
     | _ -> [def]    
 
@@ -359,5 +386,9 @@ let transform (script: Il.Ast.script) =
   List.iter (populate_env_def m_env) script;
   m_env.il_env <- Il.Env.env_of_script script;
   print_env m_env;
+
   (* Reverse the script in order to monomorphize nested ones correctly *)
-  script
+  let transformed_script = List.rev (List.concat_map (transform_def m_env) (List.rev script)) in
+  print_env m_env;
+  transformed_script
+
