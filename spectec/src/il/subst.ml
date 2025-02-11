@@ -17,6 +17,14 @@ let empty =
     gramid = Map.empty;
   }
 
+let bindings_varid s = Map.bindings s.varid
+
+let bindings_typid s = Map.bindings s.typid
+
+let bindings_defid s = Map.bindings s.defid
+
+let bindings_gramid s = Map.bindings s.gramid
+
 let mem_varid s id = Map.mem id.it s.varid
 let mem_typid s id = Map.mem id.it s.typid
 let mem_defid s id = Map.mem id.it s.defid

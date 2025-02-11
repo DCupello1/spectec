@@ -28,6 +28,11 @@ val mem_typid : subst -> id -> bool
 val mem_defid : subst -> id -> bool
 val mem_gramid : subst -> id -> bool
 
+val bindings_varid : subst -> (string * exp) list
+val bindings_typid : subst -> (string * typ) list
+val bindings_defid : subst -> (string * id) list
+val bindings_gramid : subst -> (string * sym) list
+
 val subst_typ : subst -> typ -> typ
 val subst_exp : subst -> exp -> exp
 val subst_path : subst -> path -> path
