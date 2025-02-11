@@ -16,6 +16,7 @@ open Il.Print
 open Il.Eval
 open Util.Source
 open Util.Error
+open Xl
 
 
 (* Env Creation and utility functions *)
@@ -101,7 +102,7 @@ let rec subst_and_reduce_prems (m_env : monoenv) (subst : subst) (prem : prem): 
   match prem.it with
     | IfPr exp -> IfPr (Il.Eval.reduce_exp m_env.il_env (Il.Subst.subst_exp subst exp)) $ prem.at
     | IterPr (p, _) -> subst_and_reduce_prems m_env subst p
-    | _ -> prem
+    | _ -> Il.Subst.subst_prem subst prem
 
 (* Checking the existance of dependent types in a function argument list *)
 
@@ -125,7 +126,7 @@ and get_var_arg (arg : arg) : string list =
     | TypA typ -> get_var_typ typ
     | _ -> []
 
-let rec check_dependent_types (arglist : arg list) (return_type : typ) : int list = 
+let rec check_dependent_types_func_decl (arglist : arg list) (return_type : typ) : int list = 
   let rec f n arglist = 
     match arglist with
       | [] -> []
@@ -164,7 +165,9 @@ let rec to_string_exp (exp : exp) : string =
   match exp.it with
     | BoolE _ | NumE _ | TextE _ -> string_of_exp exp
     | ListE exps -> "l" ^ String.concat "_" (List.map to_string_exp exps) 
+    | TupE [] -> ""
     | TupE exps -> "t" ^ String.concat "_" (List.map to_string_exp exps) 
+    | CaseE (mixop, {it = TupE []; _}) -> to_string_mixop mixop 
     | CaseE (mixop, exp) -> to_string_mixop mixop ^ "_" ^ to_string_exp exp
     | CvtE (e, _, _) -> to_string_exp e
     | SubE (e, _, _) -> to_string_exp e
@@ -175,6 +178,7 @@ and to_string_typ (typ : typ) : string =
     | BoolT | NumT _ | TextT -> string_of_typ typ
     | VarT (id, args) -> id.it ^ "_" ^ String.concat "__" (List.map to_string_arg args)
     | IterT (typ, iter) -> string_of_typ typ ^ "_" ^ string_of_iter iter
+    | TupT [] -> ""
     | TupT exp_typ_pairs -> "tt" ^ String.concat "_" (List.map (fun (e, t) -> to_string_exp e ^ to_string_typ t) exp_typ_pairs) 
 
 and to_string_arg (arg : arg): string =
@@ -183,9 +187,22 @@ and to_string_arg (arg : arg): string =
     | TypA typ -> to_string_typ typ
     | _ -> ""
 
-and transform_id (id : id) (args : arg list): id =
+and transform_id_from_args (id : id) (args : arg list): id =
   id.it ^ "_mono_" ^ String.concat "__" (List.map to_string_arg args) $ id.at
 
+and transform_string_from_exps (text : string) (exps : exp list): string =
+  text ^ "_mono_" ^ String.concat "__" (List.map to_string_exp exps)
+and _transform_id_from_exps (id : id) (exps : exp list): id =
+  transform_string_from_exps id.it exps $ id.at
+
+and transform_mixop_from_exps (m : mixop) (exps : exp list): mixop =
+  if exps = [] then m else
+  match m with
+    | [{it = Atom.Atom a; _} as atom]::tail when List.for_all ((=) []) tail -> [Atom.Atom (transform_string_from_exps a exps) $$ atom.at % atom.note]::tail
+    | _ -> List.mapi (fun i atoms -> 
+      let length_last = List.length m in 
+      let new_atom = Atom.Atom (transform_string_from_exps "" exps) $$ (no_region, Atom.info "") in
+      if i = length_last - 1 then atoms @ [new_atom] else atoms) m
 let create_args_pairings (args_ids : id list) (concrete_args : arg list): subst =
   List.fold_left (fun acc (id, arg) -> match arg.it with
     | ExpA exp -> Il.Subst.add_varid acc id exp
@@ -232,7 +249,7 @@ and check_reducible_args (args: arg list): bool =
 
 (* Monomorphization Pass *)
 
-let get_dependent_type_args (typ : typ) = 
+let get_dependent_type_args (typ : typ): arg list = 
   match typ.it with  
     | VarT (_, concrete_args) -> concrete_args
     | _ -> error typ.at mono "Applied monomorphization on a non-concrete dependent type"
@@ -242,8 +259,13 @@ let get_variables_from_arg (arg : arg): id =
     | ExpA ({it = VarE id; _}) -> id
     | TypA ({it = VarT (id, _); _}) -> id
     | _ -> error arg.at mono "Arguments on LHS have something other than id"
+
+let get_tuple_from_type (typ : typ): ((exp * typ) list) option =
+  match typ.it with
+    | TupT (e_t) -> Some e_t
+    | _ -> None (* We don't need to worry about the case of it being single typed *)
   
-let rec transform_dependent_type (m_env : monoenv) (typ : typ) (subst: subst): typ = 
+let rec transform_dependent_type (m_env : monoenv) (subst: subst) (typ : typ): typ = 
   (match typ.it with
     | VarT (id, args) when args <> [] -> 
       let args_replaced = replace_args subst args in
@@ -251,48 +273,118 @@ let rec transform_dependent_type (m_env : monoenv) (typ : typ) (subst: subst): t
         then 
           let args_evaluated = evaluate_args m_env args_replaced in
           concrete_dep_types_bind m_env id.it (VarT(id, args_evaluated) $ typ.at); 
-          VarT (transform_id id args_evaluated, []) 
+          VarT (transform_id_from_args id args_evaluated, []) 
         else typ.it
           (* else error typ.at mono "Cannot monomorphize correctly" *)
-    | TupT exp_typ_pairs -> TupT (List.map (fun (e, t) -> (e, transform_dependent_type m_env t subst)) exp_typ_pairs)
-    | IterT (t, iter) -> IterT (transform_dependent_type m_env t subst, iter)
+    | TupT exp_typ_pairs -> TupT (List.map (fun (e, t) -> (e, transform_dependent_type m_env subst t)) exp_typ_pairs)
+    | IterT (t, iter) -> IterT (transform_dependent_type m_env subst t, iter)
     | t -> t
   ) $ typ.at
 
+let rec get_all_variable_ids_arg (arg : arg): string list = 
+  match arg.it with
+    | ExpA exp -> get_all_variable_ids_exp exp
+    | TypA typ -> get_all_variable_ids_typ typ
+    | _ -> []
+and get_all_variable_ids_exp (exp : exp): string list = 
+  match exp.it with
+    | VarE id -> [id.it]
+    | CaseE (_, e) -> get_all_variable_ids_exp e
+    | CallE (_, args) -> List.concat_map get_all_variable_ids_arg args
+    | _ -> []
+and get_all_variable_ids_typ (typ : typ): string list =
+  match typ.it with
+    | VarT (id, args) -> id.it :: List.concat_map get_all_variable_ids_arg args
+    | IterT (t, _) -> get_all_variable_ids_typ t
+    | TupT exp_typ_pairs -> List.concat_map (fun (_, t) -> get_all_variable_ids_typ t) exp_typ_pairs
+    | _ -> []
+let rec check_used_dependent_types (exp_typ_pairs : (exp * typ) list): (exp * typ) list * (exp * typ) list =
+  match exp_typ_pairs with
+    | [] -> ([], [])
+    | (_, t) as p :: ps -> 
+      let id_t = match t.it with
+        | VarT (id, _) -> id.it
+        | _ -> ""
+      in 
+      let (used_dep, unused) = check_used_dependent_types ps in
+      if List.mem id_t (List.concat_map (fun (_, t) -> get_all_variable_ids_typ t) ps) 
+        then (p :: used_dep, unused)
+        else (used_dep, p :: unused)
+
 let transform_bind (m_env : monoenv) (subst : subst) (bind : bind) : bind =
   (match bind.it with
-    | ExpB (id, typ) -> ExpB(id, transform_dependent_type m_env typ subst)
+    | ExpB (id, typ) -> ExpB(id, transform_dependent_type m_env subst typ)
     | b -> b) $ bind.at
+
+(* For now this deals with simple type cases that can be trivially substituted *)
+let get_cases_instances (inst : inst): typcase list =
+  match inst.it with
+    | InstD (_, _, deftyp) -> match deftyp.it with
+      | AliasT _typ -> []
+      | StructT _typfields -> []
+      | VariantT typcases -> if List.fold_left (fun acc (_, (_, t, _), _) -> (t.it = TupT []) && acc) true typcases
+        then typcases
+        else []
+
+let product_of_lists (lists : 'a list list) = 
+  List.fold_left (fun acc seq ->
+    Seq.flat_map (fun existing -> 
+      Seq.map (fun v -> v :: existing) seq) acc) (Seq.return []) (List.map List.to_seq lists) 
+
+let transform_type_case (m_env : monoenv) (subst : subst) (typc : typcase) : typcase list = 
+  let (m, (bs, t, prems), hints) = typc in
+  match get_tuple_from_type t with
+    | None -> [(m, (List.map (transform_bind m_env subst) bs, transform_dependent_type m_env subst t, List.map (subst_and_reduce_prems m_env subst) prems), hints)]
+    | Some exp_typ_pairs -> 
+      let used, unused = check_used_dependent_types exp_typ_pairs in
+
+      let used_ids = List.filter_map (fun (_, t) -> match t.it with
+        | VarT (id, _) -> Option.map (fun (_, insts) -> match insts with 
+          | [inst] -> List.map (fun typc -> let (m, (_, typ, _), _) = typc in 
+           (id, (CaseE (m, (TupE []) $$ (typ.at, TupT [] $ typ.at))) $$ (typ.at, typ))) (get_cases_instances inst)
+          | _ -> [] (* It shouldn't be a family type *)) (Il.Env.find_opt_typ m_env.il_env id)
+        | _ -> None) used in
+      let cases_seq = product_of_lists used_ids in
+      let subst_seq = Seq.map (List.fold_left (fun acc (id, exp) -> Il.Subst.add_varid acc id exp) subst) cases_seq in
+      Seq.map (fun new_subst -> 
+        let new_typ = TupT (List.map (fun (e, typ) -> (e, (transform_dependent_type m_env new_subst typ))) unused) $ t.at in
+        let new_binds = List.map (transform_bind m_env new_subst) (List.filter (fun b -> match b.it with
+          | ExpB (id, _) -> not (Il.Subst.mem_varid new_subst id)
+          | _ -> false) bs) in
+        let new_prems = List.map (subst_and_reduce_prems m_env new_subst) prems in
+        let new_mixop = transform_mixop_from_exps m (List.map snd (Il.Subst.bindings_varid new_subst)) in
+        (new_mixop, (new_binds, new_typ, new_prems), hints)
+      ) subst_seq |> List.of_seq
 
 let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) (at : Util.Source.region) : def list =
   match inst.it with 
     | InstD (binds, args, deftyp) -> (match deftyp.it with 
       | AliasT typ -> (match StringMap.find_opt id.it m_env.concrete_dependent_types with
-        | None -> let new_deftyp = AliasT (transform_dependent_type m_env typ Il.Subst.empty) $ deftyp.at in 
+        | None -> let new_deftyp = AliasT (transform_dependent_type m_env Il.Subst.empty typ) $ deftyp.at in 
           [(TypD (id, [], [InstD (binds, [], new_deftyp) $ inst.at]) $ at)]
         | Some set_ref -> 
           List.map ( fun t -> 
             let dep_args = get_dependent_type_args t in 
             let args_ids = List.map get_variables_from_arg args in  
             let subst = create_args_pairings args_ids dep_args in
-            let new_deftyp = AliasT (transform_dependent_type m_env typ subst) $ deftyp.at in 
-            TypD (transform_id id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at
+            let new_deftyp = AliasT (transform_dependent_type m_env subst typ) $ deftyp.at in 
+            TypD (transform_id_from_args id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at
             ) (TypSet.elements !set_ref)  
       )
       | StructT typfields -> (
-        let new_deftyp = StructT (List.map (fun (a, (bs, t, prems), hints) -> (a, (bs, transform_dependent_type m_env t Il.Subst.empty, prems), hints)) typfields) $ deftyp.at in
+        let new_deftyp = StructT (List.map (fun (a, (bs, t, prems), hints) -> (a, (bs, transform_dependent_type m_env Il.Subst.empty t, prems), hints)) typfields) $ deftyp.at in
         [TypD (id, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at] (* Ignore args for now, there shouldn't be any here *)
       )
       | VariantT typcases -> (match StringMap.find_opt id.it m_env.concrete_dependent_types with
-        | None -> let new_deftyp = VariantT (List.map (fun (m, (bs, t, prems), hints) -> (m, (bs, transform_dependent_type m_env t Il.Subst.empty, prems), hints)) typcases) $ deftyp.at in
+        | None -> let new_deftyp = VariantT (List.concat_map (transform_type_case m_env Il.Subst.empty) typcases) $ deftyp.at in
           [TypD (id, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at] 
         | Some set_ref ->
           List.map ( fun t -> 
             let dep_args = get_dependent_type_args t in 
             let args_ids = List.map get_variables_from_arg args in  
             let subst = create_args_pairings args_ids dep_args in
-            let new_deftyp = VariantT (List.map (fun (m, (bs, t, prems), hints) -> (m, (List.map (transform_bind m_env subst) bs, transform_dependent_type m_env t subst, List.map (subst_and_reduce_prems m_env subst) prems), hints)) typcases) $ deftyp.at in 
-            TypD (transform_id id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at
+            let new_deftyp = VariantT (List.concat_map (transform_type_case m_env subst) typcases) $ deftyp.at in 
+              TypD (transform_id_from_args id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at
             ) (TypSet.elements !set_ref)
       )
     )
