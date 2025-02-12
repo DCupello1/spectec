@@ -193,15 +193,24 @@ and transform_string_from_exps (text : string) (exps : exp list): string =
 and transform_id_from_exps (id : id) (exps : exp list): id =
   transform_string_from_exps id.it exps $ id.at
 
+(* TODO fix this to remove the correct holes in the more complicated case *)
 and transform_mixop_from_exps (m : mixop) (num_kept : int) (exps : exp list): mixop =
   if exps = [] then m else
   match m with
     | [{it = Atom.Atom a; _} as atom]::tail when List.for_all ((=) []) tail -> 
       [Atom.Atom (transform_string_from_exps a exps) $$ atom.at % atom.note]::(List.init num_kept (fun _ -> []))
-    | _ -> List.mapi (fun i atoms -> 
+    | _ -> 
+      let rec aux num_empty = function
+        | [] -> []
+        | [] :: ls when num_empty > num_kept -> aux (num_empty + 1) ls
+        | [] :: ls -> [] :: aux (num_empty + 1) ls
+        | _ :: ls -> aux num_empty ls
+      in
+      List.mapi (fun i atoms -> 
       let length_last = List.length m in 
       let new_atom = Atom.Atom (transform_string_from_exps "" exps) $$ (no_region, Atom.info "") in
-      if i = length_last - 1 then atoms @ [new_atom] else atoms) m
+      if i = length_last - 1 then atoms @ [new_atom] else atoms) (aux 0 m)
+
 let create_args_pairings (args_ids : id list) (concrete_args : arg list): subst =
   List.fold_left (fun acc (id, arg) -> match arg.it with
     | ExpA exp -> Il.Subst.add_varid acc id exp
