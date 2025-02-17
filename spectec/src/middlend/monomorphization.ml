@@ -295,19 +295,29 @@ let rec get_all_variable_ids_arg (arg : arg): string list =
     | ExpA exp -> get_all_variable_ids_exp exp
     | TypA typ -> get_all_variable_ids_typ typ
     | _ -> []
+
 and get_all_variable_ids_exp (exp : exp): string list = 
   match exp.it with
     | VarE id -> [id.it]
     | CaseE (_, e) -> get_all_variable_ids_exp e
     | CallE (_, args) -> List.concat_map get_all_variable_ids_arg args
     | _ -> []
+
 and get_all_variable_ids_typ (typ : typ): string list =
   match typ.it with
     | VarT (id, args) -> id.it :: List.concat_map get_all_variable_ids_arg args
     | IterT (t, _) -> get_all_variable_ids_typ t
     | TupT exp_typ_pairs -> List.concat_map (fun (_, t) -> get_all_variable_ids_typ t) exp_typ_pairs
     | _ -> []
-let rec check_used_dependent_types (exp_typ_pairs : (exp * typ) list): (exp * typ) list * (exp * typ) list =
+    
+let rec check_used_dependent_types_case_args (exp_typ_pairs : (exp * typ) list): (exp * typ) list * (exp * typ) list =
+  let rec check_dep_type t = match t.it with
+    | VarT (_ , []) -> false
+    | VarT (_, _) -> true
+    | IterT (t, _) -> check_dep_type t
+    | TupT exp_typ_pairs -> List.fold_left (fun acc (_, t) -> acc || check_dep_type t) false exp_typ_pairs
+    | _ -> false
+  in  
   match exp_typ_pairs with
     | [] -> ([], [])
     | (_, t) as p :: ps -> 
@@ -315,10 +325,22 @@ let rec check_used_dependent_types (exp_typ_pairs : (exp * typ) list): (exp * ty
         | VarT (id, _) -> id.it
         | _ -> ""
       in 
-      let (used_dep, unused) = check_used_dependent_types ps in
-      if List.mem id_t (List.concat_map (fun (_, t) -> get_all_variable_ids_typ t) ps) 
+      let (used_dep, unused) = check_used_dependent_types_case_args ps in
+      if List.mem id_t (List.concat_map (fun (_, t) -> get_all_variable_ids_typ t) (List.filter (fun (_, t) -> check_dep_type t) ps))
         then (p :: used_dep, unused)
         else (used_dep, p :: unused)
+
+(* let rec check_used_dependent_types_params (params : param list) (return_type : typ) = 
+  match params with
+    | [] -> ([], [])
+    | p :: ps -> 
+      let id_p = match p.it with
+        | ExpP (id, _) -> id.it
+        | TypP id -> id.it
+        | _ -> ""
+      in
+      let (used_dep, unused) = check_used_dependent_types_params ps in
+      if List.mem  *)
 
 let transform_bind (m_env : monoenv) (subst : subst) (bind : bind) : bind =
   (match bind.it with
@@ -362,7 +384,7 @@ let transform_type_case (m_env : monoenv) (subst : subst) (typc : typcase) : typ
   match get_tuple_from_type t with
     | None -> [(m, (List.map (transform_bind m_env subst) bs, transform_dependent_type m_env subst t, List.map (subst_and_reduce_prems m_env subst) prems), hints)]
     | Some exp_typ_pairs -> 
-      let used, unused = check_used_dependent_types exp_typ_pairs in
+      let used, unused = check_used_dependent_types_case_args exp_typ_pairs in
 
       let used_ids = List.filter_map (fun (_, t) -> match t.it with
         | VarT (id, _) -> Option.map (fun (_, insts) -> match insts with 
@@ -383,13 +405,13 @@ let transform_type_case (m_env : monoenv) (subst : subst) (typc : typcase) : typ
         (new_mixop, (new_binds, new_typ, new_prems), hints)
       ) subst_seq |> List.of_seq
 
-let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) (at : Util.Source.region) : def list =
+let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) : def' list =
   match inst.it with 
     | InstD (binds, args, deftyp) -> (match deftyp.it with 
       | AliasT typ -> (match args, StringMap.find_opt id.it m_env.concrete_dependent_types with
         | [], None -> (* Means its a normal type *) 
             let new_deftyp = AliasT (transform_dependent_type m_env Il.Subst.empty typ) $ deftyp.at in 
-            [(TypD (id, [], [InstD (binds, [], new_deftyp) $ inst.at]) $ at)]
+            [(TypD (id, [], [InstD (binds, [], new_deftyp) $ inst.at]))]
         | _, None -> [] (* Remove the dependent type as not used *)
         | _, Some set_ref -> 
           List.map ( fun t -> 
@@ -397,17 +419,17 @@ let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) (at : Util
             let args_ids = List.map get_variables_from_arg args in  
             let subst = create_args_pairings args_ids dep_args in
             let new_deftyp = AliasT (transform_dependent_type m_env subst typ) $ deftyp.at in 
-            TypD (transform_id_from_args id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at
+            TypD (transform_id_from_args id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at])
             ) (TypSet.elements !set_ref)  
       )
       | StructT typfields -> (
         let new_deftyp = StructT (List.map (fun (a, (bs, t, prems), hints) -> (a, (bs, transform_dependent_type m_env Il.Subst.empty t, prems), hints)) typfields) $ deftyp.at in
-        [TypD (id, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at] (* Ignore args for now, there shouldn't be any here *)
+        [TypD (id, [], [InstD ([], [], new_deftyp) $ inst.at])] (* Ignore args for now, there shouldn't be any here *)
       )
       | VariantT typcases -> (match args, StringMap.find_opt id.it m_env.concrete_dependent_types with
         | [], None -> (* Means its a normal type *) 
           let new_deftyp = VariantT (List.concat_map (transform_type_case m_env Il.Subst.empty) typcases) $ deftyp.at in
-          [TypD (id, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at]
+          [TypD (id, [], [InstD ([], [], new_deftyp) $ inst.at])]
         | _, None -> [] (* Remove the dependent type as not used *)
         | _, Some set_ref ->
           List.map ( fun t -> 
@@ -415,7 +437,7 @@ let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) (at : Util
             let args_ids = List.map get_variables_from_arg args in  
             let subst = create_args_pairings args_ids dep_args in
             let new_deftyp = VariantT (List.concat_map (transform_type_case m_env subst) typcases) $ deftyp.at in 
-              TypD (transform_id_from_args id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at]) $ at
+              TypD (transform_id_from_args id dep_args, [], [InstD ([], [], new_deftyp) $ inst.at])
             ) (TypSet.elements !set_ref)
       )
     )
@@ -431,7 +453,7 @@ let get_concrete_matches (m_env : monoenv) (bind : bind) : (id * exp) list =
 
 
 (* TODO make this work on arguments as well *)
-let transform_family_type_instances (m_env : monoenv) (id : id) (at : Util.Source.region) (inst : inst): def list = 
+let transform_family_type_instances (m_env : monoenv) (id : id) (inst : inst): def' list = 
   match inst.it with 
     | InstD (binds, _, deftyp) -> 
       let cases_seq = product_of_lists (List.map (get_concrete_matches m_env) binds) in
@@ -439,17 +461,29 @@ let transform_family_type_instances (m_env : monoenv) (id : id) (at : Util.Sourc
       Seq.map (fun subst ->
         let new_id = transform_id_from_exps id (List.map snd (Il.Subst.bindings_varid subst)) in
         let new_inst = InstD ([], [], subst_and_reduce_deftyp m_env subst deftyp) $ inst.at in 
-        TypD (new_id, [], [new_inst]) $ at
+        TypD (new_id, [], [new_inst]) 
       ) subst_seq |> List.of_seq
 
+(* let transform_function_definitions (m_env : monoenv) (id : id) (params: param list) (return_type : typ) (clauses : clause list): def' list =
+  match (StringMap.find_opt id.it m_env.concrete_dependent_types) with *)
+
+(* Hack for now until there is a way to distinguish family types well *)
+let check_normal_type_creation (inst : inst) : bool = 
+  match inst.it with
+    | InstD (_, args, _) -> List.for_all (fun arg -> 
+      match arg.it with 
+        | ExpA {it = VarE _; _} -> true
+        | _ -> false  
+    ) args 
+
 let rec transform_def (m_env : monoenv) (def : def) : def list =
-  match def.it with
-    | TypD (id, _, [inst]) -> transform_type_creation m_env id inst def.at
-    | TypD (id, _params, insts) -> List.concat_map (transform_family_type_instances m_env id def.at) insts
-    | RelD (_id, _mixop, _typ, _rules) -> [def]
-    | DecD (_id, _params, _typ, _clauses) -> [def]
-    | RecD defs -> [RecD (List.concat_map (transform_def m_env) defs) $ def.at]
-    | _ -> [def]    
+  (match def.it with
+    | TypD (id, _, [inst]) when check_normal_type_creation inst -> transform_type_creation m_env id inst
+    | TypD (id, _params, insts) -> List.concat_map (transform_family_type_instances m_env id) insts
+    | RelD (_id, _mixop, _typ, _rules) -> [def.it](*transform_relations m_env id rules*)
+    | DecD (_id, _params, _typ, _clauses) -> [def.it](*transform_function_definitions id params typ clauses*)
+    | RecD defs -> [RecD (List.concat_map (transform_def m_env) defs)]
+    | _ -> [def.it]) |> List.map (fun new_def -> new_def $ def.at) 
 
 (* Main transformation function *)
 let transform (script: Il.Ast.script) =
