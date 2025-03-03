@@ -135,6 +135,9 @@ let filter_map_using_taili f =
 let map_bool_to_either (a: 'a) (b : bool): ('a, 'a) Either.t=
   if b then Either.Left a else Either.Right a
 
+let map_bool_to_option (a: 'a) (b : bool): 'a option =
+  if b then Some a else None
+
 let product_of_lists (lists : 'a list list) = 
   List.fold_left (fun acc seq ->
     Seq.flat_map (fun existing -> 
@@ -249,7 +252,7 @@ and check_reducible_arg (arg: arg): bool =
 and check_reducible_args (args: arg list): bool =
   List.for_all check_reducible_arg args
 
-and check_reducible_exps (exps: exp list): bool =
+and _check_reducible_exps (exps: exp list): bool =
   List.for_all check_reducible_exp exps
 
 (* Simple getters which traverse part of the AST *)
@@ -322,7 +325,7 @@ and get_all_variable_ids_param (param : param): string list =
   match param.it with
     | ExpP (_, typ) -> get_all_variable_ids_typ typ
     | _ -> []
-  
+
 (* For now this deals with simple type cases that can be trivially substituted *)
 let get_simple_cases_instances (inst : inst): typcase list =
   match inst.it with
@@ -343,6 +346,59 @@ let rec get_case_instance (m_env : monoenv) (mixop : mixop) (inst : inst): typca
           | _ -> error inst.at mono "Case cannot be found"
         )
       | _ -> error inst.at mono "Case cannot be found"
+
+let rec get_dep_ids_exp (exp : exp): string list =
+  let r_func = get_dep_ids_exp in
+  match exp.it with
+    | CaseE (_, e) -> List.concat_map (fun e -> get_all_variable_ids_typ e.note) (get_tuple_exp e) @ r_func e
+    | CallE (_, args) -> get_all_variable_ids_typ exp.note @ List.concat_map get_dep_ids_arg args
+    | UnE (_, _, e) -> r_func e
+    | BinE (_, _, e1, e2) | CmpE (_, _, e1, e2) -> r_func e1 @ r_func e2
+    | TupE exps | ListE exps -> List.concat_map r_func exps
+    | ProjE (e, _) -> r_func e
+    | UncaseE (e, _) -> r_func e
+    | OptE (Some e) -> r_func e
+    | TheE e -> r_func e
+    | StrE expfields -> List.concat_map (fun (_, e) -> r_func e) expfields
+    | DotE (e, _) -> r_func e
+    | CompE (e1, e2) -> r_func e1 @ r_func e2
+    | LiftE e -> r_func e
+    | MemE (e1, e2) -> r_func e1 @ r_func e2
+    | LenE e -> r_func e
+    | CatE (e1, e2) -> r_func e1 @ r_func e2
+    | IdxE (e1, e2) -> r_func e1 @ r_func e2
+    | SliceE (e1, e2, e3) -> r_func e1 @ r_func e2 @ r_func e3
+    | UpdE (e1, p, e2) | ExtE (e1, p, e2) -> r_func e1 @ get_dep_ids_path p @ r_func e2
+    | IterE (e1, (_, id_exp_pairs)) -> r_func e1 @ List.concat_map (fun (_, e) -> r_func e) id_exp_pairs
+    | CvtE (e1, _, _) | SubE (e1, _, _) -> r_func e1 
+    | _ -> []
+
+and get_dep_ids_path (path : path): string list = 
+  match path.it with
+    | RootP -> []
+    | IdxP (p, e) -> get_dep_ids_path p @ get_dep_ids_exp e
+    | SliceP (p, e1, e2) -> get_dep_ids_path p @ get_dep_ids_exp e1 @ get_dep_ids_exp e2
+    | DotP (p, _) -> get_dep_ids_path p
+
+and get_dep_ids_typ (typ : typ): string list =
+  match typ.it with
+    | VarT (_, args) -> List.concat_map get_dep_ids_arg args
+    | TupT exp_typ_pairs -> List.concat_map (fun (e, t) -> get_dep_ids_exp e @ get_dep_ids_typ t) exp_typ_pairs
+    | IterT (t, _) -> get_dep_ids_typ t
+    | _ -> []
+and get_dep_ids_arg (arg : arg): string list =
+  match arg.it with 
+    | ExpA e -> get_dep_ids_exp e
+    | TypA t -> get_dep_ids_typ t
+    | _ -> []
+  
+and get_dep_ids_prem (prem : prem): string list = 
+  match prem.it with
+    | RulePr (_, _, e) -> get_dep_ids_exp e
+    | IfPr e -> get_dep_ids_exp e
+    | LetPr (e1, e2, _) -> get_dep_ids_exp e1 @ get_dep_ids_exp e2
+    | ElsePr -> []
+    | IterPr (p, (_, id_exp_pairs)) -> get_dep_ids_prem p @ List.concat_map (fun (_, e) -> get_dep_ids_exp e) id_exp_pairs
 
 let rec check_dep_type t = match t.it with
   | VarT (_ , []) -> false
@@ -386,23 +442,18 @@ let check_used_dependent_types_case_args_index (exp_typ_pairs : (exp * typ) list
         | VarT (id, _) -> id.it
         | _ -> ""
     in 
-    if (List.mem id_t (List.concat_map (fun (_, t) -> get_all_variable_ids_typ t) (List.filter (fun (_, t) -> check_dep_type t) ps))) 
-      then Some i
-      else None
+    map_bool_to_option i (List.mem id_t (List.concat_map (fun (_, t) -> get_all_variable_ids_typ t) (List.filter (fun (_, t) -> check_dep_type t) ps)))
   ) exp_typ_pairs
-  
 
-let rec check_used_dependent_types_relation_binds (exp_typ_pairs : bind list): bind list * bind list =
-  match exp_typ_pairs with
-    | [] -> ([], [])
-    | {it = ExpB (id, _); _} as b :: bs -> 
-      let (used_dep, unused) = check_used_dependent_types_relation_binds bs in
-      if List.mem id.it (List.concat_map get_all_variable_ids_bind (List.filter check_dep_typ_in_bind bs))
-        then (b :: used_dep, unused)
-        else (used_dep, b :: unused)
-    | b :: bs -> 
-      let (used_dep, unused) = check_used_dependent_types_relation_binds bs in
-      (used_dep, b :: unused)
+let check_used_dependent_types_relation_binds (binds : bind list) (exp : exp) (prems: prem list): bind list * bind list =
+  let dep_ids_in_relation = get_dep_ids_exp exp @ List.concat_map get_dep_ids_prem prems in
+  partition_map_using_tail (fun b bs ->
+    match b.it with
+      | ExpB (id, _) -> 
+        let dep_ids_in_binds = List.concat_map get_all_variable_ids_bind (List.filter check_dep_typ_in_bind bs) in
+        map_bool_to_either b (List.mem id.it (dep_ids_in_binds @ dep_ids_in_relation))
+      | _ -> Right b 
+  ) binds
       
 let check_used_types_in_params (params : param list) (return_type : typ): param list * param list = 
   partition_map_using_tail (fun p ps -> 
@@ -416,25 +467,19 @@ let check_used_types_in_params (params : param list) (return_type : typ): param 
   ) params
 
 let check_used_types_in_params_index (params : param list) (return_type : typ option): int list = 
-  let rec aux params n = 
-    match params with
-      | [] -> []
-      | p :: ps -> 
-        let is_type_param, id_p = match p.it with
-          | ExpP (id, _) -> false, id.it
-          | TypP id -> true, id.it
-          | _ -> false, ""
-        in
-        let used_dep = aux ps (n + 1) in
-        let return_typ_ids = match return_type with
-          | None -> []
-          | Some typ -> get_all_variable_ids_typ typ 
-        in
-        let variable_ids = (List.concat_map get_all_variable_ids_param (List.filter check_dep_typ_in_params ps)) in
-        if is_type_param || List.mem id_p (variable_ids @ return_typ_ids)
-          then n :: used_dep
-          else used_dep in
-  aux params 0
+  filter_map_using_taili (fun p ps i ->
+    let is_type_param, id_p = match p.it with
+      | ExpP (id, _) -> false, id.it
+      | TypP id -> true, id.it
+      | _ -> false, ""
+    in
+    let return_typ_ids = match return_type with
+      | None -> []
+      | Some typ -> get_all_variable_ids_typ typ 
+    in
+    let variable_ids = (List.concat_map get_all_variable_ids_param (List.filter check_dep_typ_in_params ps)) in
+    map_bool_to_option i (is_type_param || List.mem id_p (variable_ids @ return_typ_ids))
+  ) params
 
 let check_used_types_in_type_creation (m_env : monoenv) (mixop : mixop) (insts: inst list) (exps : exp list): exp list * exp list =
   match insts with
@@ -667,7 +712,8 @@ let transform_function_definitions (m_env : monoenv) (id : id) (params: param li
 let transform_rule (m_env : monoenv) (rule : rule) : rule list =
   match rule.it with
     | RuleD (rule_id, binds, mixop, exp, prems) ->
-      let (used_deps, unused) = check_used_dependent_types_relation_binds binds in
+      print_endline (string_of_rule rule ^ " : " ^ String.concat " " (get_dep_ids_exp exp));
+      let (used_deps, unused) = check_used_dependent_types_relation_binds binds exp prems in
       let cases_seq = product_of_lists (List.map (get_concrete_matches m_env) used_deps) in
       let subst_seq = Seq.map (List.fold_left (fun acc (id, exp) -> Il.Subst.add_varid acc id exp) Il.Subst.empty) cases_seq in
       Seq.map (fun subst ->
@@ -694,4 +740,3 @@ let transform (script: Il.Ast.script) =
   let transformed_script = List.rev (List.concat_map (transform_def m_env) (List.rev script)) in
   print_env m_env;
   transformed_script
-
