@@ -43,13 +43,15 @@ type monoenv =
   mutable calls: (ExpSet.t ref) StringMap.t;
   mutable concrete_dependent_types: (TypSet.t ref) StringMap.t;
   mutable il_env: env;
+  mutable mono_funcs_map: ((def * int) option ref) StringMap.t;
 }
 
 let new_env() = 
 {
-    calls = StringMap.empty;
-    concrete_dependent_types = StringMap.empty;
-    il_env = Il.Env.empty;
+  calls = StringMap.empty;
+  concrete_dependent_types = StringMap.empty;
+  il_env = Il.Env.empty;
+  mono_funcs_map = StringMap.empty;
 }
 
 let mono = "Monomorphization"
@@ -93,6 +95,13 @@ let bind_exp m_env' id t =
     match StringMap.find_opt id m_env' with 
       | None -> StringMap.add id (ref (ExpSet.singleton t)) m_env'
       | Some set -> set := ExpSet.add t !set; m_env'
+
+let bind_mono_func_map (m_env : monoenv) (type_params : string list) (def : def): unit =
+  List.iter ( fun id ->
+    match StringMap.find_opt id m_env.mono_funcs_map with
+      | Some ref -> ref := Option.map (fun (d, i) -> (d, i + 1)) !ref
+      | None -> m_env.mono_funcs_map <- StringMap.add id (ref (Some (def, 1))) m_env.mono_funcs_map 
+  ) type_params
       
 let concrete_dep_types_bind m_env id t =
   m_env.concrete_dependent_types <- bind_typ m_env.concrete_dependent_types id t
@@ -325,6 +334,24 @@ and get_all_variable_ids_param (param : param): string list =
   match param.it with
     | ExpP (_, typ) -> get_all_variable_ids_typ typ
     | _ -> []
+
+let get_user_defined_type_arguments (args : arg list): string list =
+  let rec get_func_typ typ = 
+    match typ.it with 
+      | VarT (id, args) -> id.it :: List.concat_map get_func_arg args 
+      | IterT (typ, _) -> get_func_typ typ
+      | TupT exp_typ_pairs -> List.concat_map (fun (_, t) -> get_func_typ t) exp_typ_pairs
+      | _ -> []
+  and get_func_arg arg = 
+    match arg.it with
+      | TypA typ -> get_func_typ typ
+      | _ -> [] (* TODO extend this later to exps *)
+  in 
+  List.filter_map (fun a ->
+    match a.it with
+      | TypA typ -> (* Has to start with type argument *) Some (get_func_typ typ)
+      | _ -> None
+  ) args |> List.concat
 
 (* For now this deals with simple type cases that can be trivially substituted *)
 let get_simple_cases_instances (inst : inst): typcase list =
@@ -588,8 +615,9 @@ and transform_bind (m_env : monoenv) (subst : subst) (bind : bind) : bind =
     
 and transform_prem (m_env : monoenv) (subst : subst) (prem : prem): prem = 
   match prem.it with
-    | IfPr exp -> IfPr (transform_exp m_env subst (Il.Subst.subst_exp subst exp)) $ prem.at
-    | IterPr (p, _) -> transform_prem m_env subst p
+    | IfPr e -> IfPr (transform_exp m_env subst (Il.Subst.subst_exp subst e)) $ prem.at
+    | RulePr (id, m, e) -> RulePr (id, m, transform_exp m_env subst (Il.Subst.subst_exp subst e)) $ prem. at
+    | IterPr (p, iterexp) -> IterPr (transform_prem m_env subst p, iterexp) $ prem.at 
     | _ -> Il.Subst.subst_prem subst prem
 
 let subst_and_reduce_deftyp (m_env : monoenv) (subst : subst) (deftyp : deftyp): deftyp = 
@@ -690,7 +718,7 @@ let transform_clause (m_env : monoenv) (subst : subst) (used_indices : int list)
       List.map (transform_prem m_env subst) prems) 
   ) $ clause.at
 
-let transform_function_definitions (m_env : monoenv) (id : id) (params: param list) (return_type : typ) (clauses : clause list): def' list =
+let transform_function_definitions (m_env : monoenv) (id : id) (params: param list) (return_type : typ) (clauses : clause list) (at : Util.Source.region) (is_recursive: bool): def' list =
   let used, unused = check_used_types_in_params params return_type in
   let used_indices = check_used_types_in_params_index params (Some return_type) in
   match (StringMap.find_opt id.it m_env.calls), used with
@@ -699,27 +727,34 @@ let transform_function_definitions (m_env : monoenv) (id : id) (params: param li
       [DecD (id, params, transform_type m_env subst return_type, List.map (transform_clause m_env subst []) clauses)]
     | None, _ -> (* function is not used *) []
     | Some set_ref, _ -> 
-      List.map ( fun e -> 
+      List.filter_map ( fun e -> 
         let (new_id, call_args) = get_function_call e in 
+        let type_params = get_user_defined_type_arguments call_args in
         let param_ids = List.map get_variable_id_from_param used in 
         let subst = create_args_pairings param_ids call_args in
-        DecD (new_id.it $ id.at, List.map (transfrom_param m_env subst) unused, 
+        let def' = DecD (new_id.it $ id.at, List.map (transfrom_param m_env subst) unused, 
           transform_type m_env subst return_type, 
-          List.map (transform_clause m_env subst used_indices) clauses)
+          List.map (transform_clause m_env subst used_indices) clauses) in 
+        let rec_def = (match is_recursive with
+          | true -> RecD [def' $ at]
+          | false -> def') $ at 
+        in
+        match type_params with
+          | [] -> Some def'
+          | _ -> bind_mono_func_map m_env type_params rec_def; None
         ) (ExpSet.elements !set_ref)
 
 (* TODO instead of only looking at binds, also look into cases and return types *)
 let transform_rule (m_env : monoenv) (rule : rule) : rule list =
   match rule.it with
     | RuleD (rule_id, binds, mixop, exp, prems) ->
-      print_endline (string_of_rule rule ^ " : " ^ String.concat " " (get_dep_ids_exp exp));
       let (used_deps, unused) = check_used_dependent_types_relation_binds binds exp prems in
       let cases_seq = product_of_lists (List.map (get_concrete_matches m_env) used_deps) in
       let subst_seq = Seq.map (List.fold_left (fun acc (id, exp) -> Il.Subst.add_varid acc id exp) Il.Subst.empty) cases_seq in
       Seq.map (fun subst ->
         let new_id = transform_id_from_exps rule_id (List.map snd (Il.Subst.bindings_varid subst)) in
         let new_prems = List.map (transform_prem m_env subst) prems in
-        let subst_exp = Il.Subst.subst_exp subst exp in 
+        let subst_exp = Il.Subst.subst_exp subst exp in
         RuleD (new_id, List.map (transform_bind m_env subst) unused, mixop, transform_exp m_env subst subst_exp, new_prems) $ rule.at
       ) subst_seq |> List.of_seq
 
@@ -728,9 +763,30 @@ let rec transform_def (m_env : monoenv) (def : def) : def list =
     | TypD (id, _, [inst]) when check_normal_type_creation inst -> transform_type_creation m_env id inst
     | TypD (id, _params, insts) -> List.concat_map (transform_family_type_instances m_env id) insts
     | RelD (id, mixop, typ, rules) -> [RelD (id, mixop, typ, List.concat_map (transform_rule m_env) rules)]
-    | DecD (id, params, typ, clauses) -> transform_function_definitions m_env id params typ clauses
-    | RecD defs -> [RecD (List.concat_map (transform_def m_env) defs)]
+    | RecD [{ it = DecD (id, params, typ, clauses); _} as func_def] -> 
+      List.map (fun d -> RecD [d $ func_def.at]) (transform_function_definitions m_env id params typ clauses def.at true)
+    | DecD (id, params, typ, clauses) -> transform_function_definitions m_env id params typ clauses def.at false
+    | RecD defs -> let new_defs = List.concat_map (transform_def m_env) defs in
+      if new_defs = []
+        then []
+        else [RecD new_defs]
     | _ -> [def.it]) |> List.map (fun new_def -> new_def $ def.at) 
+
+let rec reorder_monomorphized_functions (m_env : monoenv) (def : def): def list =
+  let update_ref ref = 
+    match !ref with
+      | Some (d, i) -> if (i = 1) 
+          then (ref := None; [def; d])
+          else (ref := Some (d, i - 1); [def])
+      | None -> [def]
+  in
+  match def.it with
+    | TypD (id, _, _ ) -> (match StringMap.find_opt id.it m_env.mono_funcs_map with
+      | Some ref -> update_ref ref
+      | None -> [def]
+    )
+    | RecD defs -> [RecD (List.concat_map (reorder_monomorphized_functions m_env) defs) $ def.at]
+    | _ -> [def]
 
 (* Main transformation function *)
 let transform (script: Il.Ast.script) =
@@ -739,4 +795,4 @@ let transform (script: Il.Ast.script) =
   (* Reverse the script in order to monomorphize nested ones correctly *)
   let transformed_script = List.rev (List.concat_map (transform_def m_env) (List.rev script)) in
   print_env m_env;
-  transformed_script
+  List.concat_map (reorder_monomorphized_functions m_env) transformed_script
