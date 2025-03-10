@@ -1,4 +1,5 @@
 (* TODO - Make sure we are applying the right regions at the right spots (necessary for debugging later) *)
+(* TODO - Improve eval reduction function to reduce function calls correctly (can't have function calls with irreducible arguments actually be reduced) *)
 
 
 open Il.Ast
@@ -131,12 +132,8 @@ let map_bool_to_either (a: 'a) (b : bool): ('a, 'a) Either.t =
 
 let map_bool_to_option (a: 'a) (b : bool): 'a option =
   if b then Some a else None
-
-let map_option_to_id (op : 'a option): id = 
-  match op with
-    | Some id -> id
-    | _ -> "_" $ no_region
-
+  
+(* Computes the cartesian product of a given list. *)
 let product_of_lists (lists : 'a list list) = 
   List.fold_left (fun acc seq ->
     Seq.flat_map (fun existing -> 
@@ -169,7 +166,7 @@ let rec to_string_exp (exp : exp) : string =
     | CaseE (mixop, exp) -> to_string_mixop mixop ^ "_" ^ to_string_exp exp
     | CvtE (e, _, _) -> to_string_exp e
     | SubE (e, _, _) -> to_string_exp e
-    | _ -> error exp.at mono "Cannot transform these into strings"
+    | _ -> error exp.at mono ("Cannot transform " ^ string_of_exp exp ^ " into string")
 
 and to_string_typ (typ : typ) : string = 
   match typ.it with
@@ -274,13 +271,6 @@ let get_variable_from_typ (typ : typ): id * arg list =
     | VarT (id, args) -> (id, args)
     | _ -> error typ.at mono "Case expression should have variable type" 
 
-let get_variable_id_from_arg (arg : arg): id option = 
-  match arg.it with
-    | ExpA ({it = VarE id; _}) -> Some id
-    | ExpA ({it = SubE ({it = VarE id;_}, _, _); _}) -> Some id
-    | TypA ({it = VarT (id, _); _}) -> Some id
-    | _ -> None
-    
 let get_variable_id_from_param (param : param): id =
   match param.it with
     | ExpP (id, _) -> id
@@ -290,6 +280,7 @@ let get_variable_id_from_param (param : param): id =
 
 let get_tuple_from_type (typ : typ): ((exp * typ) list) option =
   match typ.it with
+    | TupT [] -> None
     | TupT e_t -> Some e_t
     | _ -> None (* We don't need to worry about the case of it being single typed *)
   
@@ -353,10 +344,9 @@ let get_simple_cases_instances (inst : inst): typcase list =
     | InstD (_, _, deftyp) -> match deftyp.it with
       | AliasT _typ -> []
       | StructT _typfields -> []
-      | VariantT typcases -> if List.for_all (fun (_, (_, t, _), _) -> t.it = TupT []) typcases
-        then typcases
-        else []
-      
+      | VariantT typcases when List.for_all (fun (_, (_, t, _), _) -> t.it = TupT []) typcases -> typcases
+      | VariantT _ -> []
+    
 let rec get_case_instance_safe (m_env : monoenv) (mixop : mixop) (inst : inst): typcase option =
   match inst.it with
     | InstD (_, _, deftyp) -> match deftyp.it with
@@ -626,7 +616,45 @@ and transform_prem (m_env : monoenv) (subst : subst) (prem : prem): prem =
     | RulePr (id, m, e) -> RulePr (id, m, transform_exp m_env subst (Il.Subst.subst_exp subst e)) $ prem. at
     | IterPr (p, iterexp) -> IterPr (transform_prem m_env subst p, iterexp) $ prem.at 
     | _ -> Il.Subst.subst_prem subst prem
-    
+
+let subst_deftyp (m_env : monoenv) (subst : subst) (deftyp : deftyp): deftyp = 
+  let new_deftyp = Il.Subst.subst_deftyp subst deftyp in
+  (match new_deftyp.it with
+    | AliasT typ -> AliasT (transform_type m_env subst typ)
+    | StructT typfields -> StructT (List.map (fun (a, (bs, t, prems), hints) -> 
+      (a, (bs, transform_type m_env subst t, List.map (transform_prem m_env subst) prems), hints)) typfields)
+    | VariantT typcases -> VariantT (List.map (fun (m, (bs, t, prems), hints) -> 
+      (m, (bs, transform_type m_env subst t, List.map (transform_prem m_env subst) prems), hints)) typcases)
+  ) $ deftyp.at
+
+
+(* let rec get_case_instances (m_env : monoenv) (id : id) (concrete_args : arg list) (inst : inst): (id * exp') list list =
+  match inst.it with
+    | InstD (_, args, deftyp) -> 
+      let subst = Option.value (Il.Eval.match_list match_arg m_env.il_env Il.Subst.empty concrete_args args) ~default:Il.Subst.empty in
+      let new_deftyp = subst_deftyp m_env subst deftyp in
+      match new_deftyp.it with
+      | AliasT typ -> get_case_instances_from_typ m_env id typ
+      | StructT _typfields -> []
+      | VariantT typcases when List.for_all (fun (_, (_, t, _), _) -> t.it = TupT []) typcases -> 
+        List.map (fun (m, _, _) -> [(id, CaseE(m, empty_tuple_exp no_region))]) typcases
+      | VariantT typcases -> let mono_cases = List.concat_map (transform_type_case m_env subst) typcases in
+        List.map (fun (m, _, _) -> [(id, CaseE(m, empty_tuple_exp no_region))]) mono_cases
+and get_case_instances_from_typ (m_env : monoenv) (id : id) (typ: typ): (id * exp') list list = 
+  match typ.it with
+    | BoolT -> [[(id, BoolE false); (id, BoolE true)]]
+    | VarT(var_id, args) -> let (_, insts) = Il.Env.find_typ m_env.il_env id in 
+      (match insts with
+        | [inst] when check_normal_type_creation inst -> get_case_instances m_env var_id args inst
+        | [] -> []
+        | _ -> []
+      )
+    | TupT exp_typ_pairs -> let m = List.map (fun (_, t) -> get_case_instances_from_typ m_env id t) exp_typ_pairs in
+      let b = product_of_lists m in
+      []
+    | _ -> []
+     *)
+     
 let transform_type_case (m_env : monoenv) (subst : subst) (typc : typcase) : typcase list = 
   let (m, (bs, t, prems), hints) = typc in
   match get_tuple_from_type t with
@@ -664,8 +692,7 @@ let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) : def' lis
         | _, Some set_ref ->
           List.map ( fun t -> 
             let dep_args = get_dependent_type_args t in 
-            let args_ids = List.map (fun a -> map_option_to_id (get_variable_id_from_arg a)) args in  
-            let subst = create_args_pairings args_ids dep_args in
+            let subst = Option.value (Il.Eval.match_list match_arg m_env.il_env Il.Subst.empty dep_args args) ~default:Il.Subst.empty in
               TypD (transform_id_from_args id dep_args, [], [InstD ([], [], func subst) $ inst.at])
             ) (TypSet.elements !set_ref)
       in
@@ -688,22 +715,13 @@ let get_concrete_matches (m_env : monoenv) (bind : bind) : (id * exp) list =
     )
     | _ -> []
 
-let subst_deftyp (m_env : monoenv) (subst : subst) (deftyp : deftyp): deftyp = 
-  let new_deftyp = Il.Subst.subst_deftyp subst deftyp in
-  (match new_deftyp.it with
-    | AliasT typ -> AliasT (transform_type m_env subst typ)
-    | StructT typfields -> StructT (List.map (fun (a, (bs, t, prems), hints) -> 
-      (a, (bs, transform_type m_env subst t, List.map (transform_prem m_env subst) prems), hints)) typfields)
-    | VariantT typcases -> VariantT (List.map (fun (m, (bs, t, prems), hints) -> 
-      (m, (bs, transform_type m_env subst t, List.map (transform_prem m_env subst) prems), hints)) typcases)
-  ) $ deftyp.at
 
 (* TODO make this work on arguments as well *)
 let transform_family_type_instances (m_env : monoenv) (id : id) (inst : inst): def' list = 
   match inst.it with 
     | InstD (binds, _, deftyp) -> 
       let cases_seq = product_of_lists (List.map (get_concrete_matches m_env) binds) in
-      let subst_seq = Seq.map (List.fold_left (fun acc (id, exp) -> Il.Subst.add_varid acc id exp) Il.Subst.empty) cases_seq in
+      let subst_seq = Seq.map (List.fold_left (fun acc (subst_id, exp) -> Il.Subst.add_varid acc subst_id exp) Il.Subst.empty) cases_seq in
       Seq.map (fun subst ->
         let new_id = transform_id_from_exps id (List.map snd (Il.Subst.bindings_varid subst)) in
         let new_inst = InstD ([], [], subst_deftyp m_env subst deftyp) $ inst.at in 
@@ -725,10 +743,10 @@ let transform_clause (m_env : monoenv) (subst : subst) (used_indices : int list)
   match clause.it with
     | DefD (binds, args, exp, prems) ->
       let used_args, unused_args = partition_mapi (fun a i -> map_bool_to_either a (List.mem i used_indices)) args in
-      let used_args_ids = List.map (fun a -> map_option_to_id (get_variable_id_from_arg a)) used_args in
       if not (check_matching m_env subst used_call_args used_args) then None
       else 
-        let new_subst = Il.Subst.union subst (create_args_pairings used_args_ids used_call_args) in 
+        let used_subst =  Option.value (Il.Eval.match_list match_arg m_env.il_env Il.Subst.empty used_call_args used_args) ~default:Il.Subst.empty in 
+        let new_subst = Il.Subst.union subst used_subst in 
         Some (DefD (List.map (transform_bind m_env new_subst) (bind_exists binds new_subst), 
         List.map (transform_arg m_env new_subst) unused_args, 
         transform_exp m_env new_subst (Il.Subst.subst_exp new_subst exp), 
