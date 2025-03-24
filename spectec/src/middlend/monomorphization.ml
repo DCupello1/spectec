@@ -40,7 +40,7 @@ type monoenv =
   mutable mono_funcs_map: ((def * int) option ref) StringMap.t;
 }
 
-let new_env() = 
+let new_env = 
 {
   calls = StringMap.empty;
   concrete_dependent_types = StringMap.empty;
@@ -887,25 +887,30 @@ let rec transform_def (m_env : monoenv) (def : def) : def list =
       )
     | _ -> [def.it]) |> List.map (fun new_def -> new_def $ def.at) 
 
-let rec reorder_monomorphized_functions (m_env : monoenv) (def : def): def list =
-  let update_ref ref = 
+let reorder_monomorphized_functions (m_env : monoenv) (def : def): def list =
+  let update_ref ref def' = 
     match !ref with
       | Some (d, i) -> if (i = 1) 
-          then (ref := None; [def; d])
-          else (ref := Some (d, i - 1); [def])
-      | None -> [def]
+          then (ref := None; [(def', Some d)])
+          else (ref := Some (d, i - 1); [(def', None)])
+      | None -> [(def', None)]
   in
-  match def.it with
-    | TypD (id, _, _) -> (match StringMap.find_opt id.it m_env.mono_funcs_map with
-      | Some ref -> update_ref ref
-      | None -> [def]
-    )
-    | RecD defs -> [RecD (List.concat_map (reorder_monomorphized_functions m_env) defs) $ def.at]
-    | _ -> [def]
+  let rec reorder_func def' =
+    match def'.it with
+      | TypD (id, _, _) -> (match StringMap.find_opt id.it m_env.mono_funcs_map with
+        | Some ref -> update_ref ref def'
+        | None -> [(def', None)]
+      )
+      | RecD defs -> let (same_defs, mono_funcs) = List.split (List.concat_map reorder_func defs) in 
+        [(RecD (same_defs) $ def'.at, None)] @ List.filter_map (fun m_f -> Option.map (fun a -> (a, None)) m_f) mono_funcs
+      | _ -> [(def', None)] in
+  List.concat_map (fun (def, func_opt) -> match func_opt with
+    | Some d -> [def; d]
+    | None -> [def])(reorder_func def)
 
 (* Main transformation function *)
 let transform (script: Il.Ast.script) =
-  let m_env = new_env() in 
+  let m_env = new_env in 
   m_env.il_env <- Il.Env.env_of_script script;
   (* Reverse the script in order to monomorphize nested ones correctly *)
   let transformed_script = List.rev (List.concat_map (transform_def m_env) (List.rev script)) in
