@@ -2,6 +2,7 @@
   (name middlend)
   (libraries util il)
   (modules
+    mono_nat_subset
     monomorphization
     sub
     totalize
