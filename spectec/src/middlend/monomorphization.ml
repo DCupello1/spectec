@@ -52,8 +52,6 @@ let mono = "Monomorphization"
 
 let empty_tuple_exp at = TupE [] $$ at % (TupT [] $ at)
 
-let _map_fst f = List.map (fun (v1, v2) -> (f v1, v2))
-
 let map_snd f = List.map (fun (v1, v2) -> (v1, f v2))
 
 let msg_prefix = "Encountered an unbounded type: "
@@ -599,6 +597,7 @@ let rec transform_exp (m_env : monoenv) (subst : subst) (exp : exp): exp =
     | UncaseE (e, m) -> UncaseE (t_func e, m)
     | OptE (Some e) -> OptE (Some (t_func e))
     | TheE e -> TheE (t_func e)
+    | StrE expfields -> StrE (map_snd t_func expfields)
     | DotE (e, a) -> DotE (t_func e, a)
     | CompE (e1, e2) -> CompE (t_func e1, t_func e2)
     | ListE exps -> ListE (List.map t_func exps)
@@ -911,8 +910,9 @@ let reorder_monomorphized_functions (m_env : monoenv) (def : def): def list =
 (* Main transformation function *)
 let transform (script: Il.Ast.script) =
   let m_env = new_env in 
-  m_env.il_env <- Il.Env.env_of_script script;
+  let mono_sub_pass = Mono_nat_subset.transform script in
+  m_env.il_env <- Il.Env.env_of_script mono_sub_pass;
   (* Reverse the script in order to monomorphize nested ones correctly *)
-  let transformed_script = List.rev (List.concat_map (transform_def m_env) (List.rev script)) in
+  let transformed_script = List.rev (List.concat_map (transform_def m_env) (List.rev mono_sub_pass)) in
   print_env m_env;
   List.concat_map (reorder_monomorphized_functions m_env) transformed_script
