@@ -497,9 +497,7 @@ let check_used_dependent_types_case_args_index (exp_typ_pairs : (exp * typ) list
   ) exp_typ_pairs
 
 let check_used_dependent_types_relation_binds (binds : bind list) (exp : exp) (prems: prem list): bind list * bind list =
-  
-  let dep_ids_in_relation = get_type_info_from_exp
- get_all_variable_ids_typ exp @ List.concat_map (get_type_info_from_prem get_all_variable_ids_typ) prems in
+  let dep_ids_in_relation = get_type_info_from_exp get_all_variable_ids_typ exp @ List.concat_map (get_type_info_from_prem get_all_variable_ids_typ) prems in
   partition_map_using_tail (fun b bs ->
     match b.it with
       | ExpB (id, _) -> 
@@ -535,17 +533,17 @@ let check_used_types_in_params_index (params : param list) (return_type : typ op
   ) params
 
 let check_used_types_in_type_creation (m_env : monoenv) (mixop : mixop) (insts: inst list) (exps : exp list) (at: Util.Source.region): exp list * exp list =
-  if exps = [] then ([], []) else
+  if exps = [] || mixop = [[]; []] then ([], exps) else
   match insts with
     | [inst] when check_normal_type_creation inst -> 
       let (_, (_, t, _), _) = get_case_instance m_env mixop at inst in
       (match (get_tuple_from_type t) with 
-        | None -> ([], [])
+        | None -> ([], exps)
         | Some exp_typ_pairs -> 
           let used_indices = check_used_dependent_types_case_args_index exp_typ_pairs in
           partition_mapi (fun e i -> map_bool_to_either e (List.mem i used_indices)) exps
       )
-    | _ -> ([], [])
+    | _ -> ([], exps)
 
 let check_matching (m_env : monoenv) (call_args : arg list) (match_args : arg list) = 
   Option.is_some (try match_list match_arg m_env.il_env Il.Subst.empty call_args match_args with Irred -> None)
@@ -660,7 +658,7 @@ and transform_arg (m_env : monoenv) (subst : subst) (arg : arg) : arg =
     | TypA typ -> TypA (transform_type m_env subst typ)
     | _ -> arg.it) $ arg.at
   
-and transfrom_param (m_env : monoenv) (subst : subst) (param : param) : param =
+and transform_param (m_env : monoenv) (subst : subst) (param : param) : param =
   (match param.it with 
     | ExpP (id, typ) -> ExpP (id, transform_type m_env subst typ)
     | p -> p
@@ -849,7 +847,7 @@ let transform_function_definitions (m_env : monoenv) (id : id) (params: param li
         let type_params = get_user_defined_type_arguments used_call_args in
         let used_param_ids = List.map get_variable_id_from_param used in 
         let subst = create_args_pairings used_param_ids used_call_args in
-        let def' = DecD (new_id.it $ id.at, List.map (transfrom_param m_env subst) unused, 
+        let def' = DecD (new_id.it $ id.at, List.map (transform_param m_env subst) unused, 
           transform_type m_env subst return_type, 
           List.filter_map (transform_clause m_env subst used_indices used_call_args) clauses) in 
         match type_params with
