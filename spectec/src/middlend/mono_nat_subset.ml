@@ -131,7 +131,6 @@ let create_mapping_function (id : id) (at : Util.Source.region) (nat_list : nat 
   let new_typ = (NumT `NatT) $ at in
   let user_typ = VarT (id, []) $ at in 
   let new_param = ExpP ("x" $ at, user_typ) $ at in
-  
   let empty_tuple = TupE [] $$ at % (TupT [] $ at) in
   let num_exp n = NumE (`Nat n) $$ at % ((NumT `NatT) $ at) in 
   let new_clauses = List.map (fun n -> 
@@ -150,45 +149,48 @@ let rec transform_type (env : pass_env) (case_map : (id * id) ExpMap.t) (typ : I
   ) $ typ.at
 
 and transform_exp (env : pass_env) (case_map : (id * id) ExpMap.t) (exp : exp): exp =
-  let t_func = transform_exp env case_map in
-  (match exp.it with
-    | UnE (unop, optyp, e) -> UnE (unop, optyp, t_func e)
-    | BinE (binop, optyp, e1, e2) -> BinE (binop, optyp, t_func e1, t_func e2)
-    | CmpE (cmpop, optyp, e1, e2) -> CmpE (cmpop, optyp, t_func e1, t_func e2)
-    | TupE exps -> TupE (List.map t_func exps)
-    | ProjE ({it = UncaseE (e, _); _} as e1, i) -> 
-      let id = Print.string_of_typ_name e.note in 
-      if (StringMap.mem id env.nat_subs_set) 
-        then CallE (Print.string_of_typ_name e.note ^ map_func_suffix $ e.at, [ExpA e $ e.at]) 
-        else ProjE (t_func e1, i)
-    | ProjE (e, i) -> ProjE (t_func e, i)
-    | CaseE (m, ({it = TupE exps; _} as e)) -> 
-      let id = (Print.string_of_typ_name exp.note) in 
-      (match (StringMap.find_opt id env.nat_subs_set) with
-        | None -> CaseE (m, transform_exp env case_map e)
-        | Some nat_list -> transform_case case_map exps exp nat_list
-      )
-    | UncaseE (e, m) -> UncaseE (t_func e, m)
-    | OptE (Some e) -> OptE (Some (t_func e))
-    | TheE e -> TheE (t_func e)
-    | StrE expfields -> StrE (map_snd t_func expfields)
-    | DotE (e, a) -> DotE (t_func e, a)
-    | CompE (e1, e2) -> CompE (t_func e1, t_func e2)
-    | ListE exps -> ListE (List.map t_func exps)
-    | LiftE e -> LiftE (t_func e)
-    | MemE (e1, e2) -> MemE (t_func e1, t_func e2)
-    | LenE e -> LenE (t_func e)
-    | CatE (e1, e2) -> CatE (t_func e1, t_func e2)
-    | IdxE (e1, e2) -> IdxE (t_func e1, t_func e2)
-    | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)
-    | UpdE (e1, path, e2) -> UpdE (t_func e1, transform_path env case_map path, t_func e2)
-    | ExtE (e1, path, e2) -> ExtE (t_func e1, transform_path env case_map path, t_func e2)
-    | CallE (id, args) -> CallE (id, List.map (transform_arg env case_map) args)
-    | IterE (e, iterexp) -> IterE (t_func e, transform_iterexp env case_map iterexp)
-    | CvtE (e, ntyp1, ntyp2) -> CvtE (t_func e, ntyp1, ntyp2)
-    | SubE (e, t1, t2) -> SubE (t_func e, transform_type env case_map t1, transform_type env case_map t2)
-    | e -> e
-  ) $$ exp.at % (transform_type env case_map exp.note)
+  match (ExpMap.find_opt exp case_map) with
+    | Some (id, typ_id) -> create_nat_call_exp (typ_id.it ^ map_func_suffix $ no_region) [ExpA (create_var_exp id typ_id)$ no_region]
+    | None ->
+    let t_func = transform_exp env case_map in
+    (match exp.it with
+      | UnE (unop, optyp, e) -> UnE (unop, optyp, t_func e)
+      | BinE (binop, optyp, e1, e2) -> BinE (binop, optyp, t_func e1, t_func e2)
+      | CmpE (cmpop, optyp, e1, e2) -> CmpE (cmpop, optyp, t_func e1, t_func e2)
+      | TupE exps -> TupE (List.map t_func exps)
+      | ProjE ({it = UncaseE (e, _); _} as e1, i) -> 
+        let id = Print.string_of_typ_name e.note in 
+        if (StringMap.mem id env.nat_subs_set) 
+          then CallE (Print.string_of_typ_name e.note ^ map_func_suffix $ e.at, [ExpA e $ e.at]) 
+          else ProjE (t_func e1, i)
+      | ProjE (e, i) -> ProjE (t_func e, i)
+      | CaseE (m, ({it = TupE exps; _} as e)) -> 
+        let id = (Print.string_of_typ_name exp.note) in 
+        (match (StringMap.find_opt id env.nat_subs_set) with
+          | None -> CaseE (m, transform_exp env case_map e)
+          | Some nat_list -> transform_case case_map exps exp nat_list
+        )
+      | UncaseE (e, m) -> UncaseE (t_func e, m)
+      | OptE (Some e) -> OptE (Some (t_func e))
+      | TheE e -> TheE (t_func e)
+      | StrE expfields -> StrE (map_snd t_func expfields)
+      | DotE (e, a) -> DotE (t_func e, a)
+      | CompE (e1, e2) -> CompE (t_func e1, t_func e2)
+      | ListE exps -> ListE (List.map t_func exps)
+      | LiftE e -> LiftE (t_func e)
+      | MemE (e1, e2) -> MemE (t_func e1, t_func e2)
+      | LenE e -> LenE (t_func e)
+      | CatE (e1, e2) -> CatE (t_func e1, t_func e2)
+      | IdxE (e1, e2) -> IdxE (t_func e1, t_func e2)
+      | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)
+      | UpdE (e1, path, e2) -> UpdE (t_func e1, transform_path env case_map path, t_func e2)
+      | ExtE (e1, path, e2) -> ExtE (t_func e1, transform_path env case_map path, t_func e2)
+      | CallE (id, args) -> CallE (id, List.map (transform_arg env case_map) args)
+      | IterE (e, iterexp) -> IterE (t_func e, transform_iterexp env case_map iterexp)
+      | CvtE (e, ntyp1, ntyp2) -> CvtE (t_func e, ntyp1, ntyp2)
+      | SubE (e, t1, t2) -> SubE (t_func e, transform_type env case_map t1, transform_type env case_map t2)
+      | e -> e
+    ) $$ exp.at % (transform_type env case_map exp.note)
 
 and transform_iterexp (env : pass_env) (case_map : (id * id) ExpMap.t) (iterexp : iterexp): iterexp = 
   let (iter, id_exp_pairs) = iterexp in
@@ -245,8 +247,18 @@ and transform_prem (env : pass_env) (case_map : (id * id) ExpMap.t) (prem : prem
 
 let transform_type_creation (env : pass_env) (id : id) (inst : inst): inst * def' option =
   let (binds, args, deftyp) = get_inst_params inst in 
+  let acc_expmap, (module Arg: Iter.Arg) = exp_iter_for_cases env in
+  let module Acc = Iter.Make(Arg) in
+  Acc.args args;
+  let map_bindings = ExpMap.bindings !acc_expmap in
+  let free_vars = List.fold_left (fun acc (exp, _) -> Free.Set.union acc (Free.free_exp exp).varid) Free.Set.empty map_bindings in
+  let new_binds = List.map (fun (_, (id, typ_id)) -> ExpB (id, VarT (typ_id, []) $ no_region) $ no_region) map_bindings in
+  let filtered_binds = List.filter (fun b -> match b.it with
+    | ExpB (bind_id, _typ) -> not (Free.Set.mem bind_id.it free_vars)
+    | _ -> true
+  ) binds in
   let empty_map = ExpMap.empty in
-  let reconstruct_typ dtyp opt = (InstD (binds, args, dtyp $ deftyp.at) $ inst.at, opt) in
+  let reconstruct_typ dtyp opt = (InstD (filtered_binds @ new_binds, List.map (transform_arg env !acc_expmap) args, dtyp $ deftyp.at) $ inst.at, opt) in
   match deftyp.it with
     | VariantT [(_, (_, t, [{it = IfPr exp; _}]), _)] when check_nat_type t && check_subset_nat exp -> 
       let nat_list = get_nat_list exp in 
@@ -256,11 +268,11 @@ let transform_type_creation (env : pass_env) (id : id) (inst : inst): inst * def
       ) nat_list in
       add_to_nat_set env id nat_list;
       reconstruct_typ (VariantT new_cases) (Some (create_mapping_function id inst.at nat_list))
-    | VariantT typcases -> reconstruct_typ (VariantT (List.map (fun (m, (binds, t, prems), hints) ->
-        (m, (List.map (transform_bind env empty_map) binds, transform_type env empty_map t, List.map (transform_prem env empty_map) prems), hints)
+    | VariantT typcases -> reconstruct_typ (VariantT (List.map (fun (m, (case_binds, t, prems), hints) ->
+        (m, (List.map (transform_bind env empty_map) case_binds, transform_type env empty_map t, List.map (transform_prem env empty_map) prems), hints)
       ) typcases)) None
-    | StructT typfields -> reconstruct_typ (StructT (List.map (fun (a, (binds, t, prems), hints) ->
-        (a, (List.map (transform_bind env empty_map) binds, transform_type env empty_map t, List.map (transform_prem env empty_map) prems), hints)
+    | StructT typfields -> reconstruct_typ (StructT (List.map (fun (a, (case_binds, t, prems), hints) ->
+        (a, (List.map (transform_bind env empty_map) case_binds, transform_type env empty_map t, List.map (transform_prem env empty_map) prems), hints)
       ) typfields)) None
     | AliasT typ -> reconstruct_typ (AliasT (transform_type env ExpMap.empty typ)) None
 
@@ -277,7 +289,7 @@ let transform_rule (env : pass_env) (rule : rule): rule =
         let call_exp = create_nat_call_exp (typ_id.it ^ map_func_suffix $ no_region) [ExpA (create_var_exp id typ_id) $ no_region] in 
         IfPr (create_cmp call_exp exp) $ no_region
       ) map_bindings in
-      RuleD (id, List.map (transform_bind env !acc_exps) binds @ new_binds, m, 
+      RuleD (id, new_binds @ List.map (transform_bind env !acc_exps) binds, m, 
         transform_exp env !acc_exps exp, 
         List.map (transform_prem env !acc_exps) prems @ new_prems)
   ) $ rule.at
@@ -292,13 +304,9 @@ let transform_clause (env : pass_env) (clause : clause): clause =
       Acc.prems prems;
       let map_bindings = ExpMap.bindings !acc_exps in
       let new_binds = List.map (fun (_, (id, typ_id)) -> ExpB (id, VarT (typ_id, []) $ no_region) $ no_region) map_bindings in
-      let new_prems = List.map (fun (exp, (id, typ_id)) ->
-        let call_exp = create_nat_call_exp (typ_id.it ^ map_func_suffix $ no_region) [ExpA (create_var_exp id typ_id) $ no_region] in 
-        IfPr (create_cmp call_exp exp) $ no_region
-      ) map_bindings in
-      DefD (List.map (transform_bind env !acc_exps) binds @ new_binds, 
+      DefD (new_binds @ List.map (transform_bind env !acc_exps) binds, 
         List.map (transform_arg env !acc_exps) args, 
-        transform_exp env !acc_exps exp, List.map (transform_prem env !acc_exps) prems @ new_prems)
+        transform_exp env !acc_exps exp, List.map (transform_prem env !acc_exps) prems)
   ) $ clause.at
 
 let rec transform_def (env : pass_env) (def : def): def list = 
