@@ -1,10 +1,8 @@
 (* TODO - Make sure we are applying the right regions at the right spots (necessary for debugging later) *)
 (* TODO - Improve eval reduction function to reduce function calls correctly (can't have function calls with irreducible arguments actually be reduced) *)
-(* TODO - Fix issue with invalid recursion *)
-
 open Il.Ast
 open Il.Print
-
+open Il
 open Il.Eval
 open Util.Source
 open Util.Error
@@ -38,6 +36,7 @@ type monoenv =
   mutable concrete_dependent_types: (TypSet.t ref) StringMap.t;
   mutable il_env: env;
   mutable mono_funcs_map: ((def * int) option ref) StringMap.t;
+  mutable nat_subs_set: (Num.nat list) StringMap.t
 }
 
 let new_env = 
@@ -46,6 +45,7 @@ let new_env =
   concrete_dependent_types = StringMap.empty;
   il_env = Il.Env.empty;
   mono_funcs_map = StringMap.empty;
+  nat_subs_set = StringMap.empty
 }
 
 let mono = "Monomorphization"
@@ -55,6 +55,7 @@ let empty_tuple_exp at = TupE [] $$ at % (TupT [] $ at)
 let map_snd f = List.map (fun (v1, v2) -> (v1, f v2))
 
 let msg_prefix = "Encountered an unbounded type: "
+
 
 let _unbounded_error at msg = error at mono (msg_prefix ^ msg)
 
@@ -81,7 +82,10 @@ let print_env (m_env : monoenv) =
       | None -> ("", 0) in
     print_endline ("type param : " ^ id ^ " for definition: ");
     print_endline def_str
-  ) m_env.mono_funcs_map
+  ) m_env.mono_funcs_map;
+  
+  print_endline "Mono nat subsets:";
+  StringMap.iter (fun id nat_list -> print_endline (id ^ " : [" ^ String.concat ", " (List.map Z.to_string nat_list ) ^ "]")) m_env.nat_subs_set
 
 let bind_typ m_env' id t =
   if id = "_" then m_env' else
@@ -145,6 +149,13 @@ let map_bool_to_either (a: 'a) (b : bool): ('a, 'a) Either.t =
 
 let map_bool_to_option (a: 'a) (b : bool): 'a option =
   if b then Some a else None
+
+let reduce_arg (env : Il.Env.t) (arg : arg): arg = 
+  (match arg.it with
+    | ExpA exp -> ExpA (Il.Eval.reduce_exp env exp)
+    | TypA typ -> TypA (Il.Eval.reduce_typ env typ)
+    | a -> a
+  ) $ arg.at
   
 (* Computes the cartesian product of a given list. *)
 let product_of_lists (lists : 'a list list) = 
@@ -203,7 +214,7 @@ and to_string_arg (arg : arg): string =
 
 and transform_id_from_args (m_env : monoenv) (id : id) (args : arg list): id =
   if args = [] then id else 
-  id.it ^ "_mono_" ^ String.concat "_" (List.map (fun a -> to_string_arg (Il.Eval.reduce_arg m_env.il_env a)) args) $ id.at
+  id.it ^ "_mono_" ^ String.concat "_" (List.map (fun a -> to_string_arg (reduce_arg m_env.il_env a)) args) $ id.at
 
 and transform_string_from_exps (text : string) (exps : exp list): string =
   if exps = [] then text else 
@@ -319,6 +330,7 @@ and get_all_variable_ids_exp (exp : exp): string list =
     | CallE (_, args) -> List.concat_map get_all_variable_ids_arg args
     | SubE (e, _, _) -> get_all_variable_ids_exp e
     | TupE exps -> List.concat_map get_all_variable_ids_exp exps
+    | TheE e -> get_all_variable_ids_exp e
     | _ -> []
 
 and get_all_variable_ids_typ (typ : typ): string list =
@@ -552,7 +564,7 @@ let check_used_types_in_type_creation (m_env : monoenv) (mixop : mixop) (insts: 
 let check_matching (m_env : monoenv) (call_args : arg list) (match_args : arg list) = 
   Option.is_some (try match_list match_arg m_env.il_env Il.Subst.empty call_args match_args with Irred -> None)
 
-let check_family_types_correct_matching_binds (m_env : monoenv) (subst : subst) (binds : bind list) (exp : exp) (prems : prem list): bool =
+let _check_family_types_correct_matching_binds (m_env : monoenv) (subst : subst) (binds : bind list) (exp : exp) (prems : prem list): bool =
   let id_args_exp_and_prem = get_type_info_from_exp get_all_dep_types_in_typ (Il.Subst.subst_exp subst exp) 
       @ List.concat_map (fun prem -> (get_type_info_from_prem get_all_dep_types_in_typ (Il.Subst.subst_prem subst prem))) prems in
   let id_args_check id_args = 
@@ -562,7 +574,7 @@ let check_family_types_correct_matching_binds (m_env : monoenv) (subst : subst) 
       | [inst] when check_normal_type_creation inst -> true
       | _ -> Option.is_some (List.find_opt (fun inst -> match inst.it with | InstD (_, args, _) -> check_matching m_env dep_args args ) insts) 
   ) id_args in
-  id_args_check (List.concat_map get_all_dep_types_in_bind (fst (Il.Subst.subst_binds subst binds))) && 
+  id_args_check (List.concat_map get_all_dep_types_in_bind ( Il.Subst.subst_list Il.Subst.subst_bind subst binds)) && 
   id_args_check id_args_exp_and_prem
 
 
@@ -577,6 +589,26 @@ let check_family_types_correct_matching_typcase (m_env : monoenv) (subst : subst
     ) id_args
   ) ((Il.Subst.subst_list Il.Subst.subst_typ subst (List.map snd exp_typ_pairs)))
 
+let iter_get_nat_cases (m_env : monoenv): (Num.nat list) StringMap.t ref * (module Iter.Arg) = 
+  let module Arg =
+    struct
+      include Iter.Skip
+      let acc = ref StringMap.empty
+      let visit_exp exp =
+        match exp.it with 
+          | TheE ({it = CallE (_, [ {it = ExpA ({it = VarE var_id; _}); _} ]); _}) -> 
+            print_endline (Print.string_of_exp exp);
+            let typ_id = Print.string_of_typ exp.note in
+            print_endline (typ_id);
+            if StringMap.mem var_id.it !acc then () else 
+            (match (StringMap.find_opt typ_id m_env.nat_subs_set) with
+              | None -> ()
+              | Some nat_list -> acc := StringMap.add var_id.it nat_list !acc
+            )
+          | _ -> ()
+    end
+  in 
+  Arg.acc, (module Arg)
 
 (* Monomorphization Pass *)
 
@@ -595,7 +627,7 @@ let rec transform_exp (m_env : monoenv) (subst : subst) (exp : exp): exp =
       let (c_args_used, c_unused_args) = check_used_types_in_type_creation m_env m insts exps exp.at in
       if c_args_used = [] 
         then CaseE (m, t_func e) 
-        else CaseE (transform_mixop m_env m (List.length c_unused_args) c_args_used, TupE (c_unused_args) $$ e.at % e.note)
+        else CaseE (transform_mixop m_env m (List.length c_unused_args) (List.map (Il.Subst.subst_exp subst) c_args_used), TupE (c_unused_args) $$ e.at % e.note)
     | UncaseE (e, m) -> UncaseE (t_func e, m)
     | OptE (Some e) -> OptE (Some (t_func e))
     | TheE e -> TheE (t_func e)
@@ -612,7 +644,7 @@ let rec transform_exp (m_env : monoenv) (subst : subst) (exp : exp): exp =
     | UpdE (e1, path, e2) -> UpdE (t_func e1, transform_path m_env subst path, t_func e2)
     | ExtE (e1, path, e2) -> ExtE (t_func e1, transform_path m_env subst path, t_func e2)
     | CallE (id, args) ->
-      let args' = List.map (Il.Eval.reduce_arg m_env.il_env) args in
+      let args' = List.map (reduce_arg m_env.il_env) args in
       let (params, return_type, _) = Il.Env.find_def m_env.il_env id in
       let used = check_used_types_in_params_index params (Some return_type) in      
       let (used_args, unused_args) = partition_mapi (fun a i -> map_bool_to_either a (List.mem i used)) args' in
@@ -643,14 +675,14 @@ and transform_path (m_env : monoenv) (subst : subst) (path : path): path =
 
 and transform_type (m_env : monoenv) (subst: subst) (typ : typ): typ = 
   let subst_typ = Il.Subst.subst_typ subst typ in 
+  print_endline (Print.string_of_typ subst_typ);
   (match subst_typ.it with
     | VarT (id, args) when args <> [] -> 
       if check_reducible_args args 
         then (
-          let reduced_args = List.map (fun arg -> Il.Eval.reduce_arg m_env.il_env arg) args in 
+          let reduced_args = List.map (fun arg -> reduce_arg m_env.il_env arg) args in 
+          print_endline (String.concat " , " (List.map Print.string_of_arg reduced_args));
           concrete_dep_types_bind m_env id.it (VarT(id, reduced_args) $ typ.at);
-          print_endline (string_of_typ typ); 
-          print_endline (String.concat " " (List.map string_of_arg reduced_args));
           VarT (transform_id_from_args m_env id reduced_args, []) 
         )
         else (VarT (id, List.map (transform_arg m_env subst) args))
@@ -718,7 +750,7 @@ and get_all_case_instances_from_typ (m_env : monoenv) (typ: typ): exp' list  =
         | [] -> [] (* Should never happen *)
         | [inst] when check_normal_type_creation inst -> get_all_case_instances m_env dep_args inst
         | _ -> match List.find_opt (fun inst -> match inst.it with | InstD (_, args, _) -> check_matching m_env dep_args args) insts with
-          | None -> [] (* TODO maybe raise error here since this shouldn't happen *)
+          | None -> raise (UnboundedArg (string_of_typ typ))
           | Some inst -> get_all_case_instances m_env dep_args inst
       )
     | TupT exp_typ_pairs -> let instances_list = List.map (fun (_, t) -> List.map (apply_phrase t) (get_all_case_instances_from_typ m_env t)) exp_typ_pairs in
@@ -737,7 +769,10 @@ and transform_type_case (m_env : monoenv) (subst : subst) (typc : typcase) : typ
       let used, unused = check_used_dependent_types_case_args exp_typ_pairs in
       let used_ids = List.map (fun (e, t) -> 
         let case_instances = try get_all_case_instances_from_typ m_env t with
-          | UnboundedArg msg -> print_endline ("WARNING: " ^ msg_prefix ^ msg); [](*unbounded_error typ.at msg*)
+          | UnboundedArg msg -> 
+            print_endline ("WARNING: " ^ msg_prefix ^ msg); 
+            print_endline ("For type: " ^ string_of_typ typ);
+            [](*unbounded_error typ.at msg*)
         in
         let id_t = get_variable_id_safe e in
         List.map (fun exp' -> (id_t, exp' $$ t.at % t)) case_instances
@@ -807,13 +842,19 @@ let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) : def' lis
       | VariantT typcases -> transform_deftyp (fun subst -> VariantT (List.concat_map (transform_type_case m_env subst) typcases) $ deftyp.at)
     )
 
-let get_concrete_matches (m_env : monoenv) (_at : region) (bind : bind): (id * exp) list = 
+let get_concrete_matches (m_env : monoenv) (rule : rule) (_at : region) (cases : (Num.nat list) StringMap.t) (bind : bind): (id * exp) list = 
   match bind.it with
     | ExpB (var_id, typ) -> 
-      let case_instances = try get_all_case_instances_from_typ m_env typ with
-        | UnboundedArg msg -> print_endline ("WARNING: " ^ msg_prefix ^ msg); [](*_unbounded_error at msg*)
-      in
-      List.map (fun e -> (var_id, e $$ typ.at % typ)) case_instances
+      (match (StringMap.find_opt var_id.it cases) with
+       | Some nat_list -> List.map (fun n -> (var_id, NumE (`Nat n) $$ typ.at % (NumT `NatT $ typ.at))) nat_list
+       | None -> 
+          let case_instances = try get_all_case_instances_from_typ m_env typ with
+            | UnboundedArg msg -> print_endline ("WARNING: " ^ msg_prefix ^ msg);
+              print_endline ("For type: " ^ string_of_typ typ); 
+              print_endline ("For rule: \n" ^ string_of_rule rule); []
+              (* _unbounded_error _at msg *)
+          in
+          List.map (fun e -> (var_id, e $$ typ.at % typ)) case_instances)
     | _ -> []
 
 let transform_clause (m_env : monoenv) (subst : subst) (used_indices : int list) (used_call_args : arg list) (clause : clause) : clause option =
@@ -865,18 +906,25 @@ let transform_function_definitions (m_env : monoenv) (id : id) (params: param li
 let transform_rule (m_env : monoenv) (rule : rule) : rule list =
   match rule.it with
     | RuleD (rule_id, binds, mixop, exp, prems) ->
+      let acc_cases, (module Arg: Iter.Arg) = iter_get_nat_cases m_env in
+      let module Acc = Iter.Make(Arg) in
+      Acc.binds binds;
       let (used_deps, unused) = check_used_dependent_types_relation_binds binds exp prems in
-      let cases_list = product_of_lists (List.map (get_concrete_matches m_env rule.at) used_deps) in
-      let subst_list = List.map (List.fold_left (fun acc (id, exp) -> Il.Subst.add_varid acc id exp) Il.Subst.empty) cases_list in
-      List.filter_map (fun subst ->
-        if (not (check_family_types_correct_matching_binds m_env subst unused exp prems)) then None else 
-        let new_id = transform_id_from_exps m_env rule_id (List.map snd (Il.Subst.bindings_varid subst)) in
-        let new_prems = List.map (transform_prem m_env subst) prems in
-        let subst_exp = Il.Subst.subst_exp subst exp in
-        Some (RuleD (new_id, List.map (transform_bind m_env subst) unused, mixop, transform_exp m_env subst subst_exp, new_prems) $ rule.at)
-      ) subst_list
+      if used_deps == [] 
+        then [RuleD(rule_id, List.map (transform_bind m_env Subst.empty) binds, mixop, transform_exp m_env Subst.empty exp, List.map (transform_prem m_env Subst.empty) prems) $ rule.at] 
+        else (
+          let cases_list = product_of_lists (List.map (get_concrete_matches m_env rule rule.at !acc_cases) used_deps) in
+          let subst_list = List.map (List.fold_left (fun acc (id, exp) -> Il.Subst.add_varid acc id exp) Il.Subst.empty) cases_list in
+          List.filter_map (fun subst ->
+            if (not (_check_family_types_correct_matching_binds m_env subst unused exp prems)) then None else 
+            let new_id = transform_id_from_exps m_env rule_id (List.map snd (Il.Subst.bindings_varid subst)) in
+            let new_prems = List.map (transform_prem m_env subst) prems in
+            let subst_exp = Il.Subst.subst_exp subst exp in
+            print_endline (Il.Print.string_of_exp subst_exp);
+            Some (RuleD (new_id, List.map (transform_bind m_env subst) unused, mixop, transform_exp m_env subst subst_exp, new_prems) $ rule.at)
+          ) subst_list)
 
-let rec transform_def (m_env : monoenv) (def : def) : def list =
+let rec _transform_def (m_env : monoenv) (def : def) : def list =
   (match def.it with
     | TypD (id, _, [inst]) when check_normal_type_creation inst -> transform_type_creation m_env id inst
     | TypD (id, _params, insts) -> transform_family_type_instances m_env id insts
@@ -884,14 +932,14 @@ let rec transform_def (m_env : monoenv) (def : def) : def list =
       [RelD (id, mixop, typ, List.concat_map (transform_rule m_env) rules)]
     | RecD [{ it = DecD (id, params, typ, clauses); _}] -> transform_function_definitions m_env id params typ clauses def.at true
     | DecD (id, params, typ, clauses) -> transform_function_definitions m_env id params typ clauses def.at false
-    | RecD defs -> let new_defs = List.concat_map (transform_def m_env) defs in
+    | RecD defs -> let new_defs = List.concat_map (_transform_def m_env) defs in
       (match new_defs with
         | [] -> []
         | _ -> [RecD new_defs]
       )
     | _ -> [def.it]) |> List.map (fun new_def -> new_def $ def.at) 
 
-let reorder_monomorphized_functions (m_env : monoenv) (def : def): def list =
+let _reorder_monomorphized_functions (m_env : monoenv) (def : def): def list =
   let update_ref ref def' = 
     match !ref with
       | Some (d, i) -> if (i = 1) 
@@ -915,9 +963,11 @@ let reorder_monomorphized_functions (m_env : monoenv) (def : def): def list =
 (* Main transformation function *)
 let transform (script: Il.Ast.script) =
   let m_env = new_env in 
-  let mono_sub_pass = Mono_nat_subset.transform script in
+  let mono_sub_pass, pass_env = Mono_nat_subset.transform script in
   m_env.il_env <- Il.Env.env_of_script mono_sub_pass;
-  (* Reverse the script in order to monomorphize nested ones correctly *)
-  let transformed_script = List.rev (List.concat_map (transform_def m_env) (List.rev mono_sub_pass)) in
+  m_env.nat_subs_set <- pass_env.nat_subs_set;
   print_env m_env;
-  List.concat_map (reorder_monomorphized_functions m_env) transformed_script
+  (* Reverse the script in order to monomorphize nested ones correctly *)
+  let transformed_script = List.rev (List.concat_map (_transform_def m_env) (List.rev mono_sub_pass)) in
+  print_env m_env;
+  List.concat_map (_reorder_monomorphized_functions m_env) transformed_script
