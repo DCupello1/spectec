@@ -484,15 +484,6 @@ and check_dep_typ_in_params (p : param): bool =
     | ExpP (_, typ) -> check_dep_type typ
     | _ -> false
 
-(* Hack for now until there is a way to distinguish family types well *)
-let check_normal_type_creation (inst : inst) : bool = 
-  match inst.it with
-    | InstD (_, args, _) -> List.for_all (fun arg -> 
-      match arg.it with 
-        | ExpA {it = VarE _; _} | TypA _ -> true
-        | _ -> false  
-    ) args 
-
 (* TODO Improve these check functions to traverse and look into function call return types *)
 let check_used_dependent_types_case_args (exp_typ_pairs : (exp * typ) list): (exp * typ) list * (exp * typ) list =
   partition_map_using_tail (fun ((_, t) as p) ps -> 
@@ -551,7 +542,7 @@ let check_used_types_in_params_index (params : param list) (return_type : typ op
 let check_used_types_in_type_creation (m_env : monoenv) (mixop : mixop) (insts: inst list) (exps : exp list) (at: Util.Source.region): exp list * exp list =
   if exps = [] || mixop = [[]; []] then ([], exps) else
   match insts with
-    | [inst] when check_normal_type_creation inst -> 
+    | [inst] when Mono_nat_subset.check_normal_type_creation inst -> 
       let (_, (_, t, _), _) = get_case_instance m_env mixop at inst in
       (match (get_tuple_from_type t) with 
         | None -> ([], exps)
@@ -571,7 +562,7 @@ let _check_family_types_correct_matching_binds (m_env : monoenv) (subst : subst)
   List.for_all (fun (id, dep_args) -> let (_params, insts) = Il.Env.find_typ m_env.il_env id in
     match insts with
       | [] -> false
-      | [inst] when check_normal_type_creation inst -> true
+      | [inst] when Mono_nat_subset.check_normal_type_creation inst -> true
       | _ -> Option.is_some (List.find_opt (fun inst -> match inst.it with | InstD (_, args, _) -> check_matching m_env dep_args args ) insts) 
   ) id_args in
   id_args_check (List.concat_map get_all_dep_types_in_bind ( Il.Subst.subst_list Il.Subst.subst_bind subst binds)) && 
@@ -584,7 +575,7 @@ let check_family_types_correct_matching_typcase (m_env : monoenv) (subst : subst
     List.for_all (fun (id, dep_args) -> let (_params, insts) = Il.Env.find_typ m_env.il_env id in
       match insts with
         | [] -> false
-        | [inst] when check_normal_type_creation inst -> true
+        | [inst] when Mono_nat_subset.check_normal_type_creation inst -> true
         | _ -> Option.is_some (List.find_opt (fun inst -> match inst.it with | InstD (_, args, _) -> check_matching m_env dep_args args ) insts) 
     ) id_args
   ) ((Il.Subst.subst_list Il.Subst.subst_typ subst (List.map snd exp_typ_pairs)))
@@ -748,7 +739,7 @@ and get_all_case_instances_from_typ (m_env : monoenv) (typ: typ): exp' list  =
     | VarT(var_id, dep_args) -> let (_, insts) = Il.Env.find_typ m_env.il_env var_id in 
       (match insts with
         | [] -> [] (* Should never happen *)
-        | [inst] when check_normal_type_creation inst -> get_all_case_instances m_env dep_args inst
+        | [inst] when Mono_nat_subset.check_normal_type_creation inst -> get_all_case_instances m_env dep_args inst
         | _ -> match List.find_opt (fun inst -> match inst.it with | InstD (_, args, _) -> check_matching m_env dep_args args) insts with
           | None -> raise (UnboundedArg (string_of_typ typ))
           | Some inst -> get_all_case_instances m_env dep_args inst
@@ -926,7 +917,7 @@ let transform_rule (m_env : monoenv) (rule : rule) : rule list =
 
 let rec _transform_def (m_env : monoenv) (def : def) : def list =
   (match def.it with
-    | TypD (id, _, [inst]) when check_normal_type_creation inst -> transform_type_creation m_env id inst
+    | TypD (id, _, [inst]) when Mono_nat_subset.check_normal_type_creation inst -> transform_type_creation m_env id inst
     | TypD (id, _params, insts) -> transform_family_type_instances m_env id insts
     | RelD (id, mixop, typ, rules) -> 
       [RelD (id, mixop, typ, List.concat_map (transform_rule m_env) rules)]

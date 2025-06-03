@@ -3,14 +3,14 @@ open Il
 
 open Util.Source
 open Util.Error
-open Xl.Num
-open Xl.Atom
+open Xl
 
 let map_snd f = List.map (fun (v1, v2) -> (v1, f v2))
 
 let map_func_suffix = "_to_nat"
 let map_fun_prefix = "nat_to_"
 let pass_string = "Monomorphization"
+let match_suffix = "_m_"
 
 let pass_error at msg = error at pass_string msg
 
@@ -19,7 +19,7 @@ let case_prefix = "MONO__"
 module StringMap = Map.Make(String)
 
 type pass_env = {
-  mutable nat_subs_set: (nat list) StringMap.t
+  mutable nat_subs_set: (Num.nat list) StringMap.t
 }
 
 let empty_pass_env = {
@@ -31,7 +31,7 @@ let empty_tuple = TupE [] $$ no_region % (TupT [] $ no_region)
 let create_option_exp exp typ = 
   OptE(exp) $$ no_region % (IterT (typ, Opt) $ no_region)
 
-let add_to_nat_set (env : pass_env) (id : id) (nat_list: nat list): unit =
+let add_to_nat_set (env : pass_env) (id : id) (nat_list: Num.nat list): unit =
   env.nat_subs_set <- StringMap.add id.it nat_list env.nat_subs_set
 
 let rec check_nat_type (typ: Il.Ast.typ): bool = 
@@ -42,6 +42,16 @@ let rec check_nat_type (typ: Il.Ast.typ): bool =
       | _ -> false
     )
     | _ -> false
+
+(* Hack for now until there is a way to distinguish family types well *)
+let check_normal_type_creation (inst : inst) : bool = 
+  match inst.it with
+    | InstD (_, args, _) -> List.for_all (fun arg -> 
+      match arg.it with 
+        | ExpA {it = VarE _; _} | TypA _ -> true
+        | _ -> false  
+    ) args 
+
 
 let is_disjuntion_exp (exp : exp): bool =
   match exp.it with 
@@ -71,7 +81,7 @@ let rec check_subset_nat (exp : exp): bool =
     | CmpE (`EqOp, _, e1, e2) -> is_var_exp e1 && is_nat_exp e2
     | _ -> false
 
-let rec get_nat_list (exp : exp): nat list = 
+let rec get_nat_list (exp : exp): Num.nat list = 
   match exp.it with
     | NumE (`Nat n) -> [n]
     | CmpE (`EqOp, _, e1, e2) | BinE (`OrOp, `BoolT, e1, e2) -> get_nat_list e1 @ get_nat_list e2
@@ -83,9 +93,10 @@ let get_inst_params (inst : inst): bind list * arg list * deftyp =
 
 (* TODO fill necessary info *)
 let create_mixop (at : Util.Source.region) (id : string): mixop =
-  [[Atom id $$ at % (info "")]]
+  [[Atom.Atom id $$ at % (Atom.info "")]]
 
-let create_mapping_functions (id : id) (at : Util.Source.region) (nat_list : nat list) =
+  
+let create_mapping_functions (id : id) (at : Util.Source.region) (nat_list : Num.nat list) =
   let fresh_id = "x" $ at in
   let new_id = (id.it ^ map_func_suffix) $ id.at in
   let new_id_inv = (map_fun_prefix ^ id.it) $ id.at in
@@ -109,17 +120,44 @@ let create_mapping_functions (id : id) (at : Util.Source.region) (nat_list : nat
   let empty_clause = DefD([ExpB(fresh_id, new_typ) $ at], [ExpA (VarE fresh_id $$ at % new_typ) $ at], create_option_exp None user_typ, []) $ at in
   [DecD(new_id, [new_param], new_typ, new_clauses); DecD(new_id_inv, [new_param_inv], opt_typ, new_clauses_inv @ [empty_clause])]
 
-let rec transform_type (env : pass_env) (typ : Il.Ast.typ): Il.Ast.typ =
+(* Currently this assumes that you can only have a variable in the matching process *)
+let iter_get_nat_cases (env : pass_env): (text * text) StringMap.t ref * (module Iter.Arg) = 
+  let module Arg =
+    struct
+      include Iter.Skip
+      let acc = ref StringMap.empty
+      let acc_i = ref 1
+      let visit_exp exp =
+        match exp.it with 
+          | CaseE (_m, { it = TupE [{it = VarE var_id; _}]; _}) -> 
+            let typ_id = Print.string_of_typ exp.note in
+            if StringMap.mem var_id.it !acc then () else 
+            (match (StringMap.find_opt typ_id env.nat_subs_set) with
+              | None -> ()
+              | Some _ -> acc := StringMap.add var_id.it (typ_id ^ match_suffix ^ Int.to_string !acc_i, typ_id) !acc;
+                acc_i := !acc_i + 1
+            )
+          | _ -> ()
+    end
+  in 
+  Arg.acc, (module Arg)
+
+let rec transform_type (env : pass_env) (case_map : (text * text) StringMap.t) (typ : Il.Ast.typ): Il.Ast.typ =
   (match typ.it with
-    | VarT (id, args) -> VarT (id, List.map (transform_arg env) args)
-    | TupT exp_typ_pairs -> TupT (List.map (fun (e, t) -> (transform_exp env e, transform_type env t)) exp_typ_pairs)
-    | IterT (t, iter) -> IterT (transform_type env t, iter)
+    | VarT (id, args) -> VarT (id, List.map (transform_arg env case_map) args)
+    | TupT exp_typ_pairs -> TupT (List.map (fun (e, t) -> (transform_exp env case_map e, transform_type env case_map t)) exp_typ_pairs)
+    | IterT (t, iter) -> IterT (transform_type env case_map t, iter)
     | _ -> typ.it
   ) $ typ.at
 
-and transform_exp (env : pass_env) (exp : exp): exp =
-  let t_func = transform_exp env in
+and transform_exp (env : pass_env) (case_map : (text * text) StringMap.t) (exp : exp): exp =
+  let t_func = transform_exp env case_map in
   (match exp.it with
+    | VarE id when not (StringMap.is_empty case_map) -> (match (StringMap.find_opt id.it case_map) with 
+      | None -> VarE id
+      | Some (new_id, typ_id) -> let var_exp = VarE (new_id $ exp.at) $$ exp.at % (VarT (typ_id $ exp.at, []) $ exp.at) in
+        CallE (typ_id ^ map_func_suffix $ exp.at, [ExpA var_exp $ exp.at])
+      )
     | UnE (unop, optyp, e) -> UnE (unop, optyp, t_func e)
     | BinE (binop, optyp, e1, e2) -> BinE (binop, optyp, t_func e1, t_func e2)
     | CmpE (cmpop, optyp, e1, e2) -> CmpE (cmpop, optyp, t_func e1, t_func e2)
@@ -130,12 +168,11 @@ and transform_exp (env : pass_env) (exp : exp): exp =
         then CallE (Print.string_of_typ_name e.note ^ map_func_suffix $ e.at, [ExpA e $ e.at]) 
         else ProjE (t_func e1, i)
     | ProjE (e, i) -> ProjE (t_func e, i)
-    | CaseE (m, ({it = TupE []; _} as e)) -> CaseE (m, e) 
     | CaseE (m, ({it = TupE exps; _} as e))  -> 
       let id = (Print.string_of_typ_name exp.note) in 
       (match (StringMap.find_opt id env.nat_subs_set) with
         | None -> CaseE (m, t_func e)
-        | Some nat_list -> transform_case exp.note env exps exp nat_list
+        | Some nat_list -> transform_case exp.note env case_map exps exp nat_list
       )
     | UncaseE (e, m) -> UncaseE (t_func e, m)
     | OptE (Some e) -> OptE (Some (t_func e))
@@ -150,68 +187,69 @@ and transform_exp (env : pass_env) (exp : exp): exp =
     | CatE (e1, e2) -> CatE (t_func e1, t_func e2)
     | IdxE (e1, e2) -> IdxE (t_func e1, t_func e2)
     | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)
-    | UpdE (e1, path, e2) -> UpdE (t_func e1, transform_path env path, t_func e2)
-    | ExtE (e1, path, e2) -> ExtE (t_func e1, transform_path env path, t_func e2)
-    | CallE (id, args) -> CallE (id, List.map (transform_arg env) args)
-    | IterE (e, iterexp) -> IterE (t_func e, transform_iterexp env iterexp)
+    | UpdE (e1, path, e2) -> UpdE (t_func e1, transform_path env case_map path, t_func e2)
+    | ExtE (e1, path, e2) -> ExtE (t_func e1, transform_path env case_map path, t_func e2)
+    | CallE (id, args) -> CallE (id, List.map (transform_arg env case_map) args)
+    | IterE (e, iterexp) -> IterE (t_func e, transform_iterexp env case_map iterexp)
     | CvtE (e, ntyp1, ntyp2) -> CvtE (t_func e, ntyp1, ntyp2)
-    | SubE (e, t1, t2) -> SubE (t_func e, transform_type env t1, transform_type env t2)
+    | SubE (e, t1, t2) -> SubE (t_func e, transform_type env case_map t1, transform_type env case_map t2)
     | e -> e
-  ) $$ exp.at % (transform_type env exp.note)
+  ) $$ exp.at % (transform_type env case_map exp.note)
 
-and transform_iterexp (env : pass_env) (iterexp : iterexp): iterexp = 
+and transform_iterexp (env : pass_env) (case_map : (text * text) StringMap.t) (iterexp : iterexp): iterexp = 
   let (iter, id_exp_pairs) = iterexp in
-  (iter, map_snd (transform_exp env) id_exp_pairs)
+  (iter, map_snd (transform_exp env case_map) id_exp_pairs)
 
-and transform_case (typ : Il.Ast.typ) (env : pass_env) (exps : exp list) (default : exp) (nat_list : nat list): exp' =
+and transform_case (typ : Il.Ast.typ) (env : pass_env) (case_map : (text * text) StringMap.t) (exps : exp list) (default : exp) (nat_list : Num.nat list): exp' =
   let id = (Print.string_of_typ_name typ) in 
   match exps with
     | [{it = NumE (`Nat n); _}] -> 
       if List.mem n nat_list
         then CaseE (create_mixop no_region (case_prefix ^ (Z.to_string n)), empty_tuple) 
         else pass_error default.at ("Cannot monomorphize case that does not exist for nat: " ^ Z.to_string n)
-    | [e] -> TheE (CallE (map_fun_prefix ^ id $ e.at, [ExpA (transform_exp env e) $ e.at]) $$ e.at % (IterT(typ, Opt) $ no_region))
+    | [{it = VarE var_id ; _}] when not (StringMap.is_empty case_map) -> VarE (fst (Option.value (StringMap.find_opt var_id.it case_map) ~default:(var_id.it, "")) $ var_id.at)
+    | [e] -> TheE (CallE (map_fun_prefix ^ id $ e.at, [ExpA (transform_exp env case_map e) $ e.at]) $$ e.at % (IterT(typ, Opt) $ no_region))
     | _ -> pass_error default.at "Must have only one expression in case" (* Should not happen due to validation *)
     
-and transform_path (env : pass_env) (path : path): path = 
+and transform_path (env : pass_env) (case_map : (text * text) StringMap.t) (path : path): path = 
   (match path.it with
     | RootP -> RootP
-    | IdxP (p, e) -> IdxP (transform_path env p, transform_exp env e)
-    | SliceP (p, e1, e2) -> SliceP (transform_path env p, transform_exp env e1, transform_exp env e2)
-    | DotP (p, a) -> DotP (transform_path env p, a)
-  ) $$ path.at % transform_type env path.note
+    | IdxP (p, e) -> IdxP (transform_path env case_map p, transform_exp env case_map e)
+    | SliceP (p, e1, e2) -> SliceP (transform_path env case_map p, transform_exp env case_map e1, transform_exp env case_map e2)
+    | DotP (p, a) -> DotP (transform_path env case_map p, a)
+  ) $$ path.at % transform_type env case_map path.note
 
-and transform_arg (env : pass_env) (arg : arg): arg =
+and transform_arg (env : pass_env) (case_map : (text * text) StringMap.t) (arg : arg): arg =
   (match arg.it with
-    | ExpA exp -> ExpA (transform_exp env exp)
-    | TypA typ -> TypA (transform_type env typ)
+    | ExpA exp -> ExpA (transform_exp env case_map exp)
+    | TypA typ -> TypA (transform_type env case_map typ)
     | _ -> arg.it
   ) $ arg.at
 
-and transform_bind (env : pass_env) (bind : bind): bind =
+and transform_bind (env : pass_env) (case_map : (text * text) StringMap.t) (bind : bind): bind =
   (match bind.it with
-    | ExpB (id, typ) -> ExpB (id, transform_type env typ)
+    | ExpB (id, typ) -> ExpB (id, transform_type env case_map typ)
     | b -> b
   ) $ bind.at
 
 and transform_param (env : pass_env) (param : param): param =
   (match param.it with
-    | ExpP (id, typ) -> ExpP (id, transform_type env typ)
+    | ExpP (id, typ) -> ExpP (id, transform_type env StringMap.empty typ)
     | p -> p
   ) $ param.at
 
-and transform_prem (env : pass_env) (prem : prem): prem =
+and transform_prem (env : pass_env) (case_map : (text * text) StringMap.t) (prem : prem): prem =
   (match prem.it with
-    | IfPr e -> IfPr (transform_exp env e)
-    | RulePr (id, m, e) -> RulePr (id, m, transform_exp env e)
-    | LetPr (e1, e2, ids) -> LetPr (transform_exp env e1, transform_exp env e2, ids)
+    | IfPr e -> IfPr (transform_exp env case_map e)
+    | RulePr (id, m, e) -> RulePr (id, m, transform_exp env case_map e)
+    | LetPr (e1, e2, ids) -> LetPr (transform_exp env case_map e1, transform_exp env case_map e2, ids)
     | ElsePr -> ElsePr
-    | IterPr (prem, iterexp) -> IterPr (transform_prem env prem, transform_iterexp env iterexp)
+    | IterPr (prem, iterexp) -> IterPr (transform_prem env case_map prem, transform_iterexp env case_map iterexp)
   ) $ prem.at
 
 let transform_type_creation (env : pass_env) (id : id) (inst : inst): inst * def' list =
   let (binds, args, deftyp) = get_inst_params inst in 
-  let reconstruct_typ dtyp new_defs = (InstD (binds, List.map (transform_arg env) args, dtyp $ deftyp.at) $ inst.at, new_defs) in
+  let reconstruct_typ dtyp new_defs = (InstD (binds, List.map (transform_arg env StringMap.empty) args, dtyp $ deftyp.at) $ inst.at, new_defs) in
   match deftyp.it with
     | VariantT [(_, (_, t, [{it = IfPr exp; _}]), _)] when check_nat_type t && check_subset_nat exp -> 
       let nat_list = get_nat_list exp in 
@@ -222,43 +260,63 @@ let transform_type_creation (env : pass_env) (id : id) (inst : inst): inst * def
       add_to_nat_set env id nat_list;
       reconstruct_typ (VariantT new_cases) (create_mapping_functions id inst.at nat_list)
     | VariantT typcases -> reconstruct_typ (VariantT (List.map (fun (m, (case_binds, t, prems), hints) ->
-        (m, (List.map (transform_bind env) case_binds, transform_type env t, List.map (transform_prem env) prems), hints)
+        (m, (List.map (transform_bind env StringMap.empty) case_binds, transform_type env StringMap.empty t, List.map (transform_prem env StringMap.empty) prems), hints)
       ) typcases)) []
     | StructT typfields -> reconstruct_typ (StructT (List.map (fun (a, (case_binds, t, prems), hints) ->
-        (a, (List.map (transform_bind env) case_binds, transform_type env t, List.map (transform_prem env) prems), hints)
+        (a, (List.map (transform_bind env StringMap.empty) case_binds, transform_type env StringMap.empty t, List.map (transform_prem env StringMap.empty) prems), hints)
       ) typfields)) []
-    | AliasT typ -> reconstruct_typ (AliasT (transform_type env typ)) []
+    | AliasT typ -> reconstruct_typ (AliasT (transform_type env StringMap.empty typ)) []
 
 let transform_rule (env : pass_env) (rule : rule): rule =
   (match rule.it with
     | RuleD (id, binds, m, exp, prems) -> 
-      RuleD (id, List.map (transform_bind env) binds, m, transform_exp env exp, List.map (transform_prem env) prems)
+      RuleD (id, List.map (transform_bind env StringMap.empty) binds, m, transform_exp env StringMap.empty exp, List.map (transform_prem env StringMap.empty) prems)
   ) $ rule.at
+
+let create_binds (case_map : (text * text) StringMap.t): bind list =
+  List.map (fun (_id, (new_id, typ_id)) -> 
+    ExpB (new_id $ no_region, VarT(typ_id $ no_region, []) $ no_region) $ no_region
+  ) (StringMap.bindings case_map)
 
 let transform_clause (env : pass_env) (clause : clause): clause =
   (match clause.it with
     | DefD (binds, args, exp, prems) -> 
-      DefD (List.map (transform_bind env) binds, 
-        List.map (transform_arg env) args, 
-        transform_exp env exp, List.map (transform_prem env) prems)
+      let acc, (module Arg: Iter.Arg) = iter_get_nat_cases env in
+      let module Acc = Iter.Make(Arg) in
+      Acc.args args;
+      let filtered_binds = List.filter (fun b -> match b.it with 
+        | ExpB (id, _) -> not (StringMap.mem id.it !acc)
+        | _ -> true 
+      ) binds in
+      DefD (create_binds !acc @ List.map (transform_bind env !acc) filtered_binds, 
+        List.map (transform_arg env !acc) args, 
+        transform_exp env !acc exp, List.map (transform_prem env !acc) prems)
   ) $ clause.at
 
 let transform_inst (env : pass_env) (inst : inst): inst =
   (match inst.it with
-    | InstD (binds, args, deftyp) -> InstD (List.map (transform_bind env) binds, List.map (transform_arg env) args, (match deftyp.it with
-      | VariantT typcases -> VariantT (List.map (fun (m, (t_binds, typ, prems), hints) -> (m, (List.map (transform_bind env) t_binds, transform_type env typ, List.map (transform_prem env) prems), hints)) typcases) 
-      | StructT typfields -> StructT (List.map (fun (a, (t_binds, typ, prems), hints) -> (a, (List.map (transform_bind env) t_binds, transform_type env typ, List.map (transform_prem env) prems), hints)) typfields) 
-      | AliasT typ -> AliasT (transform_type env typ)
+    | InstD (binds, args, deftyp) -> 
+    let acc, (module Arg: Iter.Arg) = iter_get_nat_cases env in
+    let module Acc = Iter.Make(Arg) in
+    Acc.args args;  
+    let filtered_binds = List.filter (fun b -> match b.it with 
+        | ExpB (id, _) -> not (StringMap.mem id.it !acc)
+        | _ -> true 
+    ) binds in
+    InstD (create_binds !acc @ List.map (transform_bind env !acc) filtered_binds, List.map (transform_arg env !acc) args, (match deftyp.it with
+      | VariantT typcases -> VariantT (List.map (fun (m, (t_binds, typ, prems), hints) -> (m, (List.map (transform_bind env !acc) t_binds, transform_type env !acc typ, List.map (transform_prem env !acc) prems), hints)) typcases) 
+      | StructT typfields -> StructT (List.map (fun (a, (t_binds, typ, prems), hints) -> (a, (List.map (transform_bind env !acc) t_binds, transform_type env !acc typ, List.map (transform_prem env !acc) prems), hints)) typfields) 
+      | AliasT typ -> AliasT (transform_type env !acc typ)
     ) $ deftyp.at)
   ) $ inst.at
 
 let rec transform_def (env : pass_env) (def : def): def list = 
   (match def.it with
-    | TypD (id, params, [inst]) -> let (new_inst, new_defs) = transform_type_creation env id inst in
+    | TypD (id, params, [inst]) when check_normal_type_creation inst -> let (new_inst, new_defs) = transform_type_creation env id inst in
       [TypD (id, List.map (transform_param env) params, [new_inst])] @ new_defs
     | TypD (id, params, insts) -> [TypD(id, List.map (transform_param env) params, List.map (transform_inst env) insts)] (* TODO think of extending this? *)
-    | RelD (id, mixop, typ, rules) -> [RelD (id, mixop, transform_type env typ, List.map (transform_rule env) rules)]
-    | DecD (id, params, typ, clauses) -> [DecD (id, List.map (transform_param env) params, transform_type env typ, List.map (transform_clause env) clauses)]
+    | RelD (id, mixop, typ, rules) -> [RelD (id, mixop, transform_type env StringMap.empty typ, List.map (transform_rule env) rules)]
+    | DecD (id, params, typ, clauses) -> [DecD (id, List.map (transform_param env) params, transform_type env StringMap.empty typ, List.map (transform_clause env) clauses)]
     | RecD defs -> [RecD (List.concat_map (transform_def env) defs)]
     | _ -> [def.it]
   ) |> List.map (fun d' -> d' $ def.at)
