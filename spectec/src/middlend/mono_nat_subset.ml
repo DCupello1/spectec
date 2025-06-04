@@ -146,9 +146,14 @@ let rec transform_type (env : pass_env) (case_map : (text * text) StringMap.t) (
   (match typ.it with
     | VarT (id, args) -> VarT (id, List.map (transform_arg env case_map) args)
     | TupT exp_typ_pairs -> TupT (List.map (fun (e, t) -> (transform_exp env case_map e, transform_type env case_map t)) exp_typ_pairs)
-    | IterT (t, iter) -> IterT (transform_type env case_map t, iter)
+    | IterT (t, iter) -> IterT (transform_type env case_map t, transform_iter env case_map iter)
     | _ -> typ.it
   ) $ typ.at
+
+and transform_iter (env : pass_env) (case_map : (text * text) StringMap.t) (iter : iter): iter =
+  match iter with
+    | ListN (exp, id) -> ListN (transform_exp env case_map exp, id)
+    | i -> i
 
 and transform_exp (env : pass_env) (case_map : (text * text) StringMap.t) (exp : exp): exp =
   let t_func = transform_exp env case_map in
@@ -198,7 +203,7 @@ and transform_exp (env : pass_env) (case_map : (text * text) StringMap.t) (exp :
 
 and transform_iterexp (env : pass_env) (case_map : (text * text) StringMap.t) (iterexp : iterexp): iterexp = 
   let (iter, id_exp_pairs) = iterexp in
-  (iter, map_snd (transform_exp env case_map) id_exp_pairs)
+  (transform_iter env case_map iter, map_snd (transform_exp env case_map) id_exp_pairs)
 
 and transform_case (typ : Il.Ast.typ) (env : pass_env) (case_map : (text * text) StringMap.t) (exps : exp list) (default : exp) (nat_list : Num.nat list): exp' =
   let id = (Print.string_of_typ_name typ) in 
@@ -284,6 +289,7 @@ let transform_clause (env : pass_env) (clause : clause): clause =
       let acc, (module Arg: Iter.Arg) = iter_get_nat_cases env in
       let module Acc = Iter.Make(Arg) in
       Acc.args args;
+      Acc.prems prems;
       let filtered_binds = List.filter (fun b -> match b.it with 
         | ExpB (id, _) -> not (StringMap.mem id.it !acc)
         | _ -> true 
