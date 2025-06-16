@@ -13,6 +13,7 @@ type target =
  | Prose of bool
  | Splice of Backend_splice.Config.t
  | Interpreter of string list
+ | Rocq
 
 type pass =
   | Sub
@@ -65,6 +66,8 @@ let enable_pass pass = selected_passes := PS.add pass !selected_passes
 let print_il il =
   Printf.printf "%s\n%!" (Il.Print.string_of_script ~suppress_pos:(!print_no_pos) il)
 
+let print_mil mil = 
+  Printf.printf "%s\n%!" (Mil.Print.string_of_script mil)
 
 (* Il pass metadata *)
 
@@ -139,6 +142,7 @@ let argspec = Arg.align (
   "--prose-rst", Arg.Unit (fun () -> target := Prose false), " Generate prose";
   "--interpreter", Arg.Rest_all (fun args -> target := Interpreter args),
     " Generate interpreter";
+  "--rocq", Arg.Unit (fun () -> target := Rocq), " Generate Rocq Definitions";
   "--debug", Arg.Unit (fun () -> Backend_interpreter.Debugger.debug := true),
     " Debug interpreter";
   "--unified-vars", Arg.Unit (fun () -> Il2al.Unify.rename := false),
@@ -319,6 +323,10 @@ let () =
       Backend_interpreter.Ds.init al;
       log "Interpreting...";
       Backend_interpreter.Runner.run args
+    | Rocq ->
+      let mil = Mil.Translate.transform il in
+      print_mil mil
+
     );
     log "Complete."
   with
