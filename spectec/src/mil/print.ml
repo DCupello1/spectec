@@ -1,0 +1,149 @@
+open Ast
+
+let parens s = "(" ^ s ^ ")"
+let square_parens s = "[" ^ s ^ "]"
+let comment_parens s = "(*" ^ s ^ "*)"
+let curly_parens s = "{" ^ s ^ "}"
+
+let empty_name s = match s with
+  | "" -> "NO_NAME"
+  | _ -> s
+
+let string_of_list_prefix prefix delim str_func ls = 
+  match ls with
+    | [] -> ""
+    | _ -> prefix ^ String.concat delim (List.map str_func ls)
+
+let string_of_list_suffix suffix delim str_func ls =
+  match ls with
+    | [] -> ""
+    | _ -> String.concat delim (List.map str_func ls) ^ suffix
+
+let string_of_list prefix suffix delim str_func ls =
+  match ls with
+    | [] -> ""
+    | _ -> prefix ^ String.concat delim (List.map str_func ls) ^ suffix
+
+let string_of_basic_exp_term t = 
+  match t with
+    | T_bool b -> Bool.to_string b
+    | T_nat n -> Z.to_string n
+    | T_int i -> Z.to_string i
+    | T_rat r -> Q.to_string r
+    | T_real r -> Float.to_string r
+    | T_string s -> s
+    | T_exp_unit -> "()"
+    | T_not -> "~"
+    | T_and -> " /\\ "
+    | T_or -> " \\/ "
+    | T_impl -> " -> "
+    | T_equiv -> " <-> "
+    | T_add -> " + "
+    | T_sub -> " - "
+    | T_mul -> " * "
+    | T_div -> " / "
+    | T_exp -> " ^ "
+    | T_mod -> " % "
+    | T_eq -> " = "
+    | T_neq -> " /= "
+    | T_lt -> " < "
+    | T_gt -> " > "
+    | T_le -> " <= "
+    | T_ge -> " >= "
+    | T_some -> "Option.Some"
+    | T_none -> "Option.None"
+    | T_recordconcat -> " @ "
+    | T_listconcat -> " ++ "
+    | T_listcons -> " :: "
+    | T_listlength -> "List.length"
+    | T_slicelookup -> "List.slice"
+    | T_listlookup -> "List.lookup"
+    | T_succ -> "S"
+    | T_invopt -> "Option.Inv"
+    | T_map I_list -> "List.map"
+    | T_map I_option -> "Option.map"
+    | T_zipwith I_list -> "List.zipWith"
+    | T_zipwith I_option -> "Option.zipWith"
+
+let string_of_basic_type_term t =
+  match t with
+    | T_unit -> "unit"
+    | T_bool -> "bool"
+    | T_nat -> "nat"
+    | T_int -> "int"
+    | T_rat -> "rat"
+    | T_real -> "real" (* float? *)
+    | T_string -> "string"
+    | T_list -> "list"
+    | T_opt -> "option"
+    | T_anytype -> "Type"
+
+let rec string_of_term t = 
+  match t with 
+    | T_exp_basic t_basic -> string_of_basic_exp_term t_basic
+    | T_type_basic t_typ_basic -> string_of_basic_type_term t_typ_basic
+    | T_ident ids -> String.concat "__" ids
+    | T_list terms -> square_parens (String.concat "; " (List.map string_of_term terms))
+    | T_lambda (ids, term) -> parens ("fun " ^ (String.concat " " ids) ^ " => " ^ string_of_term term)
+    | T_record_fields fields -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
+    | T_match [] -> ""
+    | T_match patterns -> parens (String.concat ", " (List.map string_of_term patterns))
+    | T_app (base_term, args) -> parens (empty_name (string_of_term base_term) ^ string_of_list_prefix " " " " string_of_term args)
+    | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
+    | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term terms))
+    | T_cast (term, typ) -> parens (string_of_term term ^ " : " ^ string_of_term typ)
+    | T_update _ -> comment_parens ("Unsupported term: update") (* TODO revamp update and extend *)
+    | T_extend _ -> comment_parens ("Unsupported term: extend")
+    | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
+
+let string_of_binder b = 
+  let (id, term) = b in
+  parens (id ^ " : " ^ string_of_term term)
+
+let grab_id_of_binders bs = 
+  List.map fst bs
+
+let rec string_of_premise p = 
+  match p with
+    | P_if term -> string_of_term term
+    | P_neg prem -> "~" ^ string_of_premise prem
+    | P_rule (ident, terms) -> parens (ident ^ string_of_list_prefix " " " " string_of_term terms)
+    | P_else -> "otherwise"
+    | P_forall (I_list, p, id) -> "List.Forall " ^ parens ( "fun " ^ id ^ " => " ^ string_of_premise p) ^ " " ^ id
+    | P_forall (I_option, p, id) -> "Option.Forall " ^ parens ( "fun " ^ id ^ " => " ^ string_of_premise p) ^ " " ^ id
+    | P_forall2 (I_list, p, id, id2) -> "List.Forall2 " ^ parens ( "fun " ^ id ^ " " ^ id2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
+    | P_forall2 (I_option, p, id, id2) -> "Option.Forall2 " ^ parens ( "fun " ^ id ^ " " ^ id2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
+    | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
+
+let string_of_inductive_type_entries entries = 
+  List.map (fun (id, bs') -> empty_name id ^ string_of_list_prefix " " " " string_of_binder bs') entries
+let rec string_of_def (d : mil_def) =
+  ";; " ^ Util.Source.string_of_region d.at ^ "\n" ^
+  (match d.it with
+    | TypeAliasD (id, binds, term) -> "type " ^ id ^ string_of_list_prefix " " " " string_of_binder binds ^ " = " ^ string_of_term term
+    | RecordD (id, record_entry) -> "record " ^ id ^ " = " ^ curly_parens ("\n\t" ^ String.concat ",\n\t" (List.map (fun (id, term) -> 
+        id ^ " : " ^ string_of_term term
+      ) record_entry) ^ "\n")
+    | InductiveD (id, bs, inductive_type_entries) -> "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " =\n\t| " ^
+      String.concat "\n\t| " (string_of_inductive_type_entries inductive_type_entries)
+    | DefinitionD (id, bs, rt, clauses) -> "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term rt ^ " :=\n\t" ^
+      "match " ^ parens (String.concat ", " (grab_id_of_binders bs)) ^ " with\n\t\t| " ^
+      String.concat "\n\t\t| " (List.map (fun (match_term, term) -> string_of_term match_term ^ " => " ^ string_of_term term) clauses)
+    | GlobalDeclarationD (id, rt, (_, term)) -> "definition " ^ id ^ " : " ^ string_of_term rt ^ " := " ^ string_of_term term
+    | MutualRecD defs -> String.concat "" (List.map string_of_def defs)
+    | AxiomD (id, bs, rt) -> "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term rt 
+    | CoercionD (fn_name, typ1, typ2) -> "coercion " ^ fn_name ^ " : " ^ typ1 ^ " <: " ^ typ2
+    | UnsupportedD str -> "Unsupported definition: " ^ str
+    | InductiveRelationD (id, rel_args, relation_type_entries) -> 
+      "relation " ^ id ^ " : " ^ string_of_list_suffix " -> bool" " -> " string_of_term rel_args ^ " := \n\t| " ^ 
+      String.concat "\n\t| " (List.map (fun ((case_id, binds), premises, terms) -> 
+          case_id ^ " : " ^ string_of_list "forall " ", " " " string_of_binder binds ^
+          string_of_list_suffix " -> " " -> " string_of_premise premises ^ id ^ 
+          string_of_list_prefix " " " " string_of_term terms
+      
+      ) relation_type_entries) 
+    | _ -> ""
+  ) ^ "\n\n"
+
+let string_of_script ds = 
+  String.concat "" (List.map (string_of_def) ds)
