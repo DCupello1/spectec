@@ -206,7 +206,7 @@ let () =
     if !print_final_il && not !print_all_il then print_il il;
 
     let al =
-      if not !print_al && !print_al_o = "" && (!target = Check || !target = Ast || !target = Latex) then []
+      if not !print_al && !print_al_o = "" && (!target = Check || !target = Ast || !target = Latex || !target = Rocq) then []
       else (
         log "Translating to AL...";
         let interp = match !target with

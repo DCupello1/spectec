@@ -137,7 +137,7 @@ and transform_exp (exp : exp) =
     | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, [transform_exp e; T_exp_basic (T_nat (Z.of_int n))])
     | CaseE (mixop, e) ->
       T_app (T_ident [transform_mixop mixop], transform_tuple_exp transform_exp e)
-    | UncaseE (_e, _mixop) -> T_unsupported ("Uncase: " ^ string_of_exp exp)
+    | UncaseE (_e, _mixop) -> T_unsupported ("UncaseE: " ^ Il.Print.string_of_exp exp) (* Should be removed by preprocessing *)
     | OptE (Some e) -> T_app (T_exp_basic T_some, [transform_exp e])
     | OptE None -> T_exp_basic T_none
     | TheE e -> T_app (T_exp_basic T_invopt, [transform_exp e])
@@ -373,4 +373,5 @@ let is_not_hintdef (d : def) : bool =
 
 (* Main transformation function *)
 let transform (il : script) : mil_script =
-  List.map transform_def (List.filter is_not_hintdef il) 
+  let preprocessed_il = Preprocess.preprocess il in 
+  List.map transform_def (List.filter is_not_hintdef preprocessed_il) 
