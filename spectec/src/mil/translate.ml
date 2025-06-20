@@ -351,7 +351,6 @@ let transform_inst (_id : id) (i : inst) =
       | VariantT typcases -> 
         InductiveT (List.map (fun (m, (case_binds, _, _), _) -> (transform_mixop m, List.map transform_bind case_binds)) typcases)
     
-
 let rec transform_def (d : def) : mil_def =
   (match d.it with
     | TypD (id, _, [{it = InstD (binds, _, deftyp);_}]) -> transform_deftyp id binds deftyp 
