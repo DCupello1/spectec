@@ -117,6 +117,7 @@ let rec string_of_premise p =
 
 let string_of_inductive_type_entries entries = 
   List.map (fun (id, bs') -> empty_name id ^ string_of_list_prefix " " " " string_of_binder bs') entries
+  
 let rec string_of_def (d : mil_def) =
   ";; " ^ Util.Source.string_of_region d.at ^ "\n" ^
   (match d.it with
@@ -137,7 +138,7 @@ let rec string_of_def (d : mil_def) =
     | InductiveRelationD (id, rel_args, relation_type_entries) -> 
       "relation " ^ id ^ " : " ^ string_of_list_suffix " -> bool" " -> " string_of_term rel_args ^ " := \n\t| " ^ 
       String.concat "\n\t| " (List.map (fun ((case_id, binds), premises, terms) -> 
-          case_id ^ " : " ^ string_of_list "forall " ", " " " string_of_binder binds ^
+          empty_name (case_id) ^ " : " ^ string_of_list "forall " ", " " " string_of_binder binds ^
           string_of_list_suffix " -> " " -> " string_of_premise premises ^ id ^ 
           string_of_list_prefix " " " " string_of_term terms
       

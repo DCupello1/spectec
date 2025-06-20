@@ -1,5 +1,5 @@
 (library
   (name mil)
   (libraries util xl il)
-  (modules ast translate sub print)
+  (modules ast translate sub print preprocess)
 )
