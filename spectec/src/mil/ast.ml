@@ -91,6 +91,13 @@ and premise =
   | P_forall2 of iterator * premise * ident * ident
   | P_unsupported of string
 
+and function_body = 
+  | F_term of term
+  | F_if_else of term * function_body * function_body
+  | F_let of term * term * function_body
+  | F_match of term (* TODO this one will be tricky *)
+  | F_default
+
 and binders = (ident * term) list
 
 and record_entry = (ident * term)
@@ -105,7 +112,7 @@ and inferred_types = term list
 
 and return_type = term
 
-and clause_entry = term * term 
+and clause_entry = term * function_body 
 
 and family_deftype = 
   | TypeAliasT of term
