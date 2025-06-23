@@ -1,12 +1,12 @@
 open Il.Ast
 open Il.Print
+open Il.Free
 open Ast
 open Util
 open Source
 open Either
 
-(* Util functions for transform *)
-module IdSet = Set.Make(String)
+
 let error at msg = Error.error at "MIL Transformation" msg
 let family_type_suffix = "entry"
 let coerce_prefix = "coec_"
@@ -146,7 +146,7 @@ and transform_exp (exp : exp) =
     | CompE (exp1, exp2) -> T_app_infix (T_exp_basic T_recordconcat, transform_exp exp1, transform_exp exp2)
     | ListE exps -> T_list (List.map transform_exp exps)
     | LenE e -> T_app (T_exp_basic T_listlength, [transform_exp e])
-    | CatE (exp1, exp2) -> T_app (T_exp_basic T_listconcat, [T_ident ["_"] ;transform_exp exp1; transform_exp exp2])
+    | CatE (exp1, exp2) -> T_app_infix (T_exp_basic T_listconcat, transform_exp exp1, transform_exp exp2)
     | IdxE (exp1, exp2) -> T_app (T_exp_basic T_listlookup, [transform_exp exp1; transform_exp exp2])
     | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, [transform_exp exp1; transform_exp exp2; transform_exp exp3])
     | UpdE (exp1, path, exp2) -> T_update (transform_path_start path exp1, transform_exp exp1, transform_exp exp2)
@@ -159,8 +159,8 @@ and transform_exp (exp : exp) =
         | Opt, [], _ -> T_app (T_exp_basic T_some, [exp1])
         | (List | List1 | ListN _ | Opt), _, (VarE _ | IterE _) -> exp1 
         | Opt, [(_, _)], OptE (Some e) -> T_app (T_exp_basic T_some, [transform_exp e])
-        | (List | List1 | ListN _ | Opt), [(v, _)], _ -> T_app (T_exp_basic (T_map (transform_iter iter)), [T_lambda ([transform_id v], exp1); exp1])
-        | (List | List1 | ListN _ | Opt), [(v, _); (s, _)], _ -> T_app (T_exp_basic (T_zipwith (transform_iter iter)), [T_lambda ([transform_id v; transform_id s], exp1); exp1])
+        | (List | List1 | ListN _ | Opt), [(v, _)], _ -> T_app (T_exp_basic (T_map (transform_iter iter)), [T_lambda ([transform_id v], exp1); T_ident [transform_id v]])
+        | (List | List1 | ListN _ | Opt), [(v, _); (s, _)], _ -> T_app (T_exp_basic (T_zipwith (transform_iter iter)), [T_lambda ([transform_id v; transform_id s], exp1); T_ident [transform_id v]; T_ident [transform_id s]])
         | _ -> exp1
       ) 
     | SubE (e, _, typ2) -> T_cast (transform_exp e, transform_type typ2)
@@ -337,10 +337,10 @@ let transform_rule (_id : id) (r : rule) =
     | RuleD (rule_id, binds, _mixop, exp, premises) -> 
       ((transform_id rule_id, List.map transform_bind binds), 
       List.map transform_premise premises, transform_tuple_exp transform_exp exp)
-
-let transform_clause (c : clause) =
-  match c.it with
-    | DefD (_binds, args, exp, _prems) -> (T_match (List.map transform_match_arg args), transform_exp exp)
+let transform_clause (c : clause) (fb : function_body option) =
+  match c.it, fb with
+    | DefD (_binds, args, exp, _prems), None -> (T_match (List.map transform_match_arg args), F_term (transform_exp exp))
+    | DefD (_binds, args, _, _prems), Some fb -> (T_match (List.map transform_match_arg args), fb)
 
 let transform_inst (_id : id) (i : inst) =
   match i.it with
@@ -350,6 +350,75 @@ let transform_inst (_id : id) (i : inst) =
       | StructT _ -> error i.at "Family of records should not exist" (* This should never occur *)
       | VariantT typcases -> 
         InductiveT (List.map (fun (m, (case_binds, _, _), _) -> (transform_mixop m, List.map transform_bind case_binds)) typcases)
+
+let transform_clauses (clauses : clause list) : clause_entry list =
+  let rec get_ids exp = 
+    match exp.it with
+      | VarE id -> [id]
+      | IterE (exp, _) -> get_ids exp
+      | TupE exps -> let result = List.map get_ids exps in
+        if List.exists List.is_empty result 
+          then [] 
+          else List.concat result
+      | _ -> []
+  in
+
+  let rec modify_let_prems free_vars prems = 
+    match prems with
+      | [] -> []
+      | ({it = IfPr {it = CmpE(`EqOp, _, exp1, exp2); _}; at; _} :: ps) 
+        when not (List.is_empty (get_ids exp1)) && not (List.exists (fun id -> Set.mem id.it free_vars.varid) (get_ids exp1)) -> 
+        (LetPr (exp1, exp2, (free_exp exp1).varid |> Set.elements) $ at) :: modify_let_prems free_vars ps
+      | ({it = IfPr {it = CmpE(`EqOp, _, exp1, exp2); _}; at; _} :: ps) 
+        when not (List.is_empty (get_ids exp2)) && not (List.exists (fun id -> Set.mem id.it free_vars.varid) (get_ids exp2)) -> 
+        (LetPr (exp2, exp1, (free_exp exp2).varid |> Set.elements) $ at) :: modify_let_prems free_vars ps
+      | (p :: ps) ->
+        p :: modify_let_prems free_vars ps 
+  in
+
+  let bigAndExp starting_exp exps = 
+    List.fold_left (fun acc exp -> BinE (`AndOp, `BoolT, acc, exp) $$ exp.at % (BoolT $ exp.at)) starting_exp exps
+  in
+  
+  let encode_prems acc_term otherwise prems =
+    let rec go acc_bool acc_term otherwise prems =
+      match prems with
+        | [] -> (match acc_bool with
+            | [] -> acc_term
+            | e :: es -> F_if_else (transform_exp (bigAndExp e es), acc_term, otherwise)
+          )
+        | {it = IfPr exp; _} :: ps -> go (exp :: acc_bool) acc_term otherwise ps
+        | {it = LetPr (exp1, exp2, _); _} :: ps -> go acc_bool (F_let (transform_exp exp1, transform_exp exp2, acc_term)) otherwise ps
+        | _ :: ps -> go acc_bool acc_term otherwise ps
+      in
+    go [] acc_term otherwise prems
+  in
+
+  let rec rearrange_clauses clauses = 
+    match clauses with
+      | [] -> []
+      | ({it = DefD(_, args, exp, prems); _} as clause) :: cs ->
+        let (same_args, rest) = list_split (fun c -> match c.it with
+          | DefD(_, args', _, _) -> Il.Eq.eq_list Il.Eq.eq_arg args args'
+        ) cs in
+        (match List.rev (clause :: same_args) with
+          | [] -> assert false (* Impossible to get to *)
+          | [_] -> 
+            transform_clause clause (Some (encode_prems (F_term (transform_exp exp)) F_default (List.rev prems)))
+          | {it = DefD(_, _, exp', _); _} :: rev_tail -> 
+            let starting_fb = F_term (transform_exp exp') in
+            let fb = List.fold_left (fun acc clause' -> match clause'.it with
+              | DefD(_, _, exp'', prems'') -> encode_prems (F_term (transform_exp exp'')) acc (List.rev prems'') 
+            ) starting_fb rev_tail in 
+            transform_clause clause (Some fb)
+        ) :: rearrange_clauses rest
+      
+  in
+  
+  List.map (fun clause -> match clause.it with 
+    | DefD(binds, args, exp, prems) -> DefD(binds, args, exp, modify_let_prems (free_list free_arg args) prems) $ clause.at
+  ) clauses 
+  |> rearrange_clauses
     
 let rec transform_def (d : def) : mil_def =
   (match d.it with
@@ -359,8 +428,9 @@ let rec transform_def (d : def) : mil_def =
     | DecD (id, params, typ, clauses) -> 
       (match params,clauses with
         | _, [] -> AxiomD (transform_id id, List.map transform_param params, transform_type typ)
-        | [], [clause] -> GlobalDeclarationD (transform_id id, transform_type typ, transform_clause clause)
-        | _ -> DefinitionD (transform_id id, List.map transform_param params, transform_type typ, (List.map transform_clause clauses))
+        | [], [clause] -> GlobalDeclarationD (transform_id id, transform_type typ, transform_clause clause None)
+        | _ -> 
+          DefinitionD (transform_id id, List.map transform_param params, transform_type typ, transform_clauses clauses)
       )
     | RecD defs -> MutualRecD (List.map transform_def defs)
     | HintD _ | GramD _ -> UnsupportedD (string_of_def d)
