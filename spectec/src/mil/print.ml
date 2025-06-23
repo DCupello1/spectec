@@ -88,10 +88,11 @@ let rec string_of_term t =
     | T_record_fields fields -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
     | T_match [] -> ""
     | T_match patterns -> parens (String.concat ", " (List.map string_of_term patterns))
-    | T_app (base_term, []) -> empty_name (string_of_term base_term)
-    | T_app (base_term, args) -> parens (empty_name (string_of_term base_term) ^ string_of_list_prefix " " " " string_of_term args)
+    | T_app (base_term, _, []) -> empty_name (string_of_term base_term)
+    | T_app (base_term, _, args) -> parens (empty_name (string_of_term base_term) ^ string_of_list_prefix " " " " string_of_term args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
     | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term terms))
+    | T_arrowtype (typ1, typ2) -> parens (string_of_term typ1 ^ " -> " ^ string_of_term typ2)
     | T_cast (term, typ) -> parens (string_of_term term ^ " : " ^ string_of_term typ)
     | T_update _ -> comment_parens ("Unsupported term: update") (* TODO revamp update and extend *)
     | T_extend _ -> comment_parens ("Unsupported term: extend")

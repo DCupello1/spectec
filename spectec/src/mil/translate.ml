@@ -100,13 +100,20 @@ let transform_numtyp (typ : numtyp) =
 let rec transform_type (typ : typ) =
   match typ.it with
     | VarT (id, []) -> T_ident [transform_id id]
-    | VarT (id, args) -> T_app (T_ident [transform_id id], List.map transform_arg args)
+    | VarT (id, args) -> 
+      let get_typ a = match a.it with
+        | ExpA exp -> transform_type exp.note
+        | TypA typ -> transform_type typ 
+        | DefA _ | GramA _ -> assert false (* TODO Extend later *)
+      in 
+      let var_type = List.fold_right (fun term acc -> T_arrowtype (term, acc)) (List.map get_typ args) (T_type_basic T_anytype) in
+      T_app (T_ident [transform_id id], var_type, List.map transform_arg args)
     | BoolT -> T_type_basic T_bool
     | NumT nt -> transform_numtyp nt
     | TextT -> T_type_basic T_string 
     | TupT [] -> T_type_basic T_unit
     | TupT typs -> T_tupletype (List.map (fun (_, t) -> transform_type t) typs)
-    | IterT (typ, iter) -> T_app (transform_itertyp iter, [transform_type typ])
+    | IterT (typ, iter) -> T_app (transform_itertyp iter, T_type_basic T_anytype, [transform_type typ])
 
 and transform_typ_args (typ : typ) =
   match typ.it with
@@ -121,6 +128,7 @@ and transform_tuple_to_relation_args (t : typ) =
 
 (* Expression functions *)
 and transform_exp (exp : exp) =
+  let typ = transform_type exp.note in
   match exp.it with 
     | VarE id -> T_ident [transform_id id]
     | BoolE b -> T_exp_basic (T_bool b)
@@ -129,38 +137,38 @@ and transform_exp (exp : exp) =
     | NumE (`Rat r) -> T_exp_basic (T_rat r)
     | NumE (`Real r) -> T_exp_basic (T_real r)
     | TextE txt -> T_exp_basic (T_string txt)
-    | UnE (unop, _, exp) -> transform_unop unop (transform_exp exp)
+    | UnE (unop, _, exp') -> transform_unop unop typ (transform_exp exp')
     | BinE (binop, _, exp1, exp2) -> T_app_infix (transform_binop binop, transform_exp exp1, transform_exp exp2)
     | CmpE (cmpop, _, exp1, exp2) -> T_app_infix (transform_cmpop cmpop, transform_exp exp1, transform_exp exp2)
     | TupE [] -> T_exp_basic T_exp_unit
     | TupE exps -> T_match (List.map transform_exp exps) 
-    | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, [transform_exp e; T_exp_basic (T_nat (Z.of_int n))])
+    | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, typ,[transform_exp e; T_exp_basic (T_nat (Z.of_int n))])
     | CaseE (mixop, e) ->
-      T_app (T_ident [transform_mixop mixop], transform_tuple_exp transform_exp e)
+      T_app (T_ident [transform_mixop mixop], typ, transform_tuple_exp transform_exp e)
     | UncaseE (_e, _mixop) -> T_unsupported ("UncaseE: " ^ Il.Print.string_of_exp exp) (* Should be removed by preprocessing *)
-    | OptE (Some e) -> T_app (T_exp_basic T_some, [transform_exp e])
+    | OptE (Some e) -> T_app (T_exp_basic T_some, typ, [transform_exp e])
     | OptE None -> T_exp_basic T_none
-    | TheE e -> T_app (T_exp_basic T_invopt, [transform_exp e])
+    | TheE e -> T_app (T_exp_basic T_invopt, typ, [transform_exp e])
     | StrE expfields -> T_record_fields (List.map (fun (a, e) -> (gen_typ_name exp.note ^ "__" ^ transform_atom a, transform_exp e)) expfields)
-    | DotE (e, atom) -> T_app (T_ident [transform_atom atom], [transform_exp e])
+    | DotE (e, atom) -> T_app (T_ident [transform_atom atom], typ, [transform_exp e])
     | CompE (exp1, exp2) -> T_app_infix (T_exp_basic T_recordconcat, transform_exp exp1, transform_exp exp2)
     | ListE exps -> T_list (List.map transform_exp exps)
-    | LenE e -> T_app (T_exp_basic T_listlength, [transform_exp e])
+    | LenE e -> T_app (T_exp_basic T_listlength, typ, [transform_exp e])
     | CatE (exp1, exp2) -> T_app_infix (T_exp_basic T_listconcat, transform_exp exp1, transform_exp exp2)
-    | IdxE (exp1, exp2) -> T_app (T_exp_basic T_listlookup, [transform_exp exp1; transform_exp exp2])
-    | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, [transform_exp exp1; transform_exp exp2; transform_exp exp3])
+    | IdxE (exp1, exp2) -> T_app (T_exp_basic T_listlookup, typ, [transform_exp exp1; transform_exp exp2])
+    | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, typ, [transform_exp exp1; transform_exp exp2; transform_exp exp3])
     | UpdE (exp1, path, exp2) -> T_update (transform_path_start path exp1, transform_exp exp1, transform_exp exp2)
     | ExtE (exp1, path, exp2) -> T_extend (transform_path_start path exp1, transform_exp exp1, transform_exp exp2)
-    | CallE (id, args) -> T_app (T_ident [transform_id id], List.map transform_arg args)
+    | CallE (id, args) -> T_app (T_ident [transform_id id], typ, List.map transform_arg args)
     | IterE (exp, (iter, ids)) ->  
         let exp1 = transform_exp exp in
         (match iter, ids, exp.it with
         | (List | List1 | ListN _), [], _ -> T_list [exp1] 
-        | Opt, [], _ -> T_app (T_exp_basic T_some, [exp1])
+        | Opt, [], _ -> T_app (T_exp_basic T_some, typ, [exp1])
         | (List | List1 | ListN _ | Opt), _, (VarE _ | IterE _) -> exp1 
-        | Opt, [(_, _)], OptE (Some e) -> T_app (T_exp_basic T_some, [transform_exp e])
-        | (List | List1 | ListN _ | Opt), [(v, _)], _ -> T_app (T_exp_basic (T_map (transform_iter iter)), [T_lambda ([transform_id v], exp1); T_ident [transform_id v]])
-        | (List | List1 | ListN _ | Opt), [(v, _); (s, _)], _ -> T_app (T_exp_basic (T_zipwith (transform_iter iter)), [T_lambda ([transform_id v; transform_id s], exp1); T_ident [transform_id v]; T_ident [transform_id s]])
+        | Opt, [(_, _)], OptE (Some e) -> T_app (T_exp_basic T_some, typ, [transform_exp e])
+        | (List | List1 | ListN _ | Opt), [(v, _)], _ -> T_app (T_exp_basic (T_map (transform_iter iter)), typ, [T_lambda ([transform_id v], exp1); T_ident [transform_id v]])
+        | (List | List1 | ListN _ | Opt), [(v, _); (s, _)], _ -> T_app (T_exp_basic (T_zipwith (transform_iter iter)), typ, [T_lambda ([transform_id v; transform_id s], exp1); T_ident [transform_id v]; T_ident [transform_id s]])
         | _ -> exp1
       ) 
     | SubE (e, _, typ2) -> T_cast (transform_exp e, transform_type typ2)
@@ -169,6 +177,7 @@ and transform_exp (exp : exp) =
     | MemE _ -> T_unsupported ("MemE: " ^ string_of_exp exp)
 
 and transform_match_exp (exp : exp) =
+  let typ = transform_type exp.note in 
   match exp.it with
   (* Specific match exp handling *)
   | CatE (exp1, exp2) -> T_app_infix (T_exp_basic T_listcons, transform_match_exp exp1, transform_match_exp exp2)
@@ -179,29 +188,29 @@ and transform_match_exp (exp : exp) =
   )
   | BinE (`AddOp, _, exp1, {it = NumE (`Nat n) ;_}) -> let rec get_succ n = (match n with
     | 0 -> transform_match_exp exp1
-    | m -> T_app (T_exp_basic T_succ, [get_succ (m - 1)])
+    | m -> T_app (T_exp_basic T_succ, typ, [get_succ (m - 1)])
   ) in get_succ (Z.to_int n)
   (* Descend (TODO Maybe throw an error for specific constructs not allowed in matching?) *)
-  | UnE (unop, _, exp) -> transform_unop unop (transform_match_exp exp)
+  | UnE (unop, _, exp) -> transform_unop unop typ (transform_match_exp exp)
   | BinE (binop, _, exp1, exp2) -> T_app_infix (transform_binop binop, transform_match_exp exp1, transform_match_exp exp2)
   | CmpE (cmpop, _, exp1, exp2) -> T_app_infix (transform_cmpop cmpop, transform_match_exp exp1, transform_match_exp exp2)
   | TupE [] -> T_exp_basic T_exp_unit
   | TupE exps -> T_match (List.map transform_match_exp exps) 
-  | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, [transform_match_exp e; T_exp_basic (T_nat (Z.of_int n))])
+  | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, typ, [transform_match_exp e; T_exp_basic (T_nat (Z.of_int n))])
   | CaseE (mixop, e) ->
-    T_app (T_ident [transform_mixop mixop], transform_tuple_exp transform_match_exp e)
-  | OptE (Some e) -> T_app (T_exp_basic T_some, [transform_match_exp e])
+    T_app (T_ident [transform_mixop mixop], typ, transform_tuple_exp transform_match_exp e)
+  | OptE (Some e) -> T_app (T_exp_basic T_some, typ, [transform_match_exp e])
   | OptE None -> T_exp_basic T_none
-  | TheE e -> T_app (T_exp_basic T_invopt, [transform_match_exp e])
+  | TheE e -> T_app (T_exp_basic T_invopt, typ, [transform_match_exp e])
   | StrE expfields -> T_record_fields (List.map (fun (a, e) -> (transform_atom a, transform_match_exp e)) expfields)
-  | DotE (e, atom) -> T_app (T_ident [transform_atom atom], [transform_match_exp e])
+  | DotE (e, atom) -> T_app (T_ident [transform_atom atom], typ, [transform_match_exp e])
   | CompE (exp1, exp2) -> T_app_infix (T_exp_basic T_recordconcat, transform_match_exp exp1, transform_match_exp exp2)
-  | LenE e -> T_app (T_exp_basic T_listlength, [transform_match_exp e])
-  | IdxE (exp1, exp2) -> T_app (T_exp_basic T_listlookup, [transform_match_exp exp1; transform_match_exp exp2])
-  | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, [transform_match_exp exp1; transform_match_exp exp2; transform_match_exp exp3])
+  | LenE e -> T_app (T_exp_basic T_listlength, typ, [transform_match_exp e])
+  | IdxE (exp1, exp2) -> T_app (T_exp_basic T_listlookup, typ, [transform_match_exp exp1; transform_match_exp exp2])
+  | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, typ, [transform_match_exp exp1; transform_match_exp exp2; transform_match_exp exp3])
   | UpdE (exp1, path, exp2) -> T_update (transform_path_start path exp1, transform_match_exp exp1, transform_match_exp exp2)
   | ExtE (exp1, path, exp2) -> T_extend (transform_path_start path exp1, transform_match_exp exp1, transform_match_exp exp2)
-  | CallE (id, args) -> T_app (T_ident [transform_id id], List.map transform_arg args)
+  | CallE (id, args) -> T_app (T_ident [transform_id id], typ, List.map transform_arg args)
   | SubE (e, _, typ2) -> T_cast (transform_match_exp e, transform_type typ2)
   | CvtE (e, _, numtyp) -> T_cast (transform_match_exp e, transform_numtyp numtyp)
   | _ -> transform_exp exp
@@ -211,9 +220,9 @@ and transform_tuple_exp (transform_func : exp -> term) (exp : exp) =
     | TupE exps -> List.map transform_func exps
     | _ -> [transform_func exp]
 
-and transform_unop (u : unop) (exp : term) = 
+and transform_unop (u : unop) (typ : term) (exp : term) = 
   match u with
-    | `NotOp ->  T_app (T_exp_basic T_not, [exp])
+    | `NotOp ->  T_app (T_exp_basic T_not, typ, [exp])
     | `PlusOp -> T_app_infix (T_exp_basic T_add, T_exp_basic (T_nat Z.zero), exp)
     | `MinusOp -> T_app_infix (T_exp_basic T_sub, T_exp_basic (T_nat Z.zero), exp)
 
@@ -337,7 +346,7 @@ let transform_rule (_id : id) (r : rule) =
     | RuleD (rule_id, binds, _mixop, exp, premises) -> 
       ((transform_id rule_id, List.map transform_bind binds), 
       List.map transform_premise premises, transform_tuple_exp transform_exp exp)
-let transform_clause (c : clause) (fb : function_body option) =
+let transform_clause (fb : function_body option) (c : clause) =
   match c.it, fb with
     | DefD (_binds, args, exp, _prems), None -> (T_match (List.map transform_match_arg args), F_term (transform_exp exp))
     | DefD (_binds, args, _, _prems), Some fb -> (T_match (List.map transform_match_arg args), fb)
@@ -351,7 +360,7 @@ let transform_inst (_id : id) (i : inst) =
       | VariantT typcases -> 
         InductiveT (List.map (fun (m, (case_binds, _, _), _) -> (transform_mixop m, List.map transform_bind case_binds)) typcases)
 
-let transform_clauses (clauses : clause list) : clause_entry list =
+let _transform_clauses (clauses : clause list) : clause_entry list =
   let rec get_ids exp = 
     match exp.it with
       | VarE id -> [id]
@@ -404,13 +413,13 @@ let transform_clauses (clauses : clause list) : clause_entry list =
         (match List.rev (clause :: same_args) with
           | [] -> assert false (* Impossible to get to *)
           | [_] -> 
-            transform_clause clause (Some (encode_prems (F_term (transform_exp exp)) F_default (List.rev prems)))
+            transform_clause (Some (encode_prems (F_term (transform_exp exp)) F_default (List.rev prems))) clause 
           | {it = DefD(_, _, exp', _); _} :: rev_tail -> 
             let starting_fb = F_term (transform_exp exp') in
             let fb = List.fold_left (fun acc clause' -> match clause'.it with
               | DefD(_, _, exp'', prems'') -> encode_prems (F_term (transform_exp exp'')) acc (List.rev prems'') 
             ) starting_fb rev_tail in 
-            transform_clause clause (Some fb)
+            transform_clause (Some fb) clause
         ) :: rearrange_clauses rest
       
   in
@@ -428,13 +437,13 @@ let rec transform_def (d : def) : mil_def =
     | DecD (id, params, typ, clauses) -> 
       (match params,clauses with
         | _, [] -> AxiomD (transform_id id, List.map transform_param params, transform_type typ)
-        | [], [clause] -> GlobalDeclarationD (transform_id id, transform_type typ, transform_clause clause None)
+        | [], [clause] -> GlobalDeclarationD (transform_id id, transform_type typ, transform_clause None clause)
         | _ -> 
-          DefinitionD (transform_id id, List.map transform_param params, transform_type typ, transform_clauses clauses)
+          DefinitionD (transform_id id, List.map transform_param params, transform_type typ, List.map (transform_clause None) clauses)
       )
     | RecD defs -> MutualRecD (List.map transform_def defs)
     | HintD _ | GramD _ -> UnsupportedD (string_of_def d)
-    ) $ d.at
+  ) $ d.at
 
 let is_not_hintdef (d : def) : bool =
   match d.it with

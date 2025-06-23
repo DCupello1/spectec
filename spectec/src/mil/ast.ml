@@ -76,9 +76,10 @@ and term =
   | T_record_fields of (ident * term) list
   | T_lambda of (ident list * term)
   | T_match of (term list)
-  | T_app of (term * (term list))
+  | T_app of (term * mil_typ * (term list))
   | T_app_infix of (term * term * term) (* Same as above but first term is placed in the middle *)
-  | T_tupletype of (term list) 
+  | T_tupletype of (term list)
+  | T_arrowtype of (term * term)
   | T_cast of (term * term)
   | T_unsupported of string
 
@@ -109,6 +110,8 @@ and relation_type_entry = inductive_type_entry * premise list * term list
 and relation_args = term list
 
 and inferred_types = term list 
+
+and mil_typ = term
 
 and return_type = term
 
