@@ -7,7 +7,7 @@ type ident = string
 type name = ident
 type func_name = ident
 
-type basic_types = 
+type basic_type = 
   | T_unit
   | T_bool
   | T_nat
@@ -68,7 +68,7 @@ and iterator =
 
 and term = 
   | T_exp_basic of basic_term
-  | T_type_basic of basic_types
+  | T_type_basic of basic_type
   | T_ident of ident list
   | T_update of (path_term list * term * term)
   | T_extend of (path_term list * term * term)
@@ -80,7 +80,7 @@ and term =
   | T_app_infix of (term * term * term) (* Same as above but first term is placed in the middle *)
   | T_tupletype of (term list)
   | T_arrowtype of (term * term)
-  | T_cast of (term * term)
+  | T_cast of (term * mil_typ * mil_typ)
   | T_unsupported of string
 
 and premise =

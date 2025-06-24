@@ -93,7 +93,7 @@ let rec string_of_term t =
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
     | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term terms))
     | T_arrowtype (typ1, typ2) -> parens (string_of_term typ1 ^ " -> " ^ string_of_term typ2)
-    | T_cast (term, typ) -> parens (string_of_term term ^ " : " ^ string_of_term typ)
+    | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_term typ)
     | T_update _ -> comment_parens ("Unsupported term: update") (* TODO revamp update and extend *)
     | T_extend _ -> comment_parens ("Unsupported term: extend")
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
@@ -128,7 +128,7 @@ let rec string_of_function_body f =
 let string_of_inductive_type_entries entries = 
   List.map (fun (id, bs') -> empty_name id ^ string_of_list_prefix " " " " string_of_binder bs') entries
   
-let rec string_of_def ~suppress_unsup (d : mil_def) =
+let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
   let region = ";; " ^ Util.Source.string_of_region d.at ^ "\n" in 
   let endnewline = "\n\n" in
 
