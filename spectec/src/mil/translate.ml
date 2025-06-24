@@ -4,7 +4,6 @@ open Il.Free
 open Ast
 open Util
 open Source
-open Either
 
 
 let error at msg = Error.error at "MIL Transformation" msg
@@ -16,14 +15,6 @@ let rec list_split (f : 'a -> bool) (l : 'a list) = match l with
   | x :: xs when f x -> let x_true, x_false = list_split f xs in
     (x :: x_true, x_false)
   | xs -> ([], xs)
-
-let rec partition_eitherlist (xs : ('a, 'b) Either.t list) = 
-  match xs with
-    | [] -> ([], [])
-    | (Left x) :: xs' -> let (lefts, rights) = partition_eitherlist xs' in
-      (x :: lefts, rights)
-    | Right x :: xs' -> let (lefts, rights) = partition_eitherlist xs' in
-      (lefts, x :: rights)
 
 (* Id transformation *)
 let transform_id' (s : text) = match s with
@@ -88,7 +79,7 @@ let transform_mixop (m : mixop) = match m with
 let transform_itertyp (it : iter) =
   match it with
     | Opt -> T_type_basic T_opt
-    | List | List1 | ListN _ -> T_type_basic T_list
+    | List | List1 | ListN _ -> T_type_basic T_list (* TODO think about ListN *)
 
 let transform_numtyp (typ : numtyp) = 
   match typ with
@@ -99,7 +90,6 @@ let transform_numtyp (typ : numtyp) =
 
 let rec transform_type (typ : typ) =
   match typ.it with
-    | VarT (id, []) -> T_ident [transform_id id]
     | VarT (id, args) -> 
       let get_typ a = match a.it with
         | ExpA exp -> transform_type exp.note
@@ -171,8 +161,8 @@ and transform_exp (exp : exp) =
         | (List | List1 | ListN _ | Opt), [(v, _); (s, _)], _ -> T_app (T_exp_basic (T_zipwith (transform_iter iter)), typ, [T_lambda ([transform_id v; transform_id s], exp1); T_ident [transform_id v]; T_ident [transform_id s]])
         | _ -> exp1
       ) 
-    | SubE (e, _, typ2) -> T_cast (transform_exp e, transform_type typ2)
-    | CvtE (e, _, numtyp) -> T_cast (transform_exp e, transform_numtyp numtyp)
+    | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
+    | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp e, transform_numtyp numtyp1, transform_numtyp numtyp2)
     | LiftE _ -> T_unsupported ("LiftE: " ^ string_of_exp exp)
     | MemE _ -> T_unsupported ("MemE: " ^ string_of_exp exp)
 
@@ -211,8 +201,8 @@ and transform_match_exp (exp : exp) =
   | UpdE (exp1, path, exp2) -> T_update (transform_path_start path exp1, transform_match_exp exp1, transform_match_exp exp2)
   | ExtE (exp1, path, exp2) -> T_extend (transform_path_start path exp1, transform_match_exp exp1, transform_match_exp exp2)
   | CallE (id, args) -> T_app (T_ident [transform_id id], typ, List.map transform_arg args)
-  | SubE (e, _, typ2) -> T_cast (transform_match_exp e, transform_type typ2)
-  | CvtE (e, _, numtyp) -> T_cast (transform_match_exp e, transform_numtyp numtyp)
+  | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
+  | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp e, transform_numtyp numtyp1, transform_numtyp numtyp2)
   | _ -> transform_exp exp
 
 and transform_tuple_exp (transform_func : exp -> term) (exp : exp) = 
@@ -372,17 +362,17 @@ let _transform_clauses (clauses : clause list) : clause_entry list =
       | _ -> []
   in
 
-  let rec modify_let_prems free_vars prems = 
-    match prems with
-      | [] -> []
-      | ({it = IfPr {it = CmpE(`EqOp, _, exp1, exp2); _}; at; _} :: ps) 
-        when not (List.is_empty (get_ids exp1)) && not (List.exists (fun id -> Set.mem id.it free_vars.varid) (get_ids exp1)) -> 
-        (LetPr (exp1, exp2, (free_exp exp1).varid |> Set.elements) $ at) :: modify_let_prems free_vars ps
-      | ({it = IfPr {it = CmpE(`EqOp, _, exp1, exp2); _}; at; _} :: ps) 
-        when not (List.is_empty (get_ids exp2)) && not (List.exists (fun id -> Set.mem id.it free_vars.varid) (get_ids exp2)) -> 
-        (LetPr (exp2, exp1, (free_exp exp2).varid |> Set.elements) $ at) :: modify_let_prems free_vars ps
-      | (p :: ps) ->
-        p :: modify_let_prems free_vars ps 
+  let modify_let_prems free_vars prems = 
+    List.map (fun prem -> 
+      match prem.it with
+        | IfPr {it = CmpE(`EqOp, _, exp1, exp2); _} 
+          when not (List.is_empty (get_ids exp1)) && not (List.exists (fun id -> Set.mem id.it free_vars.varid) (get_ids exp1)) -> 
+            (LetPr (exp1, exp2, (free_exp exp1).varid |> Set.elements) $ prem.at)
+        | IfPr {it = CmpE(`EqOp, _, exp1, exp2); _}
+          when not (List.is_empty (get_ids exp2)) && not (List.exists (fun id -> Set.mem id.it free_vars.varid) (get_ids exp2)) ->
+            (LetPr (exp2, exp1, (free_exp exp2).varid |> Set.elements) $ prem.at)
+        | _ -> prem
+      ) prems
   in
 
   let bigAndExp starting_exp exps = 
@@ -452,5 +442,6 @@ let is_not_hintdef (d : def) : bool =
 
 (* Main transformation function *)
 let transform (il : script) : mil_script =
-  let preprocessed_il = Preprocess.preprocess il in 
-  List.map transform_def (List.filter is_not_hintdef preprocessed_il) 
+  Preprocess.preprocess il |>
+  List.filter is_not_hintdef |>
+  List.map transform_def 

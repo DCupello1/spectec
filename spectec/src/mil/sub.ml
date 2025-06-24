@@ -1,115 +1,116 @@
-(* open Il.Ast
+open Ast
+open Env
+open Util.Source
+
+let coerce_prefix = "coec_"
+let var_prefix = "v_"
+let func_prefix = "fun_"
 
 let sub_hastable = Hashtbl.create 16
 
-let rec get_sube_exp (exp : exp) =
-  match exp.it with
-    | UnE (_, e) -> get_sube_exp e
-    | BinE (_, e1, e2) | CmpE (_, e1, e2) -> List.append (get_sube_exp e1) (get_sube_exp e2)
-    | TupE exps -> List.concat_map get_sube_exp exps
-    | ProjE (e, _) -> get_sube_exp e
-    | CaseE (_, e) -> get_sube_exp e
-    | UncaseE (e, _) -> get_sube_exp e
-    | OptE (Some e) -> get_sube_exp e
-    | TheE e -> get_sube_exp e
-    | StrE expfields -> List.concat_map (fun (_, e) -> get_sube_exp e) expfields
-    | DotE (e, _) -> get_sube_exp e
-    | CompE (e1, e2) -> List.append (get_sube_exp e1) (get_sube_exp e2)
-    | ListE exps -> List.concat_map get_sube_exp exps 
-    | LenE e -> get_sube_exp e
-    | CatE (e1, e2) -> List.append (get_sube_exp e1) (get_sube_exp e2)
-    | IdxE (e1, e2) -> List.append (get_sube_exp e1) (get_sube_exp e2)
-    | SliceE (e1, e2, e3) -> List.concat_map get_sube_exp [e1; e2; e3]
-    | UpdE (e1, _, e2) -> List.append (get_sube_exp e1) (get_sube_exp e2)
-    | ExtE (e1, _, e2) -> List.append (get_sube_exp e1) (get_sube_exp e2)
-    | CallE (_, args) -> List.concat_map get_sube_arg args
-    | IterE (e, _) -> get_sube_exp e
-    | SubE _ as e -> [e $$ (exp.at, exp.note)]
+let get_id_typ term = 
+  match term with
+    | T_app (T_ident ids, T_arrowtype _ , _)
+    | T_app (T_ident ids, T_type_basic T_anytype, _) -> String.concat "__" ids
+    | _ -> "" 
+
+let rec get_subE_term t =
+  match t with
+    | T_list terms -> List.concat_map get_subE_term terms
+    | T_record_fields fields -> List.concat_map (fun (_, term) -> get_subE_term term) fields
+    | T_lambda (_, term) -> get_subE_term term
+    | T_match terms -> List.concat_map get_subE_term terms
+    | T_app (term, typ, terms) -> get_subE_term term @ get_subE_term typ @ List.concat_map get_subE_term terms
+    | T_app_infix (op_term, term1, term2) -> get_subE_term op_term @ get_subE_term term1 @ get_subE_term term2
+    | T_tupletype terms -> List.concat_map get_subE_term terms
+    | T_arrowtype (term1, term2) -> get_subE_term term1 @ get_subE_term term2
+    | T_cast (_, typ1, typ2) -> 
+      let (id1, id2) = (get_id_typ typ1, get_id_typ typ2) in
+      if id1 = "" || id2 = "" then [] else [((id1, typ1), (id2, typ2))]
+    | _ -> [] (* TODO extend to update and extend terms *)
+
+let rec get_subE_prem (premise : premise) =
+  match premise with
+    | P_rule (_, terms) -> List.concat_map get_subE_term terms
+    | P_neg p -> get_subE_prem p
+    | P_if term -> get_subE_term term
+    | P_forall (_, p, _) | P_forall2 (_, p, _, _) -> get_subE_prem p
     | _ -> []
 
-and get_sube_arg (arg : arg) = 
-  match arg.it with
-    | ExpA e -> get_sube_exp e
-    | TypA _ -> []
-
-let rec get_sube_prem (premise : prem) =
-  match premise.it with
-    | RulePr (_, _, e) -> get_sube_exp e
-    | IfPr e -> get_sube_exp e
-    | IterPr (p, _) -> get_sube_prem p
-    | _ -> []
-
-let get_sube_rule (r : rule) =
-  match r.it with
-    | RuleD (_, _, _, e, prems) -> List.append (get_sube_exp e) (List.concat_map get_sube_prem prems)
-
-let is_id_type (typ : typ) = 
-  match typ.it with
-    | VarT (_, args) -> args = []
+let rec is_same_type (t1 : term) (t2 : term) =
+  match (t1, t2) with
+    (* Normal types *)
+    | T_type_basic t1, T_type_basic t2 -> t1 = t2
+    (* Tuple types *)
+    | T_tupletype terms1, T_tupletype terms2 when List.length terms1 = List.length terms2 -> 
+      List.for_all2 is_same_type terms1 terms2
+    (* Handle iter types *)
+    | T_app (T_type_basic T_list, _, terms1), T_app (T_type_basic T_list, _, terms2) -> 
+      List.length terms1 = List.length terms2 && List.for_all2 is_same_type terms1 terms2
+    | T_app (T_type_basic T_opt, _, terms1), T_app (T_type_basic T_opt, _, terms2) ->
+      List.length terms1 = List.length terms2 && List.for_all2 is_same_type terms1 terms2
+    (* Handle user defined types*)
+    | T_app (T_ident ids1, _, terms1), T_app (T_ident ids2, _, terms2) -> 
+      List.length ids1 = List.length ids2 && List.length terms1 = List.length terms2 &&
+      List.for_all2 (=) ids1 ids2 && List.for_all2 is_same_type terms1 terms2
+    | T_ident ids1, T_ident ids2 ->
+      List.length ids1 = List.length ids2 && List.for_all2 (=) ids1 ids2
     | _ -> false
 
-let gen_typ_id (t : typ) =
-  match t.it with
-    | VarT (id, _) -> id
-    | _ -> "" $ t.at
-
-let rec is_same_type (t1 : typ) (t2 : typ) =
-  match (t1.it, t2.it) with
-    | VarT (id1, _), VarT (id2, _) -> id1.it = id2.it
-    | NumT nt1, NumT nt2 -> nt1 = nt2
-    | BoolT, BoolT -> true
-    | TextT, TextT -> true
-    | TupT tups, TupT tups2 -> (List.length tups) = (List.length tups2) && List.for_all2 (fun (_, t1') (_, t2') -> is_same_type t1' t2') tups tups2
-    | IterT (t1', iter1), IterT (t2', iter2) -> iter1 = iter2 && is_same_type t1' t2'
-    | _ -> false
 
 (* Assumes that tuple variables will be in same order, can be modified if necessary *)
 (* TODO must also check if some types inside the type are subtyppable and as such it should also be allowed *)
-let rec find_same_typing (at : region) (m1 : ident) (t1 : typ) (t2_cases : sub_typ) =
-  match t2_cases with
-    | [] -> None
-    | (_, m2, t2) as s_t :: _ when is_same_type t1 t2 && m1 = (transform_mixop m2) -> Some s_t
-    | _ :: t2_cases' -> find_same_typing at m1 t1 t2_cases'
+let find_same_typing (case_id: ident) (binds: binders) (cases : inductive_type_entry list) =
+  List.find_opt (fun (case_id', binds') -> 
+    String.ends_with ~suffix:case_id case_id' && List.length binds = List.length binds' &&
+    List.for_all2 (fun (typ_id, typ1) (typ_id2, typ2) -> 
+      typ_id = typ_id2 && is_same_type typ1 typ2) binds binds'  
+  ) cases
 
-let get_num_tuple_typ (t : typ) = 
-  match t.it with
-    | TupT tups -> List.length tups 
-    | _ -> 0
 
-let transform_sub_types (at : region) (t1_id : id) (t2_id : id) (t1_cases : sub_typ) (t2_cases : sub_typ) =
-  let func_name = func_prefix ^ coerce_prefix ^ transform_id t1_id ^ "__" ^ transform_id t2_id in 
+let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term) (t2_id : ident) (t2_typ : term) (t1_typ_def : typ_def) (t2_typ_def : typ_def) =
+  let func_name = func_prefix ^ coerce_prefix ^ t1_id ^ "__" ^ t2_id in 
   
-  [Right (DefinitionD (func_name, 
-    [(var_prefix ^ transform_id t1_id, T_ident [transform_id t1_id])],
-    T_ident [transform_id t2_id], List.map (fun (id, m1, t1) ->
-      let s_t = find_same_typing at (transform_mixop m1) t1 t2_cases in
-      match s_t with
-        | Some (id2, m2, _) ->
-          let var_list = List.init (get_num_tuple_typ t1) (fun i -> T_ident [var_prefix ^ string_of_int i]) in
-          (T_app (T_ident [transform_id id; transform_mixop m1], var_list),
-          T_app (T_ident [transform_id id2; transform_mixop m2], var_list))
-        | None -> (T_ident [""], T_ident [""])
-    ) t1_cases) $ at  ); 
-  Right (CoercionD (func_name, transform_id t1_id, transform_id t2_id) $ at )]
+  [(DefinitionD (func_name, 
+    [(var_prefix ^ t1_id, T_app (T_ident [t1_id], T_type_basic T_anytype, []))],
+    T_app (T_ident [t2_id], T_type_basic T_anytype, []), 
+    let (_, deftyp) = t1_typ_def in
+    let (_, deftyp') = t2_typ_def in
+    
+    match deftyp, deftyp' with
+      | T_inductive cases, T_inductive cases' -> 
+        List.map (fun (case_id, bs) ->
+          let num_binders = List.length bs in 
+          let var_list = List.init num_binders (fun i -> T_ident [var_prefix ^ string_of_int i]) in
+          let opt = find_same_typing case_id bs cases' in
+          (match opt with
+            | Some (case_id', _) -> 
+              (T_app (T_ident [case_id], t1_typ, var_list), F_term (T_app (T_ident [case_id'], t2_typ, var_list)))
+            (* Should find it due to validation *)
+            | _ -> error at ("Couldn't coerce type " ^ t1_id ^ " to " ^ t2_id)
+          )
+        ) cases
+      (* Only allowed inductive types for now *)
+      | _ -> error at ("Couldn't coerce type " ^ t1_id ^ " to " ^ t2_id)
+  ) $ at  ); 
+  (CoercionD (func_name, t1_id, t2_id) $ at )]
 
 (* TODO can be extended to other defs if necessary *)
-let rec transform_sub_def (env : env) (d : def) = 
+let rec transform_sub_def (env : Env.t) (d : mil_def) = 
   match d.it with
-    | RelD (_, _, _, rules) -> let sub_expressions = List.concat_map get_sube_rule rules in
-      List.append (List.concat_map (fun e -> match e.it with 
-        | SubE (_, t1, t2) when is_id_type t1 && is_id_type t2 -> 
-          let (t1_id, t2_id) = (gen_typ_id t1, gen_typ_id t2) in
-          let combined_name = (t1_id.it ^ "__" ^ t2_id.it) in 
+    | InductiveRelationD (_, _, rules) -> 
+      let sub_expressions = List.concat_map (fun (_, prems, terms) -> List.concat_map get_subE_term terms @ List.concat_map get_subE_prem prems) rules in
+      List.concat_map (fun ((id1, t1), (id2, t2)) -> 
+          let combined_name = (id1 ^ "__" ^ id2) in 
           if (Hashtbl.mem sub_hastable combined_name) then []
-          else (let typ1_cases = find "Sub pass" env.subs t1_id in
-            let typ2_cases = find "Sub pass" env.subs t2_id in
+          else (
+            let typ1_cases = find_typ env id1 d.at in
+            let typ2_cases = find_typ env id2 d.at in
             Hashtbl.add sub_hastable combined_name combined_name;
-            transform_sub_types d.at t1_id t2_id typ1_cases typ2_cases)
-        | _ -> []) sub_expressions) [Left d]
-    | RecD defs -> let flat_list = List.concat_map (transform_sub_def env) defs in
-      let (defs, coq_defs) = partition_eitherlist flat_list in
-      (List.map Either.right coq_defs) @ [Left (RecD defs $ d.at)]
-    | _ -> [Left d]
+            transform_sub_types d.at id1 t1 id2 t2 typ1_cases typ2_cases
+          )) sub_expressions @ [d]
+    | MutualRecD defs -> List.concat_map (transform_sub_def env) defs
+    | _ -> [d]
 
-let transform_sub (e : env) (il : script) =
-  List.concat_map (transform_sub_def e) il *)
+let transform (il : mil_script) =
+  List.concat_map (transform_sub_def (env_of_script il)) il

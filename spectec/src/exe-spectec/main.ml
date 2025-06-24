@@ -30,6 +30,11 @@ flags on the command line.
 let _skip_passes = [ Sub; Unthe ]  (* Not clear how to extend them to indexed types *)
 let all_passes = [ Totalize; Sideconditions ]
 
+type mil_pass =
+  | MIL_Sub
+
+let all_mil_passes = [ MIL_Sub ]
+
 type file_kind =
   | Spec
   | Patch
@@ -54,6 +59,8 @@ let print_el = ref false
 let print_elab_il = ref false
 let print_final_il = ref false
 let print_all_il = ref false
+let print_mil_f = ref false
+let print_all_mil = ref false
 let print_al = ref false
 let print_al_o = ref ""
 let print_no_pos = ref false
@@ -89,6 +96,11 @@ let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
   | Unthe -> Middlend.Unthe.transform
   | Sideconditions -> Middlend.Sideconditions.transform
 
+let pass_mil_flag = function 
+  | MIL_Sub -> "sub"
+
+let run_pass_mil : mil_pass -> Mil.Ast.mil_script -> Mil.Ast.mil_script = function
+  | MIL_Sub -> Mil.Sub.transform
 
 (* Argument parsing *)
 
@@ -156,6 +168,8 @@ let argspec = Arg.align (
   "--print-all-il", Arg.Set print_all_il, " Print IL after each step";
   "--print-al", Arg.Set print_al, " Print al";
   "--print-al-o", Arg.Set_string print_al_o, " Print al with given name";
+  "--print-mil", Arg.Set print_mil_f, " Print MIL (after transformation)";
+  "--print-all-mil", Arg.Set print_all_mil, " Print MIL after each step";
   "--print-no-pos", Arg.Set print_no_pos, " Suppress position info in output";
 ] @ List.map pass_argspec all_passes @ [
   "--all-passes", Arg.Unit (fun () -> List.iter enable_pass all_passes)," Run all passes";
@@ -246,6 +260,26 @@ let () =
     Al.Valid.valid al;
     *)
 
+    let _mil =
+      if !print_mil_f || (!target = Rocq)
+      then (
+        log "Translating to MIL...";
+        let mil = Mil.Translate.transform il in
+        if !print_mil_f || !print_all_mil then 
+          print_mil mil;
+        List.fold_left (fun mil pass ->
+          log ("Running pass " ^ pass_mil_flag pass ^ "...");
+          let transformed_mil = run_pass_mil pass mil in
+          if !print_all_mil then 
+            print_mil transformed_mil;
+          transformed_mil
+        ) mil all_mil_passes
+      )
+      else []
+    in
+
+    
+
     (match !target with
     | Check -> ()
 
@@ -326,8 +360,7 @@ let () =
       log "Interpreting...";
       Backend_interpreter.Runner.run args
     | Rocq ->
-      let mil = Mil.Translate.transform il in
-      print_mil mil
+      ()
 
     );
     log "Complete."
