@@ -85,7 +85,7 @@ let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term) (t2_id : i
           let opt = find_same_typing case_id bs cases' in
           (match opt with
             | Some (case_id', _) -> 
-              (T_app (T_ident [case_id], t1_typ, var_list), F_term (T_app (T_ident [case_id'], t2_typ, var_list)))
+              (T_match [T_app (T_ident [case_id], t1_typ, var_list)], F_term (T_app (T_ident [case_id'], t2_typ, var_list)))
             (* Should find it due to validation *)
             | _ -> error at ("Couldn't coerce type " ^ t1_id ^ " to " ^ t2_id)
           )

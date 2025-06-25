@@ -131,7 +131,7 @@ and transform_exp (exp : exp) =
     | BinE (binop, _, exp1, exp2) -> T_app_infix (transform_binop binop, transform_exp exp1, transform_exp exp2)
     | CmpE (cmpop, _, exp1, exp2) -> T_app_infix (transform_cmpop cmpop, transform_exp exp1, transform_exp exp2)
     | TupE [] -> T_exp_basic T_exp_unit
-    | TupE exps -> T_match (List.map transform_exp exps) 
+    | TupE exps -> T_tuple (List.map transform_exp exps) 
     | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, typ,[transform_exp e; T_exp_basic (T_nat (Z.of_int n))])
     | CaseE (mixop, e) ->
       T_app (T_ident [transform_mixop mixop], typ, transform_tuple_exp transform_exp e)
@@ -164,7 +164,7 @@ and transform_exp (exp : exp) =
     | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
     | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp e, transform_numtyp numtyp1, transform_numtyp numtyp2)
     | LiftE _ -> T_unsupported ("LiftE: " ^ string_of_exp exp)
-    | MemE _ -> T_unsupported ("MemE: " ^ string_of_exp exp)
+    | MemE (e1, e2) -> T_app (T_exp_basic (T_listmember), T_type_basic T_bool, [transform_exp e1; transform_exp e2])
 
 and transform_match_exp (exp : exp) =
   let typ = transform_type exp.note in 
@@ -203,6 +203,7 @@ and transform_match_exp (exp : exp) =
   | CallE (id, args) -> T_app (T_ident [transform_id id], typ, List.map transform_arg args)
   | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp e, transform_numtyp numtyp1, transform_numtyp numtyp2)
+  | MemE (e1, e2) -> T_app (T_exp_basic (T_listmember), T_type_basic T_bool, [transform_match_exp e1; transform_match_exp e2])
   | _ -> transform_exp exp
 
 and transform_tuple_exp (transform_func : exp -> term) (exp : exp) = 
