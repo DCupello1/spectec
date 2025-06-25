@@ -32,8 +32,9 @@ let all_passes = [ Totalize; Sideconditions ]
 
 type mil_pass =
   | MIL_Sub
+  | MIL_Else
 
-let all_mil_passes = [ MIL_Sub ]
+let all_mil_passes = [ MIL_Sub; MIL_Else ]
 
 type file_kind =
   | Spec
@@ -98,9 +99,11 @@ let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
 
 let pass_mil_flag = function 
   | MIL_Sub -> "sub"
+  | MIL_Else -> "else removal"
 
 let run_pass_mil : mil_pass -> Mil.Ast.mil_script -> Mil.Ast.mil_script = function
   | MIL_Sub -> Mil.Sub.transform
+  | MIL_Else -> Mil.Else.transform
 
 (* Argument parsing *)
 
