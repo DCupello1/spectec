@@ -50,6 +50,7 @@ type basic_term =
   | T_listconcat
   | T_listcons
   | T_listlength
+  | T_listmember
   | T_slicelookup
   | T_listlookup
   | T_succ 
@@ -78,6 +79,7 @@ and term =
   | T_match of (term list)
   | T_app of (term * mil_typ * (term list))
   | T_app_infix of (term * term * term) (* Same as above but first term is placed in the middle *)
+  | T_tuple of (term list)
   | T_tupletype of (term list)
   | T_arrowtype of (term * term)
   | T_cast of (term * mil_typ * mil_typ)
