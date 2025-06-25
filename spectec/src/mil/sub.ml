@@ -97,18 +97,27 @@ let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term) (t2_id : i
 
 (* TODO can be extended to other defs if necessary *)
 let rec transform_sub_def (env : Env.t) (d : mil_def) = 
+  let transform_subE sub_expressions = 
+    List.concat_map (fun ((id1, t1), (id2, t2)) -> 
+      let combined_name = (id1 ^ "__" ^ id2) in 
+      if (Hashtbl.mem sub_hastable combined_name) then []
+      else (
+        let typ1_cases = find_typ env id1 d.at in
+        let typ2_cases = find_typ env id2 d.at in
+        Hashtbl.add sub_hastable combined_name combined_name;
+        transform_sub_types d.at id1 t1 id2 t2 typ1_cases typ2_cases
+    )) sub_expressions 
+  in
   match d.it with
     | InductiveRelationD (_, _, rules) -> 
       let sub_expressions = List.concat_map (fun (_, prems, terms) -> List.concat_map get_subE_term terms @ List.concat_map get_subE_prem prems) rules in
-      List.concat_map (fun ((id1, t1), (id2, t2)) -> 
-          let combined_name = (id1 ^ "__" ^ id2) in 
-          if (Hashtbl.mem sub_hastable combined_name) then []
-          else (
-            let typ1_cases = find_typ env id1 d.at in
-            let typ2_cases = find_typ env id2 d.at in
-            Hashtbl.add sub_hastable combined_name combined_name;
-            transform_sub_types d.at id1 t1 id2 t2 typ1_cases typ2_cases
-          )) sub_expressions @ [d]
+      transform_subE sub_expressions @ [d]
+    | InductiveFamilyD (_, types, type_family_entries) -> 
+      let sub_expressions = List.concat_map get_subE_term types @ 
+        List.concat_map (fun (_, bs, terms) -> 
+          List.concat_map get_subE_term terms @ List.concat_map (fun (_, t) -> get_subE_term t) bs
+        ) type_family_entries in
+      transform_subE sub_expressions @ [d]
     | MutualRecD defs -> List.concat_map (transform_sub_def env) defs
     | _ -> [d]
 

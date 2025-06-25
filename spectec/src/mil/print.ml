@@ -131,6 +131,9 @@ let rec string_of_function_body f =
 
 let string_of_inductive_type_entries entries = 
   List.map (fun (id, bs') -> empty_name id ^ string_of_list_prefix " " " " string_of_binder bs') entries
+
+let string_of_family_type_entries id entries =
+  List.map (fun (case_id, bs, terms) -> case_id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ id ^ string_of_list_prefix " " " " string_of_term terms) entries
   
 let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
   let region = ";; " ^ Util.Source.string_of_region d.at ^ "\n" in 
@@ -141,9 +144,9 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
     | RecordD (id, record_entry) -> region ^ "record " ^ id ^ " = " ^ curly_parens ("\n\t" ^ String.concat ",\n\t" (List.map (fun (id, term) -> 
         id ^ " : " ^ string_of_term term
       ) record_entry) ^ "\n") ^ endnewline
-    | InductiveD (id, bs, inductive_type_entries) -> region ^ "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " =\n\t| " ^
+    | InductiveD (id, bs, inductive_type_entries) -> region ^ "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t| " ^
       String.concat "\n\t| " (string_of_inductive_type_entries inductive_type_entries) ^ endnewline
-    | DefinitionD (id, bs, rt, clauses) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term rt ^ " :=\n\t" ^
+    | DefinitionD (id, bs, rt, clauses) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term rt ^ " =\n\t" ^
       "match " ^ parens (String.concat ", " (grab_id_of_binders bs)) ^ " with\n\t\t| " ^
       String.concat "\n\t\t| " (List.map (fun (match_term, f_b) -> string_of_term match_term ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
     | GlobalDeclarationD (id, rt, (_, f_b)) -> region ^ "definition " ^ id ^ " : " ^ string_of_term rt ^ " := " ^ string_of_function_body f_b ^ endnewline
@@ -159,6 +162,8 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
           string_of_list_prefix " " " " string_of_term terms
       
       ) relation_type_entries) ^ endnewline
+    | InductiveFamilyD (id, types, family_type_entries) -> region ^ "inductive " ^ id ^ " : " ^ string_of_list_suffix " -> " " -> " string_of_term types ^ "Type =\n\t| " ^
+      String.concat "\n\t| " (string_of_family_type_entries id family_type_entries) ^ endnewline
     | _ -> ""
   )
 

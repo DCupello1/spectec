@@ -295,4 +295,5 @@ let preprocess (il : script): script =
   let module Acc = Iter.Make(Arg) in
   List.iter Acc.def il;
   p_env.uncase_map <- !acc;
-  List.concat_map (preprocess_def p_env) il
+  Tfamily.transform il |> 
+  List.concat_map (preprocess_def p_env) 

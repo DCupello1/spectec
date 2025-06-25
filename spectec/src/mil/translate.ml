@@ -7,7 +7,7 @@ open Source
 
 
 let error at msg = Error.error at "MIL Transformation" msg
-let family_type_suffix = "entry"
+let type_family_prefix = "CASE_"
 let coerce_prefix = "coec_"
 
 let rec list_split (f : 'a -> bool) (l : 'a list) = match l with
@@ -244,7 +244,7 @@ and transform_arg (arg : arg) =
   match arg.it with
     | ExpA exp -> transform_exp exp
     | TypA typ -> transform_type typ
-    | DefA id -> T_ident [id.it]
+    | DefA id -> T_ident [id.it] 
     | GramA _ -> T_unsupported ("Grammar Arg: " ^ string_of_arg arg)
 
 and transform_match_arg (arg : arg) =
@@ -342,17 +342,21 @@ let transform_clause (fb : function_body option) (c : clause) =
     | DefD (_binds, args, exp, _prems), None -> (T_match (List.map transform_match_arg args), F_term (transform_exp exp))
     | DefD (_binds, args, _, _prems), Some fb -> (T_match (List.map transform_match_arg args), fb)
 
-let transform_inst (_id : id) (i : inst) =
+let transform_inst (id : id) (i : inst) =
   match i.it with
-    | InstD (_binds, _, deftyp) -> 
+    | InstD (binds, args, deftyp) -> 
+      let case_name = Tfamily.sub_type_name binds in
       match deftyp.it with
-      | AliasT typ -> TypeAliasT (transform_type typ)
+      | AliasT typ -> (type_family_prefix ^ case_name, List.map transform_bind binds @ [("_", transform_type typ)], List.map transform_arg args)
       | StructT _ -> error i.at "Family of records should not exist" (* This should never occur *)
-      | VariantT typcases -> 
-        InductiveT (List.map (fun (m, (case_binds, _, _), _) -> (transform_mixop m, List.map transform_bind case_binds)) typcases)
+      | VariantT _ -> 
+        let binders = List.map transform_bind binds in 
+        let terms = List.map (fun (name, _) -> T_ident [name]) binders in
+        (type_family_prefix ^ case_name, binders @ [("_", 
+        T_app (T_ident [id.it ^ case_name], T_type_basic T_anytype, terms))], List.map transform_arg args)
 
 let _transform_clauses (clauses : clause list) : clause_entry list =
-  let rec get_ids exp = 
+  let rec get_ids exp =
     match exp.it with
       | VarE id -> [id]
       | IterE (exp, _) -> get_ids exp
@@ -422,8 +426,8 @@ let _transform_clauses (clauses : clause list) : clause_entry list =
     
 let rec transform_def (d : def) : mil_def =
   (match d.it with
-    | TypD (id, _, [{it = InstD (binds, _, deftyp);_}]) -> transform_deftyp id binds deftyp 
-    | TypD (id, _, insts) -> InductiveFamilyD (transform_id id, List.map (transform_inst id) insts)
+    | TypD (id, [], [{it = InstD (binds, _, deftyp);_}]) -> transform_deftyp id binds deftyp 
+    | TypD (id, params, insts) -> InductiveFamilyD (transform_id id, List.map (fun p -> snd (transform_param p)) params, List.map (transform_inst id) insts)
     | RelD (id, _, typ, rules) -> InductiveRelationD (transform_id id, transform_tuple_to_relation_args typ, List.map (transform_rule id) rules)
     | DecD (id, params, typ, clauses) -> 
       (match params,clauses with
