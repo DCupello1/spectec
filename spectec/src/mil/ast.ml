@@ -119,10 +119,7 @@ and return_type = term
 
 and clause_entry = term * function_body 
 
-and family_deftype = 
-  | TypeAliasT of term
-  | InductiveT of inductive_type_entry list
-
+and family_type_entry = ident * binders * term list 
 
 and mil_def = mil_def' phrase
 and mil_def' =
@@ -134,7 +131,7 @@ and mil_def' =
   | GlobalDeclarationD of (ident * return_type * clause_entry)
   | InductiveRelationD of (ident * relation_args * relation_type_entry list)
   | AxiomD of (ident * binders * return_type)
-  | InductiveFamilyD of (ident * family_deftype list)
+  | InductiveFamilyD of (ident * term list * family_type_entry list)
   | CoercionD of (func_name * ident * ident)
   | UnsupportedD of string
   
