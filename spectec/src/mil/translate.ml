@@ -7,7 +7,7 @@ open Source
 
 
 let error at msg = Error.error at "MIL Transformation" msg
-let type_family_prefix = "CASE_"
+
 let coerce_prefix = "coec_"
 
 let rec list_split (f : 'a -> bool) (l : 'a list) = match l with
@@ -347,12 +347,12 @@ let transform_inst (id : id) (i : inst) =
     | InstD (binds, args, deftyp) -> 
       let case_name = Tfamily.sub_type_name binds in
       match deftyp.it with
-      | AliasT typ -> (type_family_prefix ^ case_name, List.map transform_bind binds @ [("_", transform_type typ)], List.map transform_arg args)
+      | AliasT typ -> (Tfamily.type_family_prefix ^ case_name, List.map transform_bind binds @ [("_", transform_type typ)], List.map transform_arg args)
       | StructT _ -> error i.at "Family of records should not exist" (* This should never occur *)
       | VariantT _ -> 
         let binders = List.map transform_bind binds in 
         let terms = List.map (fun (name, _) -> T_ident [name]) binders in
-        (type_family_prefix ^ case_name, binders @ [("_", 
+        (Tfamily.type_family_prefix ^ case_name, binders @ [("_", 
         T_app (T_ident [id.it ^ case_name], T_type_basic T_anytype, terms))], List.map transform_arg args)
 
 let _transform_clauses (clauses : clause list) : clause_entry list =
