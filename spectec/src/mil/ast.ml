@@ -55,6 +55,7 @@ type basic_term =
   | T_listlookup
   | T_succ 
   | T_invopt
+  | T_opttolist
   | T_map of iterator
   | T_zipwith of iterator
 

@@ -63,6 +63,7 @@ let string_of_basic_exp_term t =
     | T_invopt -> "Option.Inv"
     | T_map I_list -> "List.map"
     | T_map I_option -> "Option.map"
+    | T_opttolist -> "Option.to_list"
     | T_zipwith I_list -> "List.zipWith"
     | T_zipwith I_option -> "Option.zipWith"
 
