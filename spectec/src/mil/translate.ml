@@ -17,7 +17,9 @@ let rec list_split (f : 'a -> bool) (l : 'a list) = match l with
   | xs -> ([], xs)
 
 (* Id transformation *)
-let transform_id' (s : text) = match s with
+let transform_id' (s : text) = 
+  let s' = String.to_seq s |> Seq.take_while (fun c -> c != '*' && c != '?' && c != '^' ) |> String.of_seq in 
+  match s' with
   | s -> String.map (function
      | '.' -> '_'
      | '-' -> '_'
@@ -163,7 +165,7 @@ and transform_exp (exp : exp) =
       ) 
     | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
     | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp e, transform_numtyp numtyp1, transform_numtyp numtyp2)
-    | LiftE _ -> T_unsupported ("LiftE: " ^ string_of_exp exp)
+    | LiftE exp -> T_app (T_exp_basic T_opttolist, typ, [transform_exp exp])
     | MemE (e1, e2) -> T_app (T_exp_basic (T_listmember), T_type_basic T_bool, [transform_exp e1; transform_exp e2])
 
 and transform_match_exp (exp : exp) =
@@ -204,6 +206,7 @@ and transform_match_exp (exp : exp) =
   | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp e, transform_numtyp numtyp1, transform_numtyp numtyp2)
   | MemE (e1, e2) -> T_app (T_exp_basic (T_listmember), T_type_basic T_bool, [transform_match_exp e1; transform_match_exp e2])
+  | LiftE exp -> T_app (T_exp_basic T_opttolist, typ, [transform_match_exp exp])
   | _ -> transform_exp exp
 
 and transform_tuple_exp (transform_func : exp -> term) (exp : exp) = 
