@@ -9,6 +9,7 @@ open Source
 let error at msg = Error.error at "MIL Transformation" msg
 
 let coerce_prefix = "coec_"
+let var_prefix = "v_"
 
 let rec list_split (f : 'a -> bool) (l : 'a list) = match l with
   | [] -> ([], [])
@@ -149,8 +150,8 @@ and transform_exp (exp : exp) =
     | CatE (exp1, exp2) -> T_app_infix (T_exp_basic T_listconcat, transform_exp exp1, transform_exp exp2)
     | IdxE (exp1, exp2) -> T_app (T_exp_basic T_listlookup, typ, [transform_exp exp1; transform_exp exp2])
     | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, typ, [transform_exp exp1; transform_exp exp2; transform_exp exp3])
-    | UpdE (exp1, path, exp2) -> T_update (transform_path_start path exp1, transform_exp exp1, transform_exp exp2)
-    | ExtE (exp1, path, exp2) -> T_extend (transform_path_start path exp1, transform_exp exp1, transform_exp exp2)
+    | UpdE (exp1, path, exp2) -> transform_path_start' path (transform_exp exp1) false (transform_exp exp2) 
+    | ExtE (exp1, path, exp2) -> transform_path_start' path (transform_exp exp1) true (transform_exp exp2)
     | CallE (id, args) -> T_app (T_ident [transform_id id], typ, List.map transform_arg args)
     | IterE (exp, (iter, ids)) ->  
         let exp1 = transform_exp exp in
@@ -200,8 +201,8 @@ and transform_match_exp (exp : exp) =
   | LenE e -> T_app (T_exp_basic T_listlength, typ, [transform_match_exp e])
   | IdxE (exp1, exp2) -> T_app (T_exp_basic T_listlookup, typ, [transform_match_exp exp1; transform_match_exp exp2])
   | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, typ, [transform_match_exp exp1; transform_match_exp exp2; transform_match_exp exp3])
-  | UpdE (exp1, path, exp2) -> T_update (transform_path_start path exp1, transform_match_exp exp1, transform_match_exp exp2)
-  | ExtE (exp1, path, exp2) -> T_extend (transform_path_start path exp1, transform_match_exp exp1, transform_match_exp exp2)
+  | UpdE (exp1, path, exp2) -> transform_path_start' path (transform_match_exp exp1) false (transform_match_exp exp2) 
+  | ExtE (exp1, path, exp2) -> transform_path_start' path (transform_match_exp exp1) true (transform_match_exp exp2)
   | CallE (id, args) -> T_app (T_ident [transform_id id], typ, List.map transform_arg args)
   | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp e, transform_numtyp numtyp1, transform_numtyp numtyp2)
@@ -276,43 +277,68 @@ and transform_param (p : param) =
 and transform_list_path (p : path) = 
   match p.it with   
     | RootP -> []
-    | IdxP (p', e') -> (IdxP (p', e') $$ (p.at, p.note)) :: transform_list_path p'
-    | SliceP (p', _exp1, _exp2) -> (SliceP (p', _exp1, _exp2) $$ (p.at, p.note)) :: transform_list_path p'
-    | DotP (p', a) -> (DotP (p', a) $$ (p.at, p.note)) :: transform_list_path p'
+    | IdxP (p', _) | SliceP (p', _, _) | DotP (p', _) when p'.it = RootP -> []
+    | IdxP (p', _) | SliceP (p', _, _) | DotP (p', _) -> p' :: transform_list_path p'
 
-and gen_path_var_id (exp : exp) = 
-  match exp.it with
-    | VarE id -> Some (transform_id id)
-    | _ -> None
+and transform_path_start' (p : path) name_term is_extend end_term  = 
+  let paths = List.rev (p :: transform_list_path p) in
+  transform_path' paths p.at 0 (Some name_term) is_extend end_term
 
-(* TODO: Improve this handling for the case of two listlookups in a row *)
-and transform_path (paths : path list) (n : int) (name : string option) = 
-  let var_prefix = "v_" in
-  let list_name num = (match name with
-    | Some id -> id
-    | None -> var_prefix ^ string_of_int num
-  ) in
-  match paths with
-    | {it = DotP _; _} :: _ -> 
-      let is_dot p = (match p.it with
+and transform_path' (paths : path list) at n name is_extend end_term = 
+  let is_dot p = (match p.it with
         | DotP _ -> true
         | _ -> false 
-      ) in
-      let (dot_paths, rest) = list_split is_dot paths in 
-      let projection_list = List.map (fun p -> match p.it with 
-        | DotP (p, a) -> gen_typ_name p.note ^ "__" ^ transform_atom a
-        | _ -> "" (* Should not happen *)
-      ) dot_paths in
-      P_recordlookup (projection_list, var_prefix ^ string_of_int n) :: transform_path rest (n + 1) (Some (String.concat " " projection_list ^ " " ^ list_name n))
-    | {it = IdxP (_p', idx_exp); _} :: ps ->  P_listlookup (list_name (n - 1), transform_exp idx_exp) :: transform_path ps n None
-    | {it = SliceP (_p', e1, e2); _} :: _ps -> [P_sliceupdate (list_name (n - 1), transform_exp e1, transform_exp e2)]
-    | _ -> []
-
-and transform_path_start (p : path) (start_name : exp) = 
-  let paths = List.rev (transform_list_path p) in
+  ) in
+  let term_typ typ = transform_type typ in
+  let list_name num = (match name with
+    | Some term -> term
+    | None -> T_ident [var_prefix ^ string_of_int num]
+  ) in
+  (* TODO fix typing of newly created terms *)
   match paths with
-    | [] -> error p.at "Path should not be empty"
-    | _ -> transform_path paths 0 (gen_path_var_id start_name)
+    (* End logic for extend *)
+    | [{it = IdxP (_, e); note; _}] when is_extend -> 
+      let extend_term = T_app_infix (T_exp_basic T_listconcat, list_name n, end_term) in
+      T_app (T_exp_basic T_listupdate, term_typ note, [list_name n; transform_exp e; T_lambda (["_"], extend_term)])
+    | [{it = DotP (_, a); _}] when is_extend -> 
+      let projection_term = T_app (T_ident [transform_atom a], T_type_basic T_anytype, [list_name n]) in
+      let extend_term = T_app_infix (T_exp_basic T_listconcat, projection_term, end_term) in
+      T_record_update (list_name n, T_ident [transform_atom a], extend_term)
+    | [{it = SliceP (_, e1, e2); note; _}] when is_extend -> 
+      let extend_term = T_app_infix (T_exp_basic T_listconcat, list_name n, end_term) in
+      T_app (T_exp_basic T_sliceupdate, term_typ note, 
+        [list_name n; transform_exp e1; transform_exp e2; T_lambda (["_"], extend_term)])
+    (* End logic for update *)
+    | [{it = IdxP (_, e); note; _}] -> 
+      T_app (T_exp_basic T_listupdate, term_typ note, [list_name n; transform_exp e; T_lambda (["_"], end_term)])
+    | [{it = DotP (_, a); _}] -> 
+      T_record_update (list_name n, T_ident [transform_atom a], end_term)
+    | [{it = SliceP (_, e1, e2); note; _}]  -> 
+      T_app (T_exp_basic T_sliceupdate, term_typ note, 
+        [list_name n; transform_exp e1; transform_exp e2; T_lambda (["_"], end_term)])
+    (* Middle logic *)
+    | {it = IdxP (_, e); note; _} :: ps -> 
+      let path_term = transform_path' ps at (n + 1) None is_extend end_term in
+      let new_name = var_prefix ^ string_of_int (n + 1) in 
+      T_app (T_exp_basic T_listupdate, term_typ note, 
+        [list_name n; transform_exp e; T_lambda ([new_name], path_term)])
+    | {it = DotP (_, a); note = _; _} :: ps -> 
+      let (dot_paths, ps') = list_split is_dot ps in 
+      let projection_term = List.fold_right (fun p acc -> 
+        match p.it with
+          | DotP (_, a') -> T_app (T_ident [transform_atom a'], T_type_basic T_anytype, [acc])
+          | _ -> error at "Should be a record access" (* Should not happen *)
+      ) dot_paths (list_name n) in
+      let new_term = T_app(T_ident [transform_atom a], T_type_basic T_anytype, [projection_term]) in
+      let path_term = transform_path' ps' at n (Some new_term) is_extend end_term in
+      T_record_update (projection_term, T_ident [transform_atom a], path_term)
+    | {it = SliceP (_, e1, e2); note; _} :: ps ->
+      let path_term = transform_path' ps at (n + 1) None is_extend end_term in
+      let new_name = var_prefix ^ string_of_int (n + 1) in
+      T_app (T_exp_basic T_sliceupdate, term_typ note, 
+        [list_name n; transform_exp e1; transform_exp e2; T_lambda ([new_name], path_term)])
+    (* Catch all error if we encounter empty list or RootP *)
+    | _ -> error at "Paths should not be empty"
 
 (* Premises *)
 let rec transform_premise (p : prem) =

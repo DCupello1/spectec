@@ -59,6 +59,8 @@ let string_of_basic_exp_term t =
     | T_slicelookup -> "List.slice"
     | T_listlookup -> "List.lookup"
     | T_listmember -> "List.member"
+    | T_listupdate -> "List.update"
+    | T_sliceupdate -> "List.sliceupdate"
     | T_succ -> "S"
     | T_invopt -> "Option.Inv"
     | T_map I_list -> "List.map"
@@ -91,7 +93,7 @@ let rec string_of_term t =
     | T_match [] -> ""
     | T_match [pattern] -> string_of_term pattern
     | T_match patterns -> parens (String.concat ", " (List.map string_of_term patterns))
-    | T_app (base_term, _, []) -> empty_name (string_of_term base_term)
+    | T_app (base_term, _, []) -> empty_name (string_of_term base_term) 
     | T_app (base_term, _, args) -> parens (empty_name (string_of_term base_term) ^ string_of_list_prefix " " " " string_of_term args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
     | T_tuple [] -> "()"
@@ -99,8 +101,7 @@ let rec string_of_term t =
     | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term terms))
     | T_arrowtype (typ1, typ2) -> parens (string_of_term typ1 ^ " -> " ^ string_of_term typ2)
     | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_term typ)
-    | T_update _ -> comment_parens ("Unsupported term: update") (* TODO revamp update and extend *)
-    | T_extend _ -> comment_parens ("Unsupported term: extend")
+    | T_record_update (t1, t2, t3) -> parens ("record_update " ^ string_of_term t1 ^ " " ^ string_of_term t2 ^ " " ^ string_of_term t3)
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 
 let string_of_binder b = 
