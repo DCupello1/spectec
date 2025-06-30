@@ -53,16 +53,13 @@ type basic_term =
   | T_listmember
   | T_slicelookup
   | T_listlookup
+  | T_listupdate
+  | T_sliceupdate
   | T_succ 
   | T_invopt
   | T_opttolist
   | T_map of iterator
   | T_zipwith of iterator
-
-and path_term =
-  | P_recordlookup of (ident list * ident)
-  | P_listlookup of (ident * term)
-  | P_sliceupdate of (ident * term * term)
 
 and iterator =
   | I_option
@@ -72,9 +69,8 @@ and term =
   | T_exp_basic of basic_term
   | T_type_basic of basic_type
   | T_ident of ident list
-  | T_update of (path_term list * term * term)
-  | T_extend of (path_term list * term * term)
   | T_list of (term list)
+  | T_record_update of (term * term * term)
   | T_record_fields of (ident * term) list
   | T_lambda of (ident list * term)
   | T_match of (term list)

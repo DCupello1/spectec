@@ -200,7 +200,7 @@ let () =
     | Prose _ | Splice _ | Interpreter _ ->
       enable_pass Sideconditions;
     | Rocq ->
-      enable_pass Sideconditions
+      enable_pass Sideconditions; enable_pass Totalize
     | _ when !print_al || !print_al_o <> "" ->
       enable_pass Sideconditions;
     | _ -> ()
