@@ -31,7 +31,7 @@ let string_of_basic_exp_term t =
     | T_int i -> Z.to_string i
     | T_rat r -> Q.to_string r
     | T_real r -> Float.to_string r
-    | T_string s -> s
+    | T_string s -> "\"" ^ String.escaped s ^ "\""
     | T_exp_unit -> "()"
     | T_not -> "~"
     | T_and -> " /\\ "
