@@ -246,9 +246,7 @@ let create_types id inst =
 
 let rec transform_type_family def =
   (match def.it with
-    | TypD (id, _, [inst]) when check_normal_type_creation inst -> 
-      (* Differenciate normal types from type families through the lack of params *)
-      [TypD (id, [], [inst])]
+    | TypD (id, params, [inst]) when check_normal_type_creation inst -> [TypD (id, params, [inst])]
     | TypD (id, params, insts) -> let types = List.concat_map (create_types id) insts in
       let transformed_instances = List.map (fun inst -> match inst.it with 
         | InstD (binds, args, {it = StructT _; at; _}) | InstD(binds, args, {it = VariantT _; at; _}) -> 

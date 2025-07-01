@@ -255,12 +255,19 @@ let () =
     log "AL Validation...";
     Al.Valid.valid al;
     *)
+    
 
     let mil =
       if !print_mil_f || (!target = Rocq)
       then (
         log "Translating to MIL...";
-        let mil = Mil.Translate.transform il in
+        (* TODO refactor this system to all any specific configurations 
+          on the translation for ITPs *)
+        let reserved_ids = (match !target with
+          | Rocq -> Backend_rocq.Utils.reserved_ids
+          | _ -> Mil.Env.Set.empty
+        ) in
+        let mil = Mil.Translate.transform reserved_ids il in
         if !print_mil_f || !print_all_mil then 
           print_mil mil;
         List.fold_left (fun mil pass ->
@@ -364,6 +371,7 @@ let () =
       log "Interpreting...";
       Backend_interpreter.Runner.run args
     | Rocq ->
+      log "Rocq Generation...";
       (match !odsts with
       | [] -> print_endline (Backend_rocq.Print.string_of_script mil)
       | [odst] -> 

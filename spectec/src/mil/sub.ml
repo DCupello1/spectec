@@ -118,7 +118,7 @@ let rec transform_sub_def (env : Env.t) (d : mil_def) =
           List.concat_map get_subE_term terms @ List.concat_map (fun (_, t) -> get_subE_term t) bs
         ) type_family_entries in
       transform_subE sub_expressions @ [d]
-    | MutualRecD defs -> List.concat_map (transform_sub_def env) defs
+    | MutualRecD defs -> [MutualRecD (List.concat_map (transform_sub_def env) defs) $ d.at]
     | _ -> [d]
 
 let transform (il : mil_script) =

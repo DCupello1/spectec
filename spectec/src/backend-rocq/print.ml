@@ -4,10 +4,10 @@ open Mil
 let square_parens s = "[" ^ s ^ "]"
 let parens s = "(" ^ s ^ ")"
 let curly_parens s = "{" ^ s ^ "}"
-
 let comment_parens s = "(* " ^ s ^ " *)"
 
 let family_type_suffix = "entry"
+
 let is_inductive (d : mil_def) = 
   match d.it with
     | (InductiveRelationD _ | InductiveD _) -> true
@@ -82,6 +82,7 @@ let rec string_of_term (term : term) =
     | T_type_basic T_list -> "list"
     | T_type_basic T_opt -> "option"
     | T_type_basic T_anytype -> "Type"
+    | T_type_basic T_prop -> "Prop"
     | T_ident ids -> String.concat "__" ids
     | T_list [] -> "[]"
     | T_record_fields fields -> "{| " ^ (String.concat "; " (List.map (fun (id, term) -> id ^ " := " ^ string_of_term term) fields)) ^ " |}"
@@ -113,14 +114,6 @@ let string_of_binder b =
 let string_of_binders (binds : binders) = 
   Print.string_of_list_prefix " " " " string_of_binder binds
 
-let rec string_of_function_body f =
-  match f with 
-    | F_term term -> string_of_term term
-    | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
-    | F_let (var_term, term, fb) -> "let " ^ string_of_term var_term ^ " := " ^ string_of_term term ^ " in\n\t\t\t" ^ string_of_function_body fb
-    | F_match term -> string_of_term term (* Todo extend this *)
-    | F_default -> "default_val" 
-
 let string_of_binders_ids (binds : binders) = 
   Print.string_of_list_prefix " " " " (fun (id, _) -> id) binds
 
@@ -138,6 +131,35 @@ let string_of_inferred_types (types : inferred_types) =
 
 let string_of_relation_args (args : relation_args) = 
   Print.string_of_list_prefix " " " -> " string_of_term args
+
+let rec string_of_premise (prem : premise) =
+  match prem with
+    | P_if term -> string_of_term term
+    | P_rule (id, terms) -> parens (id ^ Print.string_of_list_prefix " " " " string_of_term terms)
+    | P_neg p -> parens ("~" ^ string_of_premise p)
+    | P_else -> "otherwise" (* Will be removed by an else pass *)
+    | P_forall (iterator, p, v) -> 
+      let option_conversion = if iterator = I_option then "option_to_list " else "" in
+      "List.Forall " ^ parens ( "fun " ^ v ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ v)
+    | P_forall2 (iterator, p, v, s) -> 
+      let option_conversion = if iterator = I_option then "option_to_list " else "" in
+      "List.Forall2 " ^ parens ("fun " ^ v ^ " " ^ s ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ v) ^ " " ^ parens (option_conversion ^ s)
+    | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
+
+let rec string_of_function_body f =
+  match f with 
+    | F_term term -> string_of_term term
+    | F_premises [] -> "True"
+    | F_premises prems -> String.concat "/\\" (List.map string_of_premise prems)
+    | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
+    | F_let (var_term, term, fb) -> "let " ^ string_of_term var_term ^ " := " ^ string_of_term term ^ " in\n\t\t\t" ^ string_of_function_body fb
+    | F_match term -> string_of_term term (* Todo extend this *)
+    | F_default -> "default_val" 
+
+let string_of_typealias (id : ident) (binds : binders) (typ : term) = 
+  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term typ ^ ".\n\n" ^ 
+  string_of_list_type id binds ^ ".\n\n" ^
+  string_of_option_type id binds
 
 let string_of_record (id: ident) (entries : record_entry list) = 
   let constructor_name = "mk" ^ id in
@@ -191,25 +213,6 @@ let string_of_definition (prefix : string) (id : ident) (binders : binders) (ret
     "| " ^ string_of_term match_term ^ " => " ^ string_of_function_body fb) clauses) ^
   "\n\tend"
 
-let rec string_of_premise (prem : premise) =
-  match prem with
-    | P_if term -> string_of_term term
-    | P_rule (id, terms) -> parens (id ^ Print.string_of_list_prefix " " " " string_of_term terms)
-    | P_neg p -> parens ("~" ^ string_of_premise p)
-    | P_else -> "otherwise" (* Will be removed by an else pass *)
-    | P_forall (iterator, p, v) -> 
-      let option_conversion = if iterator = I_option then "option_to_list " else "" in
-      "List.Forall " ^ parens ( "fun " ^ v ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ v)
-    | P_forall2 (iterator, p, v, s) -> 
-      let option_conversion = if iterator = I_option then "option_to_list " else "" in
-      "List.Forall2 " ^ parens ("fun " ^ v ^ " " ^ s ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ v) ^ " " ^ parens (option_conversion ^ s)
-    | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
-  
-let string_of_typealias (id : ident) (binds : binders) (typ : term) = 
-  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term typ ^ ".\n\n" ^ 
-  string_of_list_type id binds ^ ".\n\n" ^
-  string_of_option_type id binds
-
 let string_of_inductive_relation (prefix : string) (id : ident) (args : relation_args) (relations : relation_type_entry list) = 
   prefix ^ id ^ ": " ^ string_of_relation_args args ^ " -> Prop :=\n\t" ^
   String.concat "\n\t" (List.map (fun ((case_id, binds), premises, end_terms) ->
@@ -222,7 +225,7 @@ let string_of_axiom (id : ident) (binds : binders) (r_type: return_type) =
   "Axiom " ^ id ^ " : forall " ^ string_of_binders binds ^ ", " ^ string_of_term r_type
 
 let string_of_family_types (id : ident) (types: term list) (entries : family_type_entry list) = 
-  "Inductive " ^ id ^ " : " ^ Print.string_of_list_suffix " -> " " -> " string_of_term types ^ "Type =\n\t| " ^
+  "Inductive " ^ id ^ " : " ^ Print.string_of_list_suffix " -> " " -> " string_of_term types ^ "Type :=\n\t| " ^
   String.concat "\n\t| " (List.map (fun (case_id, bs, terms) -> 
     case_id ^ Print.string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ id ^ Print.string_of_list_prefix " " " " string_of_term terms) 
   entries)
@@ -237,26 +240,31 @@ let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
   "Coercion " ^ opt_func ^ " : option__" ^ typ1 ^ " >-> " ^ "option__" ^ typ2
 
 let rec string_of_def (recursive : bool) (def : mil_def) = 
-  comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region (def.at)) ^ "\n" ^ 
+  let end_newline = ".\n\n" in 
+  let start = comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region (def.at)) ^ "\n" in
   match def.it with
-    | TypeAliasD (id, binds, typ) -> string_of_typealias id binds typ
-    | RecordD (id, entries) -> string_of_record id entries
-    | InductiveD (id, args, entries) -> string_of_inductive_def id args entries
-    | MutualRecD defs -> (match defs with
+    | TypeAliasD (id, binds, typ) -> start ^ string_of_typealias id binds typ ^ end_newline
+    | RecordD (id, entries) -> start ^ string_of_record id entries ^ end_newline
+    | InductiveD (id, args, entries) -> start ^ string_of_inductive_def id args entries ^ end_newline
+    | MutualRecD defs -> start ^ (match defs with
       | [] -> ""
       | [d] -> string_of_def (not (is_inductive d)) d
-      | d :: defs -> let prefix = if is_inductive d then "\n\nwith\n\n" else "\n\n" in
+      | d :: defs -> let prefix = if List.for_all is_inductive (d :: defs) then "\n\nwith\n\n" else "\n\n" in
         string_of_def false d ^ prefix ^ String.concat prefix (List.map (string_of_def true) defs)
       )
     | DefinitionD (id, binds, typ, clauses) -> let prefix = if recursive then "Fixpoint " else "Definition " in
-      string_of_definition prefix id binds typ clauses
-    | GlobalDeclarationD (id, rt, (_, f_b)) -> "Definition " ^ id ^ " : " ^ string_of_term rt ^ " := " ^ string_of_function_body f_b
+      start ^ string_of_definition prefix id binds typ clauses ^ end_newline
+    | GlobalDeclarationD (id, rt, (_, f_b)) -> 
+      start ^ "Definition " ^ id ^ " : " ^ string_of_term rt ^ " := " ^ string_of_function_body f_b ^ end_newline
     | InductiveRelationD (id, args, relations) -> let prefix = if recursive then "" else "Inductive " in
-      string_of_inductive_relation prefix id args relations
-    | AxiomD (id, binds, r_type) -> string_of_axiom id binds r_type
-    | InductiveFamilyD (id, types, entries) -> string_of_family_types id types entries 
-    | CoercionD (func_name, typ1, typ2) -> string_of_coercion func_name typ1 typ2
-    | UnsupportedD str -> comment_parens ("Unsupported Definition: " ^ str)
+      start ^ string_of_inductive_relation prefix id args relations ^ end_newline
+    | AxiomD (id, binds, r_type) -> 
+      start ^ string_of_axiom id binds r_type ^ end_newline
+    | InductiveFamilyD (id, types, entries) -> 
+      start ^ string_of_family_types id types entries  ^ end_newline
+    | CoercionD (func_name, typ1, typ2) -> 
+      start ^ string_of_coercion func_name typ1 typ2 ^ end_newline
+    | UnsupportedD _str -> "" (* TODO maybe introduce later if people want it. need to escape "\(*\)" *)
 
 let exported_string = 
   "(* Imported Code *)\n" ^
@@ -346,4 +354,4 @@ let exported_string =
 let string_of_script (mil : mil_script) =
   exported_string ^ 
   "(* Generated Code *)\n" ^
-  String.concat ".\n\n" (List.map (string_of_def false) mil) ^ "."
+  String.concat "" (List.map (string_of_def false) mil)
