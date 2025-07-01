@@ -32,33 +32,11 @@ let transform_id (id : id) = transform_id' id.it
 let transform_iter (iter : iter) =
   if iter = Opt then I_option else I_list
 
-(* Identifier generation *)
-let gen_typ_name (t : typ) =
-  match t.it with
-    | VarT (id, _) -> id.it
-    | _ -> "" (* Not an issue if this happens *)
-  
-let get_typ_args (t : typ) = 
-  match t.it with
-    | VarT (_, args) -> args
-    | _ -> []
-
+(* Identifier generation *)  
 let gen_exp_name (e : exp) =
   match e.it with
     | VarE id -> id.it
     | _ -> "_" 
-
-let get_typ_name (t : typ) = 
-  match t.it with
-    | VarT (id, _) -> Some id
-    | _ -> None
-    
-let gen_bind_name (bind : bind) =
-  match bind.it with
-    | ExpB (id, _) -> transform_id id
-    | TypB id -> transform_id id
-    | DefB (id, _, _) -> transform_id id 
-    | GramB _  -> assert false (* Avoiding this for now *) 
     
 (* Atom functions *)
 let transform_atom (a : atom) = 
@@ -142,7 +120,7 @@ and transform_exp (exp : exp) =
     | OptE (Some e) -> T_app (T_exp_basic T_some, typ, [transform_exp e])
     | OptE None -> T_exp_basic T_none
     | TheE e -> T_app (T_exp_basic T_invopt, typ, [transform_exp e])
-    | StrE expfields -> T_record_fields (List.map (fun (a, e) -> (gen_typ_name exp.note ^ "__" ^ transform_atom a, transform_exp e)) expfields)
+    | StrE expfields -> T_record_fields (List.map (fun (a, e) -> (string_of_typ_name exp.note ^ "__" ^ transform_atom a, transform_exp e)) expfields)
     | DotE (e, atom) -> T_app (T_ident [transform_atom atom], typ, [transform_exp e])
     | CompE (exp1, exp2) -> T_app_infix (T_exp_basic T_recordconcat, transform_exp exp1, transform_exp exp2)
     | ListE exps -> T_list (List.map transform_exp exps)
@@ -173,12 +151,9 @@ and transform_match_exp (exp : exp) =
   let typ = transform_type exp.note in 
   match exp.it with
   (* Specific match exp handling *)
-  | CatE (exp1, exp2) -> T_app_infix (T_exp_basic T_listcons, transform_match_exp exp1, transform_match_exp exp2)
+  | CatE ({it = ListE [exp1]; _}, exp2) -> 
+    T_app_infix (T_exp_basic T_listcons, transform_match_exp exp1, transform_match_exp exp2)
   | IterE (exp, _) -> transform_match_exp exp
-  | ListE exps -> (match exps with
-    | [e] -> transform_match_exp e
-    | _ -> transform_exp exp
-  )
   | BinE (`AddOp, _, exp1, {it = NumE (`Nat n) ;_}) -> let rec get_succ n = (match n with
     | 0 -> transform_match_exp exp1
     | m -> T_app (T_exp_basic T_succ, typ, [get_succ (m - 1)])

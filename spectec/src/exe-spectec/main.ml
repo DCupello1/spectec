@@ -263,7 +263,7 @@ let () =
     Al.Valid.valid al;
     *)
 
-    let _mil =
+    let mil =
       if !print_mil_f || (!target = Rocq)
       then (
         log "Translating to MIL...";
@@ -363,8 +363,17 @@ let () =
       log "Interpreting...";
       Backend_interpreter.Runner.run args
     | Rocq ->
-      ()
-
+      (match !odsts with
+      | [] -> print_endline (Backend_rocq.Print.string_of_script mil)
+      | [odst] -> 
+        let coq_code = Backend_rocq.Print.string_of_script mil in
+        let oc = Out_channel.open_text odst in
+        Fun.protect (fun () -> Out_channel.output_string oc coq_code)
+          ~finally:(fun () -> Out_channel.close oc)
+      | _ ->
+        prerr_endline "too many output file names";
+        exit 2
+      )
     );
     log "Complete."
   with
