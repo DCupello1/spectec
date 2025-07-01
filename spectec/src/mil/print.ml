@@ -81,6 +81,7 @@ let string_of_basic_type_term t =
     | T_list -> "list"
     | T_opt -> "option"
     | T_anytype -> "Type"
+    | T_prop -> "Proposition"
 
 let rec string_of_term t = 
   match t with 
@@ -126,6 +127,8 @@ let rec string_of_premise p =
 let rec string_of_function_body f =
   match f with 
     | F_term term -> string_of_term term
+    | F_premises [] -> "True"
+    | F_premises premises -> String.concat "/\\" (List.map string_of_premise premises)
     | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
     | F_let (var_term, term, fb) -> "let " ^ string_of_term var_term ^ " := " ^ string_of_term term ^ " in\n\t\t\t" ^ string_of_function_body fb
     | F_match term -> string_of_term term (* Todo extend this *)
@@ -152,7 +155,7 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
       "match " ^ parens (String.concat ", " (grab_id_of_binders bs)) ^ " with\n\t\t| " ^
       String.concat "\n\t\t| " (List.map (fun (match_term, f_b) -> string_of_term match_term ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
     | GlobalDeclarationD (id, rt, (_, f_b)) -> region ^ "definition " ^ id ^ " : " ^ string_of_term rt ^ " := " ^ string_of_function_body f_b ^ endnewline
-    | MutualRecD defs -> String.concat "" (List.map (string_of_def ~suppress_unsup) defs)
+    | MutualRecD defs -> region ^ String.concat "" (List.map (string_of_def ~suppress_unsup) defs)
     | AxiomD (id, bs, rt) -> region ^ "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term rt ^ endnewline
     | CoercionD (fn_name, typ1, typ2) -> region ^ "coercion " ^ fn_name ^ " : " ^ typ1 ^ " <: " ^ typ2 ^ endnewline
     | UnsupportedD str when not suppress_unsup -> "Unsupported definition: " ^ str

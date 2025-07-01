@@ -18,7 +18,6 @@ let empty_env = {
 
 let var_prefix = "v_"
 let proj_prefix = "proj_"
-let wf_prefix = "wf_"
 
 let get_case_typs t = 
   match t.it with
@@ -85,24 +84,6 @@ let create_projection_functions id params int_set inst =
       | _ -> assert false
     )
   ) (IntSet.elements int_set)
-
-let create_well_formed_function id params inst =
-  match inst.it with
-    | InstD (_ , _, {it = VariantT typcases; _}) when List.for_all (fun (_, (_, _, prems), _) -> List.is_empty prems) typcases -> None
-    | InstD (_, _, {it = VariantT typcases; _}) -> 
-      let user_typ = VarT (id, List.map make_arg params) $ no_region in 
-      let new_param = ExpP ("x" $ no_region, user_typ) $ no_region in
-      let new_params = params @ [new_param] in 
-      let clauses = List.map (fun (m, (_, typ, prems), _) -> 
-        let case_typs = get_case_typs typ in   
-        let new_var_exps = List.mapi (fun idx (_, t) -> VarE (var_prefix ^ typ_name t ^ "_" ^ Int.to_string idx $ no_region) $$ no_region % t) case_typs in 
-        let new_tup = TupE (new_var_exps) $$ no_region % (TupT case_typs $ no_region) in
-        let new_case_exp = CaseE(m, new_tup) $$ no_region % user_typ in
-        let new_arg = ExpA new_case_exp $ no_region in 
-        DefD (List.map make_bind new_params, List.map make_arg params @ [new_arg], BoolE true $$ no_region % (BoolT $ no_region), prems) $ no_region
-      ) typcases in
-      Some (DecD (wf_prefix ^ id.it $ id.at, new_params, BoolT $ no_region, clauses))
-    | _ -> None
 
 let rec preprocess_iter p_env i =
   match i with 
@@ -258,10 +239,9 @@ let rec preprocess_def p_env def =
   (match def.it with
     | TypD (id, params, [inst]) -> 
       let d = TypD (id, List.map (preprocess_param p_env) params, [preprocess_inst p_env inst]) in 
-      let wf_func = Option.to_list (create_well_formed_function id params inst) in
       (match (StringMap.find_opt id.it p_env.uncase_map) with 
-        | None -> d :: wf_func
-        | Some int_set -> d :: wf_func @ create_projection_functions id params int_set inst
+        | None -> [d]
+        | Some int_set -> d :: create_projection_functions id params int_set inst
       )
     | TypD (id, params, insts) -> [TypD (id, List.map (preprocess_param p_env) params, List.map (preprocess_inst p_env) insts)]
     | RelD (id, m, typ, rules) -> [RelD (id, m, preprocess_typ p_env typ, List.map (preprocess_rule p_env) rules)]

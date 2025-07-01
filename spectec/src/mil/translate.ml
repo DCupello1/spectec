@@ -10,24 +10,34 @@ let error at msg = Error.error at "MIL Transformation" msg
 
 let coerce_prefix = "coec_"
 let var_prefix = "v_"
+let fun_prefix = "fun_"
+let reserved_prefix = "res_"
+let wf_prefix = "wf_"
 
-let rec list_split (f : 'a -> bool) (l : 'a list) = match l with
+let reserved_ids_set = ref Env.Set.empty
+
+let rec list_split (f : 'a -> bool) = function 
   | [] -> ([], [])
   | x :: xs when f x -> let x_true, x_false = list_split f xs in
     (x :: x_true, x_false)
   | xs -> ([], xs)
 
 (* Id transformation *)
-let transform_id' (s : text) = 
+(* A hole ('_') indicates to MIL that something must be filled in there *)
+let transform_id' (prefix : text) (s : text) = 
   let s' = String.to_seq s |> Seq.take_while (fun c -> c != '*' && c != '?' && c != '^' ) |> String.of_seq in 
   match s' with
+  | "" -> "_"
+  | s when Env.Set.mem s !reserved_ids_set -> prefix ^ s
   | s -> String.map (function
      | '.' -> '_'
      | '-' -> '_'
      | c -> c
      ) s
 
-let transform_id (id : id) = transform_id' id.it
+let transform_var_id (id : id) = transform_id' var_prefix id.it
+let transform_fun_id (id : id) = fun_prefix ^ transform_id' "" id.it
+let transform_user_def_id (id : id) = transform_id' reserved_prefix id.it
 
 let transform_iter (iter : iter) =
   if iter = Opt then I_option else I_list
@@ -41,7 +51,7 @@ let gen_exp_name (e : exp) =
 (* Atom functions *)
 let transform_atom (a : atom) = 
   match a.it with
-    | Atom s -> transform_id' s
+    | Atom s -> transform_user_def_id (s $ no_region)
     | _ -> ""
 
 let is_atomid (a : atom) =
@@ -50,13 +60,12 @@ let is_atomid (a : atom) =
     | _ -> false
 
 let transform_mixop (m : mixop) = match m with
-  | [{it = Atom a; _}] :: tail when List.for_all ((=) []) tail -> transform_id' a
+  | [{it = Atom a; _}] :: tail when List.for_all ((=) []) tail -> transform_user_def_id (a $ no_region) 
   | mixop -> String.concat "" (List.map (
       fun atoms -> String.concat "" (List.map transform_atom (List.filter is_atomid atoms))) mixop
     )
 
 (* Type functions *)
-
 let transform_itertyp (it : iter) =
   match it with
     | Opt -> T_type_basic T_opt
@@ -78,7 +87,7 @@ let rec transform_type (typ : typ) =
         | DefA _ | GramA _ -> assert false (* TODO Extend later *)
       in 
       let var_type = List.fold_right (fun term acc -> T_arrowtype (term, acc)) (List.map get_typ args) (T_type_basic T_anytype) in
-      T_app (T_ident [transform_id id], var_type, List.map transform_arg args)
+      T_app (T_ident [transform_user_def_id id], var_type, List.map transform_arg args)
     | BoolT -> T_type_basic T_bool
     | NumT nt -> transform_numtyp nt
     | TextT -> T_type_basic T_string 
@@ -101,7 +110,7 @@ and transform_tuple_to_relation_args (t : typ) =
 and transform_exp (exp : exp) =
   let typ = transform_type exp.note in
   match exp.it with 
-    | VarE id -> T_ident [transform_id id]
+    | VarE id -> T_ident [transform_var_id id]
     | BoolE b -> T_exp_basic (T_bool b)
     | NumE (`Nat n) -> T_exp_basic (T_nat n)
     | NumE (`Int i) -> T_exp_basic (T_int i)
@@ -130,7 +139,7 @@ and transform_exp (exp : exp) =
     | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, typ, [transform_exp exp1; transform_exp exp2; transform_exp exp3])
     | UpdE (exp1, path, exp2) -> transform_path_start' path (transform_exp exp1) false (transform_exp exp2) 
     | ExtE (exp1, path, exp2) -> transform_path_start' path (transform_exp exp1) true (transform_exp exp2)
-    | CallE (id, args) -> T_app (T_ident [transform_id id], typ, List.map transform_arg args)
+    | CallE (id, args) -> T_app (T_ident [transform_fun_id id], typ, List.map transform_arg args)
     | IterE (exp, (iter, ids)) ->  
         let exp1 = transform_exp exp in
         (match iter, ids, exp.it with
@@ -138,8 +147,8 @@ and transform_exp (exp : exp) =
         | Opt, [], _ -> T_app (T_exp_basic T_some, typ, [exp1])
         | (List | List1 | ListN _ | Opt), _, (VarE _ | IterE _) -> exp1 
         | Opt, [(_, _)], OptE (Some e) -> T_app (T_exp_basic T_some, typ, [transform_exp e])
-        | (List | List1 | ListN _ | Opt), [(v, _)], _ -> T_app (T_exp_basic (T_map (transform_iter iter)), typ, [T_lambda ([transform_id v], exp1); T_ident [transform_id v]])
-        | (List | List1 | ListN _ | Opt), [(v, _); (s, _)], _ -> T_app (T_exp_basic (T_zipwith (transform_iter iter)), typ, [T_lambda ([transform_id v; transform_id s], exp1); T_ident [transform_id v]; T_ident [transform_id s]])
+        | (List | List1 | ListN _ | Opt), [(v, _)], _ -> T_app (T_exp_basic (T_map (transform_iter iter)), typ, [T_lambda ([transform_var_id v], exp1); T_ident [transform_var_id v]])
+        | (List | List1 | ListN _ | Opt), [(v, _); (s, _)], _ -> T_app (T_exp_basic (T_zipwith (transform_iter iter)), typ, [T_lambda ([transform_var_id v; transform_var_id s], exp1); T_ident [transform_var_id v]; T_ident [transform_var_id s]])
         | _ -> exp1
       ) 
     | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
@@ -178,7 +187,7 @@ and transform_match_exp (exp : exp) =
   | SliceE (exp1, exp2, exp3) -> T_app (T_exp_basic T_slicelookup, typ, [transform_match_exp exp1; transform_match_exp exp2; transform_match_exp exp3])
   | UpdE (exp1, path, exp2) -> transform_path_start' path (transform_match_exp exp1) false (transform_match_exp exp2) 
   | ExtE (exp1, path, exp2) -> transform_path_start' path (transform_match_exp exp1) true (transform_match_exp exp2)
-  | CallE (id, args) -> T_app (T_ident [transform_id id], typ, List.map transform_arg args)
+  | CallE (id, args) -> T_app (T_ident [transform_fun_id id], typ, List.map transform_arg args)
   | SubE (e, typ1, typ2) -> T_cast (transform_exp e, transform_type typ1, transform_type typ2)
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp e, transform_numtyp numtyp1, transform_numtyp numtyp2)
   | MemE (e1, e2) -> T_app (T_exp_basic (T_listmember), T_type_basic T_bool, [transform_match_exp e1; transform_match_exp e2])
@@ -235,16 +244,16 @@ and transform_match_arg (arg : arg) =
 
 and transform_bind (bind : bind) =
   match bind.it with
-    | ExpB (id, typ) -> (transform_id id, transform_type typ)
-    | TypB id -> (transform_id id, T_type_basic T_anytype)
+    | ExpB (id, typ) -> (transform_var_id id, transform_type typ)
+    | TypB id -> (transform_var_id id, T_type_basic T_anytype)
     | DefB _ -> ("", T_unsupported ("Higher order func: " ^ string_of_bind bind))
     | GramB _ -> ("", T_unsupported ("Grammar bind: " ^ string_of_bind bind))
 
 and transform_param (p : param) =
   match p.it with
     | ExpP (id, typ) -> 
-      (transform_id id, transform_type typ)
-    | TypP id -> transform_id id, T_type_basic T_anytype
+      (transform_var_id id, transform_type typ)
+    | TypP id -> transform_var_id id, T_type_basic T_anytype
     | DefP _ -> ("", T_unsupported ("Higher order func: " ^ string_of_param p))
     | GramP _ -> ("", T_unsupported ("Grammar param: " ^ string_of_param p))
 
@@ -322,24 +331,25 @@ let rec transform_premise (p : prem) =
     | ElsePr -> P_else
     | LetPr (exp1, exp2, _) -> P_if (T_app_infix (T_exp_basic T_eq, transform_exp exp1, transform_exp exp2))
     | IterPr (p, (iter, [(id, _e)])) ->
-      P_forall (transform_iter iter, transform_premise p, transform_id id)
-    | IterPr (p, (iter, [(id, _e); (id2, _e2)])) when iter != Opt ->
-      P_forall2 (transform_iter iter, transform_premise p, transform_id id, transform_id id2)
-    | IterPr _ -> assert false (* TODO check if this makes sense *)
-    | RulePr (id, _mixop, exp) -> P_rule (transform_id id, transform_tuple_exp transform_exp exp)
+      P_forall (transform_iter iter, transform_premise p, transform_var_id id)
+    | IterPr (p, (iter, [(id, _e); (id2, _e2)])) ->
+      P_forall2 (transform_iter iter, transform_premise p, transform_var_id id, transform_var_id id2)
+    | IterPr _ -> P_unsupported (string_of_prem p)
+    (* | IterPr _ -> assert false TODO check if this makes sense *)
+    | RulePr (id, _mixop, exp) -> P_rule (transform_user_def_id id, transform_tuple_exp transform_exp exp)
 
 let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
   match deftyp.it with
-    | AliasT typ -> TypeAliasD (transform_id id, List.map transform_bind binds, transform_type typ)
-    | StructT typfields -> RecordD (transform_id id, List.map (fun (a, (_, t, _), _) -> 
+    | AliasT typ -> TypeAliasD (transform_user_def_id id, List.map transform_bind binds, transform_type typ)
+    | StructT typfields -> RecordD (transform_user_def_id id, List.map (fun (a, (_, t, _), _) -> 
       (transform_atom a, transform_type t)) typfields)
-    | VariantT typcases -> InductiveD (transform_id id, List.map transform_bind binds, List.map (fun (m, (_, t, _), _) ->
+    | VariantT typcases -> InductiveD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (m, (_, t, _), _) ->
         (transform_mixop m, transform_typ_args t)) typcases)
 
 let transform_rule (_id : id) (r : rule) = 
   match r.it with
     | RuleD (rule_id, binds, _mixop, exp, premises) -> 
-      ((transform_id rule_id, List.map transform_bind binds), 
+      ((transform_user_def_id rule_id, List.map transform_bind binds), 
       List.map transform_premise premises, transform_tuple_exp transform_exp exp)
 let transform_clause (fb : function_body option) (c : clause) =
   match c.it, fb with
@@ -427,30 +437,60 @@ let _transform_clauses (clauses : clause list) : clause_entry list =
     | DefD(binds, args, exp, prems) -> DefD(binds, args, exp, modify_let_prems (free_list free_arg args) prems) $ clause.at
   ) clauses 
   |> rearrange_clauses
-    
-let rec transform_def (d : def) : mil_def =
-  (match d.it with
-    | TypD (id, [], [{it = InstD (binds, _, deftyp);_}]) -> transform_deftyp id binds deftyp 
-    | TypD (id, params, insts) -> InductiveFamilyD (transform_id id, List.map (fun p -> snd (transform_param p)) params, List.map (transform_inst id) insts)
-    | RelD (id, _, typ, rules) -> InductiveRelationD (transform_id id, transform_tuple_to_relation_args typ, List.map (transform_rule id) rules)
-    | DecD (id, params, typ, clauses) -> 
-      (match params,clauses with
-        | _, [] -> AxiomD (transform_id id, List.map transform_param params, transform_type typ)
-        | [], [clause] -> GlobalDeclarationD (transform_id id, transform_type typ, transform_clause None clause)
-        | _ -> 
-          DefinitionD (transform_id id, List.map transform_param params, transform_type typ, List.map (transform_clause None) clauses)
-      )
-    | RecD defs -> MutualRecD (List.map transform_def defs)
-    | HintD _ | GramD _ -> UnsupportedD (string_of_def d)
-  ) $ d.at
 
+let create_well_formed_function id params inst =
+  match inst.it with
+    | InstD (_ , _, {it = VariantT typcases; _}) when List.for_all (fun (_, (_, _, prems), _) -> List.is_empty prems) typcases -> 
+      (* Case with no premises, does not need well-formedness *)
+      None
+    | InstD (_, _, {it = VariantT typcases; _}) -> 
+      let user_typ = VarT (id, List.map Preprocess.make_arg params) $ no_region in 
+      let new_param = ExpP ("x" $ no_region, user_typ) $ no_region in
+      let new_params = params @ [new_param] in 
+      let clauses = List.map (fun (m, (_, typ, prems), _) -> 
+        let case_typs = Preprocess.get_case_typs typ in   
+        let new_var_exps = List.mapi (fun _idx (e, _t) -> e) case_typs in 
+        let new_tup = TupE (new_var_exps) $$ no_region % (TupT case_typs $ no_region) in
+        let new_case_exp = CaseE(m, new_tup) $$ no_region % user_typ in
+        let new_arg = ExpA new_case_exp $ no_region in 
+        let new_args = List.map Preprocess.make_arg params @ [new_arg] in
+        (T_match (List.map transform_match_arg new_args), F_premises (List.map transform_premise prems))
+      ) typcases in
+      Some (DefinitionD (wf_prefix ^ id.it, List.map transform_param new_params, T_type_basic T_prop, clauses))
+    | _ -> None
+
+let rec transform_def (def : def) : mil_def list =
+  let has_prems clause = match clause.it with
+    | DefD (_, _, _, prems) -> prems <> []
+  in
+  (match def.it with
+    | TypD (id, params, [({it = InstD (binds, _, deftyp);_} as inst)]) 
+      when Tfamily.check_normal_type_creation inst -> 
+      let wf_func = Option.to_list (create_well_formed_function id params inst) in 
+      transform_deftyp id binds deftyp :: wf_func 
+    | TypD (id, params, insts) -> [InductiveFamilyD (transform_user_def_id id, List.map (fun p -> snd (transform_param p)) params, List.map (transform_inst id) insts)]
+    | RelD (id, _, typ, rules) -> [InductiveRelationD (transform_user_def_id id, transform_tuple_to_relation_args typ, List.map (transform_rule id) rules)]
+    | DecD (id, params, typ, clauses) -> 
+      (match params, clauses with
+        | _, [] -> [AxiomD (transform_fun_id id, List.map transform_param params, transform_type typ)]
+        | [], [clause] -> [GlobalDeclarationD (transform_fun_id id, transform_type typ, transform_clause None clause)]
+        | _, clauses when List.for_all has_prems clauses -> 
+          (* HACK - Need to deal with premises in the future. *)
+          [AxiomD (transform_fun_id id, List.map transform_param params, transform_type typ)]
+        | _ -> 
+          [DefinitionD (transform_fun_id id, List.map transform_param params, transform_type typ, List.map (transform_clause None) clauses)]
+      )
+    | RecD defs -> [MutualRecD (List.concat_map transform_def defs)]
+    | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]
+  ) |> List.map (fun d -> d $ def.at)
 let is_not_hintdef (d : def) : bool =
   match d.it with
     | HintD _ -> false
     | _ -> true 
 
 (* Main transformation function *)
-let transform (il : script) : mil_script =
+let transform (reserved_ids : Env.Set.t) (il : script) : mil_script =
+  reserved_ids_set := reserved_ids; 
   Preprocess.preprocess il |>
   List.filter is_not_hintdef |>
-  List.map transform_def 
+  List.concat_map transform_def 

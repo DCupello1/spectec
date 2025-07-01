@@ -18,6 +18,7 @@ type basic_type =
   | T_list
   | T_opt
   | T_anytype (* Generic type for type parameters *)
+  | T_prop (* Generic type for propositions *)
 
 type basic_term = 
   | T_bool of bool
@@ -93,6 +94,7 @@ and premise =
 
 and function_body = 
   | F_term of term
+  | F_premises of premise list
   | F_if_else of term * function_body * function_body
   | F_let of term * term * function_body
   | F_match of term (* TODO this one will be tricky *)
