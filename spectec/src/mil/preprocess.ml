@@ -1,20 +1,38 @@
 open Il.Ast
 open Il
 open Util.Source
+open Util
 
 module StringMap = Map.Make(String)
 module IntSet = Set.Make(Int)
 type uncase_map = (IntSet.t) StringMap.t
 
+let error at msg = Error.error at "MIL Preprocessing" msg
+
 type env = {
   mutable uncase_map : uncase_map;
-  mutable env : Il.Env.t
+  mutable env : Il.Env.t;
+  mutable prefix_map : string StringMap.t
 }
 
 let empty_env = {
   uncase_map = StringMap.empty;
-  env = Il.Env.empty
+  env = Il.Env.empty;
+  prefix_map = StringMap.empty
 }
+
+let string_of_prefix = function
+  | {it = El.Ast.TextE s; _} -> s
+  | {at; _} -> error at "malformed prefix hint"
+
+let register_prefix (env : env) (id :id) (exp : El.Ast.exp) =
+  env.prefix_map <- StringMap.add id.it (string_of_prefix exp) env.prefix_map
+
+let has_prefix_hint (hint : hint) = hint.hintid.it = "prefix"
+
+let atom_string_combine a typ_name = Xl.Atom.to_string a ^ "__" ^ typ_name
+
+let mixop_string_combine m typ_name = Xl.Mixop.to_string m ^ "__" ^ typ_name
 
 let var_prefix = "v_"
 let proj_prefix = "proj_"
@@ -51,7 +69,7 @@ let make_bind p =
     | ExpP (id, typ) -> ExpB (id, typ)
     | TypP id -> TypB id
     | DefP (id, params, typ) -> DefB (id, params, typ)
-    | GramP _ -> assert false
+    | GramP _ -> assert false (* Avoid this *)
   ) $ p.at
 
 let create_projection_functions id params int_set inst =
@@ -85,6 +103,17 @@ let create_projection_functions id params int_set inst =
     )
   ) (IntSet.elements int_set)
 
+let prepend_atom a prefix = 
+  (match a.it with
+    | Xl.Atom.Atom s -> Xl.Atom.Atom (prefix ^ s)
+    | _ -> error a.at "Can only give prefixes to names"
+  ) $$ a.at % a.note
+
+let prepend_mixop (m : mixop) (prefix : text) = 
+  match m with 
+    | [] -> [[Xl.Atom.Atom prefix $$ no_region % (Xl.Atom.info "")]]
+    | atoms :: ms -> ((Xl.Atom.Atom prefix $$ no_region % (Xl.Atom.info "")) :: atoms) :: ms
+
 let rec preprocess_iter p_env i =
   match i with 
     | ListN (exp, id_opt) -> ListN (preprocess_exp p_env exp, id_opt)
@@ -102,22 +131,39 @@ and preprocess_exp p_env e =
   let p_func = preprocess_exp p_env in
   (match e.it with
     | ProjE ({ it = UncaseE(e, _); _}, n) -> 
+      (* Supplying the projection function for UncaseE removal *)
       let typ = (Il.Eval.reduce_typ p_env.env e.note) in 
       let typ_name = Print.string_of_typ_name typ in
       let args = (match typ.it with 
         | VarT (_, args) -> args
         | _ -> assert false (* TODO appropriate error for this *)
       ) in CallE (proj_prefix ^ typ_name ^ "_" ^ Int.to_string n $ no_region, args @ [ExpA e $ e.at])
+    | CaseE (m, e1) -> 
+      (* Checking and inserting correct prefix from hint *)
+      let typ_name = Print.string_of_typ_name e.note in
+      let combined_id = mixop_string_combine m typ_name in
+      (match (StringMap.find_opt combined_id p_env.prefix_map) with 
+        | Some prefix -> CaseE (prepend_mixop m prefix, p_func e1)
+        | None -> CaseE (m, p_func e1)
+      )
+    | StrE fields ->
+      (* Checking and inserting correct prefix from hint *) 
+      let typ_name = Print.string_of_typ_name e.note in
+      StrE (List.map (fun (a, e1) ->
+        let combined_id = atom_string_combine a typ_name in 
+        (match (StringMap.find_opt combined_id p_env.prefix_map) with 
+        | Some prefix -> (prepend_atom a prefix, p_func e1)
+        | None -> (a, p_func e1)
+        )
+      ) fields)
     | UnE (unop, optyp, e1) -> UnE (unop, optyp, p_func e1)
     | BinE (binop, optyp, e1, e2) -> BinE (binop, optyp, p_func e1, p_func e2)
     | CmpE (cmpop, optyp, e1, e2) -> CmpE (cmpop, optyp, p_func e1, p_func e2)
     | TupE (exps) -> TupE (List.map p_func exps)
     | ProjE (e1, n) -> ProjE (p_func e1, n)
-    | CaseE (m, e1) -> CaseE (m, p_func e1)
     | UncaseE (e1, m) -> UncaseE (p_func e1, m)
     | OptE e1 -> OptE (Option.map p_func e1)
     | TheE e1 -> TheE (p_func e1)
-    | StrE fields -> StrE (List.map (fun (a, e1) -> (a, p_func e1)) fields)
     | DotE (e1, a) -> DotE (p_func e1, a)
     | CompE (e1, e2) -> CompE (p_func e1, p_func e2)
     | ListE entries -> ListE (List.map p_func entries)
@@ -191,25 +237,35 @@ let rec preprocess_prem p_env prem =
       )
   ) $ prem.at
 
-let preprocess_inst p_env inst = 
+let preprocess_inst p_env id prefix inst = 
   (match inst.it with
     | InstD (binds, args, deftyp) -> InstD (List.map (preprocess_bind p_env) binds, List.map (preprocess_arg p_env) args, 
       (match deftyp.it with 
         | AliasT typ -> AliasT (preprocess_typ p_env typ)
-        | StructT typfields -> StructT (List.map (fun (a, (c_binds, typ, prems), hints) -> 
-            (a, (List.map (preprocess_bind p_env) c_binds, preprocess_typ p_env typ, List.map (preprocess_prem p_env) prems), hints)  
+        | StructT typfields -> StructT (List.map (fun (a, (c_binds, typ, prems), hints) ->
+            let combined_id = atom_string_combine a id.it in
+            let extra_prefix = (match (StringMap.find_opt combined_id p_env.prefix_map) with
+              | Some p -> prefix ^ p ^ "_"
+              | None -> prefix
+            ) in
+            (prepend_atom a extra_prefix, (List.map (preprocess_bind p_env) c_binds, preprocess_typ p_env typ, List.map (preprocess_prem p_env) prems), hints)  
           ) typfields)
         | VariantT typcases -> 
           VariantT (List.map (fun (m, (c_binds, typ, prems), hints) -> 
-            (m, (List.map (preprocess_bind p_env) c_binds, preprocess_typ p_env typ, List.map (preprocess_prem p_env) prems), hints)  
+            let combined_id = mixop_string_combine m id.it in 
+            let extra_prefix = (match (StringMap.find_opt combined_id p_env.prefix_map) with
+              | Some p -> prefix ^ p ^ "_"
+              | None -> prefix
+            ) in 
+            (prepend_mixop m extra_prefix, (List.map (preprocess_bind p_env) c_binds, preprocess_typ p_env typ, List.map (preprocess_prem p_env) prems), hints)  
           ) typcases)
       ) $ deftyp.at
     )
   ) $ inst.at
 
-let preprocess_rule p_env rule = 
+let preprocess_rule p_env prefix rule = 
   (match rule.it with
-    | RuleD (id, binds, m, exp, prems) -> RuleD (id, 
+    | RuleD (id, binds, m, exp, prems) -> RuleD (prefix ^ id.it $ no_region, 
       List.map (preprocess_bind p_env) binds, 
       m, 
       preprocess_exp p_env exp, 
@@ -238,13 +294,27 @@ let preprocess_prod p_env prod =
 let rec preprocess_def p_env def = 
   (match def.it with
     | TypD (id, params, [inst]) -> 
-      let d = TypD (id, List.map (preprocess_param p_env) params, [preprocess_inst p_env inst]) in 
+      let prefix = (match (StringMap.find_opt id.it p_env.prefix_map) with 
+        | Some p -> p ^ "_"
+        | None -> ""   
+      ) in
+      let d = TypD (id, List.map (preprocess_param p_env) params, [preprocess_inst p_env id prefix inst]) in 
       (match (StringMap.find_opt id.it p_env.uncase_map) with 
         | None -> [d]
         | Some int_set -> d :: create_projection_functions id params int_set inst
       )
-    | TypD (id, params, insts) -> [TypD (id, List.map (preprocess_param p_env) params, List.map (preprocess_inst p_env) insts)]
-    | RelD (id, m, typ, rules) -> [RelD (id, m, preprocess_typ p_env typ, List.map (preprocess_rule p_env) rules)]
+    | TypD (id, params, insts) -> 
+      let prefix = (match (StringMap.find_opt id.it p_env.prefix_map) with 
+        | Some p -> p ^ "_"
+        | None -> ""   
+      ) in
+      [TypD (id, List.map (preprocess_param p_env) params, List.map (preprocess_inst p_env id prefix) insts)]
+    | RelD (id, m, typ, rules) -> 
+      let prefix = (match (StringMap.find_opt id.it p_env.prefix_map) with 
+        | Some p -> p ^ "_"
+        | None -> ""   
+      ) in
+      [RelD (id, m, preprocess_typ p_env typ, List.map (preprocess_rule p_env prefix) rules)]
     | DecD (id, params, typ, clauses) -> [DecD (id, List.map (preprocess_param p_env) params, preprocess_typ p_env typ, List.map (preprocess_clause p_env) clauses)]
     | GramD (id, params, typ, prods) -> [GramD (id, List.map (preprocess_param p_env) params, preprocess_typ p_env typ, List.map (preprocess_prod p_env) prods)]
     | RecD defs -> [RecD (List.concat_map (preprocess_def p_env) defs)]
@@ -268,6 +338,39 @@ let collect_uncase_iter env: uncase_map ref * (module Iter.Arg) =
     end
   in Arg.acc, (module Arg)
 
+let create_prefix_map_inst (env : env) (id : id) (i : inst) =
+  match i.it with
+    | InstD (_binds, _args, deftyp) -> (match deftyp.it with 
+      | AliasT _ -> ()
+      | StructT typfields -> List.iter (fun (a, _, hints) ->
+        (match (List.find_opt has_prefix_hint hints) with
+          | Some h -> 
+            let combined_id = atom_string_combine a id.it in
+            register_prefix env (combined_id $ id.at) h.hintexp
+          | _ -> ()
+        )
+      ) typfields
+      | VariantT typcases -> List.iter (fun (m, _, hints) ->
+        (match (List.find_opt has_prefix_hint hints) with
+          | Some h -> 
+            let combined_id = mixop_string_combine m id.it in
+            register_prefix env (combined_id $ id.at) h.hintexp
+          | _ -> ()
+        )
+      ) typcases
+    )
+
+let create_prefix_map_def (env : env) (d : def) = 
+  match d.it with
+    | HintD {it = TypH (id, hints); _}
+    | HintD {it = RelH (id, hints); _} ->
+      (match (List.find_opt has_prefix_hint hints) with
+        | Some h -> register_prefix env id h.hintexp
+        | _ -> ()
+      ) 
+    | TypD (id, _, insts) -> List.iter (create_prefix_map_inst env id) insts
+    | _ -> ()
+
 let preprocess (il : script): script =
   let p_env = empty_env in 
   p_env.env <- Il.Env.env_of_script il;
@@ -275,5 +378,8 @@ let preprocess (il : script): script =
   let module Acc = Iter.Make(Arg) in
   List.iter Acc.def il;
   p_env.uncase_map <- !acc;
-  Tfamily.transform il |> 
-  List.concat_map (preprocess_def p_env) 
+  let transformed_il = Tfamily.transform il in
+  List.iter (create_prefix_map_def p_env) transformed_il;
+  print_endline "Printing prefix map";
+  StringMap.iter (fun id s -> print_endline ("Key: " ^ id ^ " Value: " ^ s)) p_env.prefix_map; 
+  List.concat_map (preprocess_def p_env) transformed_il

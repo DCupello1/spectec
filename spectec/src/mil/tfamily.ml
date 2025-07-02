@@ -84,19 +84,21 @@ and transform_exp is_match env e =
     | VarE _ when is_match && is_var_typ e.note ->
       let (id, args) = get_var_typ e.note in 
       let opt = Env.find_opt_typ env id in
+      let name_prefix = id.it ^ "_" in
       (match (get_binds_from_inst env args opt) with
         | None -> e.it
         | Some binds -> 
-          let new_mixop = [[Atom.Atom (type_family_prefix ^ sub_type_name binds) $$ e.at % Atom.info ""]] in
+          let new_mixop = [[Atom.Atom (type_family_prefix ^ name_prefix ^ sub_type_name binds) $$ e.at % Atom.info ""]] in
           CaseE (new_mixop, e.it $$ e.at % Eval.reduce_typ env e.note )
       )
     | CaseE (m, e1) when is_match -> 
       let (id, args) = get_var_typ e.note in 
       let opt = Env.find_opt_typ env id in
+      let name_prefix = id.it ^ "_" in
       (match (get_binds_from_inst env args opt) with
         | None -> CaseE (m, t_func e1)
         | Some binds -> 
-          let new_mixop = [[Atom.Atom (type_family_prefix ^ sub_type_name binds) $$ e.at % Atom.info ""]] in
+          let new_mixop = [[Atom.Atom (type_family_prefix ^ name_prefix ^ sub_type_name binds) $$ e.at % Atom.info ""]] in
           CaseE (new_mixop, CaseE (m, t_func e1) $$ e.at % Eval.reduce_typ env e.note)
       )
     (* Descend *)

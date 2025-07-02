@@ -5,16 +5,16 @@ open Ast
 open Util
 open Source
 
-
 let error at msg = Error.error at "MIL Transformation" msg
 
 let coerce_prefix = "coec_"
-let var_prefix = "v_"
+let var_prefix = "vres_"
 let fun_prefix = "fun_"
 let reserved_prefix = "res_"
 let wf_prefix = "wf_"
+let make_prefix = "mk_"
 
-let reserved_ids_set = ref Env.Set.empty
+let reserved_ids_set = ref Env.StringSet.empty
 
 let rec list_split (f : 'a -> bool) = function 
   | [] -> ([], [])
@@ -23,12 +23,10 @@ let rec list_split (f : 'a -> bool) = function
   | xs -> ([], xs)
 
 (* Id transformation *)
-(* A hole ('_') indicates to MIL that something must be filled in there *)
 let transform_id' (prefix : text) (s : text) = 
   let s' = String.to_seq s |> Seq.take_while (fun c -> c != '*' && c != '?' && c != '^' ) |> String.of_seq in 
   match s' with
-  | "" -> "_"
-  | s when Env.Set.mem s !reserved_ids_set -> prefix ^ s
+  | s when Env.StringSet.mem s !reserved_ids_set -> prefix ^ s
   | s -> String.map (function
      | '.' -> '_'
      | '-' -> '_'
@@ -38,6 +36,10 @@ let transform_id' (prefix : text) (s : text) =
 let transform_var_id (id : id) = transform_id' var_prefix id.it
 let transform_fun_id (id : id) = fun_prefix ^ transform_id' "" id.it
 let transform_user_def_id (id : id) = transform_id' reserved_prefix id.it
+let transform_rule_id (id : id) (rel_id : id) = 
+  match id.it with
+    | "" -> make_prefix ^ rel_id.it
+    | _ -> transform_id' reserved_prefix id.it
 
 let transform_iter (iter : iter) =
   if iter = Opt then I_option else I_list
@@ -59,11 +61,16 @@ let is_atomid (a : atom) =
     | Atom _ -> true
     | _ -> false
 
-let transform_mixop (m : mixop) = match m with
+let transform_mixop (typ_id : id) (m : mixop) = 
+  let str = (match m with
   | [{it = Atom a; _}] :: tail when List.for_all ((=) []) tail -> transform_user_def_id (a $ no_region) 
   | mixop -> String.concat "" (List.map (
       fun atoms -> String.concat "" (List.map transform_atom (List.filter is_atomid atoms))) mixop
     )
+  ) in
+  match str with
+    | "" -> make_prefix ^ typ_id.it
+    | _ -> str
 
 (* Type functions *)
 let transform_itertyp (it : iter) =
@@ -124,7 +131,8 @@ and transform_exp (exp : exp) =
     | TupE exps -> T_tuple (List.map transform_exp exps) 
     | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, typ,[transform_exp e; T_exp_basic (T_nat (Z.of_int n))])
     | CaseE (mixop, e) ->
-      T_app (T_ident [transform_mixop mixop], typ, transform_tuple_exp transform_exp e)
+      let typ_id = string_of_typ_name exp.note $ no_region in 
+      T_app (T_ident [transform_mixop typ_id mixop], typ, transform_tuple_exp transform_exp e)
     | UncaseE (_e, _mixop) -> T_unsupported ("UncaseE: " ^ Il.Print.string_of_exp exp) (* Should be removed by preprocessing *)
     | OptE (Some e) -> T_app (T_exp_basic T_some, typ, [transform_exp e])
     | OptE None -> T_exp_basic T_none
@@ -175,7 +183,8 @@ and transform_match_exp (exp : exp) =
   | TupE exps -> T_match (List.map transform_match_exp exps) 
   | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, typ, [transform_match_exp e; T_exp_basic (T_nat (Z.of_int n))])
   | CaseE (mixop, e) ->
-    T_app (T_ident [transform_mixop mixop], typ, transform_tuple_exp transform_match_exp e)
+    let typ_id = string_of_typ_name exp.note $ no_region in 
+    T_app (T_ident [transform_mixop typ_id mixop], typ, transform_tuple_exp transform_match_exp e)
   | OptE (Some e) -> T_app (T_exp_basic T_some, typ, [transform_match_exp e])
   | OptE None -> T_exp_basic T_none
   | TheE e -> T_app (T_exp_basic T_invopt, typ, [transform_match_exp e])
@@ -334,8 +343,7 @@ let rec transform_premise (p : prem) =
       P_forall (transform_iter iter, transform_premise p, transform_var_id id)
     | IterPr (p, (iter, [(id, _e); (id2, _e2)])) ->
       P_forall2 (transform_iter iter, transform_premise p, transform_var_id id, transform_var_id id2)
-    | IterPr _ -> P_unsupported (string_of_prem p)
-    (* | IterPr _ -> assert false TODO check if this makes sense *)
+    | IterPr _ -> P_unsupported (string_of_prem p) (* TODO could potentially extend this further if necessary *)
     | RulePr (id, _mixop, exp) -> P_rule (transform_user_def_id id, transform_tuple_exp transform_exp exp)
 
 let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
@@ -344,13 +352,14 @@ let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
     | StructT typfields -> RecordD (transform_user_def_id id, List.map (fun (a, (_, t, _), _) -> 
       (transform_atom a, transform_type t)) typfields)
     | VariantT typcases -> InductiveD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (m, (_, t, _), _) ->
-        (transform_mixop m, transform_typ_args t)) typcases)
+        (transform_mixop id m, transform_typ_args t)) typcases)
 
-let transform_rule (_id : id) (r : rule) = 
+let transform_rule (id : id) (r : rule) = 
   match r.it with
     | RuleD (rule_id, binds, _mixop, exp, premises) -> 
-      ((transform_user_def_id rule_id, List.map transform_bind binds), 
+      ((transform_rule_id rule_id id, List.map transform_bind binds), 
       List.map transform_premise premises, transform_tuple_exp transform_exp exp)
+
 let transform_clause (fb : function_body option) (c : clause) =
   match c.it, fb with
     | DefD (_binds, args, exp, _prems), None -> (T_match (List.map transform_match_arg args), F_term (transform_exp exp))
@@ -360,15 +369,17 @@ let transform_inst (id : id) (i : inst) =
   match i.it with
     | InstD (binds, args, deftyp) -> 
       let case_name = Tfamily.sub_type_name binds in
+      let name_prefix = id.it ^ "_" in 
       match deftyp.it with
-      | AliasT typ -> (Tfamily.type_family_prefix ^ case_name, List.map transform_bind binds @ [("_", transform_type typ)], List.map transform_arg args)
+      | AliasT typ -> (Tfamily.type_family_prefix ^ name_prefix ^ case_name, List.map transform_bind binds @ [("_", transform_type typ)], List.map transform_arg args)
       | StructT _ -> error i.at "Family of records should not exist" (* This should never occur *)
       | VariantT _ -> 
         let binders = List.map transform_bind binds in 
         let terms = List.map (fun (name, _) -> T_ident [name]) binders in
-        (Tfamily.type_family_prefix ^ case_name, binders @ [("_", 
+        (Tfamily.type_family_prefix ^ name_prefix ^ case_name, binders @ [("_", 
         T_app (T_ident [id.it ^ case_name], T_type_basic T_anytype, terms))], List.map transform_arg args)
 
+(* Inactive for now - need to understand well function defs with pattern guards *)
 let _transform_clauses (clauses : clause list) : clause_entry list =
   let rec get_ids exp =
     match exp.it with
@@ -459,6 +470,47 @@ let create_well_formed_function id params inst =
       Some (DefinitionD (wf_prefix ^ id.it, List.map transform_param new_params, T_type_basic T_prop, clauses))
     | _ -> None
 
+(* Generates a fresh name if necessary, and goes up to a maximum which then it will return an error*)
+let generate_var at ids i =
+  (* TODO - could make these variables a record type to make it configurable *) 
+  let start = 0 in
+  let fresh_prefix = "var" in
+  let max = 100 in
+  let rec go id c =
+    if max <= c then error at "Reached max variable generation" else
+    let name = id ^ "_" ^ Int.to_string c in 
+    if (List.mem name ids) 
+      then go id (c + 1) 
+      else name
+  in
+  match i with
+    | "" | "_" -> go fresh_prefix start
+    | s when List.mem s ids -> go i start
+    | _ -> i
+
+let improve_ids_params (params : param list) : param list = 
+  let get_id p = match p.it with
+    | ExpP (id, _) -> id.it
+    | TypP id -> id.it
+    | DefP (id, _, _) -> id.it
+    | GramP (id, _) -> id.it
+  in
+  let construct_with_name p name = (match p.it with 
+    | ExpP (id, typ) -> ExpP(name $ id.at, typ)
+    | TypP id -> TypP (name $ id.at)
+    | DefP (id, params, typ) -> DefP(name $ id.at, params, typ)
+    | GramP (id, typ) -> GramP (name $ id.at, typ)) $ p.at
+  in
+  let rec improve_ids_helper ids ps = 
+    match ps with
+      | [] -> []
+      | p :: ps' -> 
+        let p_id = get_id p in 
+        let new_name = generate_var p.at ids p_id in 
+        construct_with_name p new_name :: improve_ids_helper (new_name :: ids) ps'
+  in
+  improve_ids_helper [] params
+
 let rec transform_def (def : def) : mil_def list =
   let has_prems clause = match clause.it with
     | DefD (_, _, _, prems) -> prems <> []
@@ -470,26 +522,33 @@ let rec transform_def (def : def) : mil_def list =
       transform_deftyp id binds deftyp :: wf_func 
     | TypD (id, params, insts) -> [InductiveFamilyD (transform_user_def_id id, List.map (fun p -> snd (transform_param p)) params, List.map (transform_inst id) insts)]
     | RelD (id, _, typ, rules) -> [InductiveRelationD (transform_user_def_id id, transform_tuple_to_relation_args typ, List.map (transform_rule id) rules)]
-    | DecD (id, params, typ, clauses) -> 
-      (match params, clauses with
-        | _, [] -> [AxiomD (transform_fun_id id, List.map transform_param params, transform_type typ)]
-        | [], [clause] -> [GlobalDeclarationD (transform_fun_id id, transform_type typ, transform_clause None clause)]
+    | DecD (id, params, typ, clauses) ->
+      let improved_params = improve_ids_params params in  
+      (match improved_params, clauses with
+        | _, [] -> 
+          (* No implementation - resorts to being an axiom *)
+          [AxiomD (transform_fun_id id, List.map transform_param improved_params, transform_type typ)]
+        | [], [clause] ->
+          (* With one clause and no params - this is essentially a global variable *)
+          [GlobalDeclarationD (transform_fun_id id, transform_type typ, transform_clause None clause)]
         | _, clauses when List.for_all has_prems clauses -> 
           (* HACK - Need to deal with premises in the future. *)
-          [AxiomD (transform_fun_id id, List.map transform_param params, transform_type typ)]
+          [AxiomD (transform_fun_id id, List.map transform_param improved_params, transform_type typ)]
         | _ -> 
-          [DefinitionD (transform_fun_id id, List.map transform_param params, transform_type typ, List.map (transform_clause None) clauses)]
+          (* Normal function *)
+          [DefinitionD (transform_fun_id id, List.map transform_param improved_params, transform_type typ, List.map (transform_clause None) clauses)]
       )
     | RecD defs -> [MutualRecD (List.concat_map transform_def defs)]
     | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]
   ) |> List.map (fun d -> d $ def.at)
+
 let is_not_hintdef (d : def) : bool =
   match d.it with
     | HintD _ -> false
     | _ -> true 
 
 (* Main transformation function *)
-let transform (reserved_ids : Env.Set.t) (il : script) : mil_script =
+let transform (reserved_ids : Env.StringSet.t) (il : script) : mil_script =
   reserved_ids_set := reserved_ids; 
   Preprocess.preprocess il |>
   List.filter is_not_hintdef |>
