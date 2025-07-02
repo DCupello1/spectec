@@ -150,7 +150,7 @@ let argspec = Arg.align (
   "--prose-rst", Arg.Unit (fun () -> target := Prose false), " Generate prose";
   "--interpreter", Arg.Rest_all (fun args -> target := Interpreter args),
     " Generate interpreter";
-  "--rocq", Arg.Unit (fun () -> target := Rocq), " Generate Rocq Definitions";
+  "--rocq", Arg.Unit (fun () -> target := Rocq), " Generate Rocq Inductive Definitions";
   "--debug", Arg.Unit (fun () -> Backend_interpreter.Debugger.debug := true),
     " Debug interpreter";
   "--unified-vars", Arg.Unit (fun () -> Il2al.Unify.rename := false),
@@ -265,11 +265,12 @@ let () =
           on the translation for ITPs *)
         let reserved_ids = (match !target with
           | Rocq -> Backend_rocq.Utils.reserved_ids
-          | _ -> Mil.Env.Set.empty
+          | _ -> Mil.Env.StringSet.empty
         ) in
         let mil = Mil.Translate.transform reserved_ids il in
         if !print_mil_f || !print_all_mil then 
           print_mil mil;
+        Mil.Env.check_uniqueness mil; 
         List.fold_left (fun mil pass ->
           log ("Running pass " ^ pass_mil_flag pass ^ "...");
           let transformed_mil = run_pass_mil pass mil in

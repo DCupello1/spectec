@@ -4,20 +4,21 @@ open Util.Source
 
 (* Errors *)
 
-let phase = ref "validation"
+let phase = ref "MIL validation"
 
 let error at msg = Util.Error.error at !phase msg
 
 
 (* Environment *)
 
-module Set = Set.Make(String)
-module Map = Map.Make(String)
+module StringSet = Set.Make(String)
+module StringMap = Map.Make(String)
 
 type mil_deftyp =
   | T_alias of term
   | T_record of record_entry list
   | T_inductive of inductive_type_entry list
+  | T_tfamily of family_type_entry list
 
 type typ_def = binders * mil_deftyp
 type rel_def = relation_args * relation_type_entry list
@@ -25,9 +26,9 @@ type def_def = binders * return_type * clause_entry list
 
 type t =
   {
-    typs : typ_def Map.t;
-    defs : def_def Map.t;
-    rels : rel_def Map.t
+    typs : typ_def StringMap.t;
+    defs : def_def StringMap.t;
+    rels : rel_def StringMap.t
   }
 
 
@@ -35,15 +36,15 @@ type t =
 
 let empty =
   { 
-    typs = Map.empty;
-    defs = Map.empty;
-    rels = Map.empty;
+    typs = StringMap.empty;
+    defs = StringMap.empty;
+    rels = StringMap.empty;
   }
 
-let mem map id = Map.mem id.it map
+let mem map id = StringMap.mem id.it map
 
 let find_opt map id =
-  Map.find_opt id map
+  StringMap.find_opt id map
 
 let find space map id at =
   match find_opt map id with
@@ -54,11 +55,11 @@ let bind _space map id rhs =
   if id = "_" then
     map
   else
-    Map.add id rhs map
+    StringMap.add id rhs map
 
 let rebind _space map id rhs =
-  assert (Map.mem id map);
-  Map.add id rhs map
+  assert (StringMap.mem id map);
+  StringMap.add id rhs map
 
 let mem_typ env id = mem env.typs id
 let mem_def env id = mem env.defs id
@@ -92,7 +93,49 @@ let rec env_of_def env d =
   | InductiveRelationD (id, r_args, rules) -> bind_rel env id (r_args, rules)
   | AxiomD (id, bs, rt) -> bind_def env id (bs, rt, [])
   | MutualRecD ds -> List.fold_left env_of_def env ds
-  | _ -> env (* TODO extend env to include type families *)
+  | InductiveFamilyD (id, terms, entries) -> 
+    let binds = List.map (fun t -> ("_", t)) terms in 
+    bind_typ env id (binds, T_tfamily entries)
+  | _ -> env
 
 let env_of_script ds =
   List.fold_left env_of_def empty ds
+
+(* Uniqueness check *)
+let check_map map id at =
+  match (StringMap.find_opt id map) with
+  | Some at' -> error at ("The following id has been defined before: " ^ id ^ "\nAt definition: " ^ string_of_region at')
+  | None -> StringMap.add id at map
+
+let rec check_uniqueness_def map d = 
+  match d.it with
+  | TypeAliasD (id, _, _) | DefinitionD (id, _, _, _) 
+  | GlobalDeclarationD (id, _, _) | AxiomD (id, _, _) -> 
+    map := check_map !map id d.at
+  | RecordD (id, records) -> 
+    List.iter (fun (r_id, _t) -> 
+      map := check_map !map r_id d.at 
+    ) records;
+    map := check_map !map id d.at
+  | InductiveD (id, _bs', cases) -> 
+    List.iter (fun (case_id, _bs') -> 
+      map := check_map !map case_id d.at 
+    ) cases;
+    map := check_map !map id d.at
+  | InductiveFamilyD (id, _terms, entries) -> 
+    List.iter (fun (case_id, _bs, _terms') -> 
+      map := check_map !map case_id d.at  
+    ) entries;
+    map := check_map !map id d.at
+  | InductiveRelationD (id, _r_args, rules) -> 
+    List.iter (fun ((rule_id, _bs), _prems, _terms) -> 
+      map := check_map !map rule_id d.at  
+    ) rules;
+    map := check_map !map id d.at
+  | MutualRecD ds -> List.iter (check_uniqueness_def map) ds
+  | _ -> ()
+
+let check_uniqueness ds =
+  let case_map = ref StringMap.empty in
+  List.iter (check_uniqueness_def case_map) ds
+
