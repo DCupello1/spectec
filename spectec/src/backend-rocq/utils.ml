@@ -5,6 +5,7 @@ let reserved_ids = ["N"; "in"; "In";
                     "S";
                     "return";
                     "if";
+                    "bool";
                     "()"; "tt"; 
                     "Import"; "Export"; 
                     "List"; "String"; 

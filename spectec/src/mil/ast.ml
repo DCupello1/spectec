@@ -69,7 +69,7 @@ and iterator =
 and term = 
   | T_exp_basic of basic_term
   | T_type_basic of basic_type
-  | T_ident of ident list
+  | T_ident of ident
   | T_list of (term list)
   | T_record_update of (term * term * term)
   | T_record_fields of (ident * term) list
@@ -79,7 +79,7 @@ and term =
   | T_app_infix of (term * term * term) (* Same as above but first term is placed in the middle *)
   | T_tuple of (term list)
   | T_tupletype of (term list)
-  | T_arrowtype of (term * term)
+  | T_arrowtype of (term list)
   | T_cast of (term * mil_typ * mil_typ)
   | T_unsupported of string
 
@@ -88,13 +88,13 @@ and premise =
   | P_neg of premise
   | P_rule of ident * term list
   | P_else
-  | P_forall of iterator * premise * ident
-  | P_forall2 of iterator * premise * ident * ident
+  | P_list_forall of iterator * premise * ident
+  | P_list_forall2 of iterator * premise * ident * ident
   | P_unsupported of string
 
 and function_body = 
   | F_term of term
-  | F_premises of premise list
+  | F_premises of binders * premise list
   | F_if_else of term * function_body * function_body
   | F_let of term * term * function_body
   | F_match of term (* TODO this one will be tricky *)

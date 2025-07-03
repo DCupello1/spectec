@@ -87,7 +87,7 @@ let rec string_of_term t =
   match t with 
     | T_exp_basic t_basic -> string_of_basic_exp_term t_basic
     | T_type_basic t_typ_basic -> string_of_basic_type_term t_typ_basic
-    | T_ident ids -> String.concat "__" ids
+    | T_ident id -> id
     | T_list terms -> square_parens (String.concat "; " (List.map string_of_term terms))
     | T_lambda (ids, term) -> parens ("fun " ^ (String.concat " " ids) ^ " => " ^ string_of_term term)
     | T_record_fields fields -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
@@ -100,7 +100,7 @@ let rec string_of_term t =
     | T_tuple [] -> "()"
     | T_tuple terms -> parens (String.concat ", " (List.map string_of_term terms))
     | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term terms))
-    | T_arrowtype (typ1, typ2) -> parens (string_of_term typ1 ^ " -> " ^ string_of_term typ2)
+    | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_term terms))
     | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_term typ)
     | T_record_update (t1, t2, t3) -> parens ("record_update " ^ string_of_term t1 ^ " " ^ string_of_term t2 ^ " " ^ string_of_term t3)
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
@@ -118,17 +118,17 @@ let rec string_of_premise p =
     | P_neg prem -> "~" ^ string_of_premise prem
     | P_rule (ident, terms) -> parens (ident ^ string_of_list_prefix " " " " string_of_term terms)
     | P_else -> "otherwise"
-    | P_forall (I_list, p, id) -> "List.Forall " ^ parens ( "fun " ^ id ^ " => " ^ string_of_premise p) ^ " " ^ id
-    | P_forall (I_option, p, id) -> "Option.Forall " ^ parens ( "fun " ^ id ^ " => " ^ string_of_premise p) ^ " " ^ id
-    | P_forall2 (I_list, p, id, id2) -> "List.Forall2 " ^ parens ( "fun " ^ id ^ " " ^ id2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
-    | P_forall2 (I_option, p, id, id2) -> "Option.Forall2 " ^ parens ( "fun " ^ id ^ " " ^ id2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
+    | P_list_forall (I_list, p, id) -> "List.Forall " ^ parens ( "fun " ^ id ^ " => " ^ string_of_premise p) ^ " " ^ id
+    | P_list_forall (I_option, p, id) -> "Option.Forall " ^ parens ( "fun " ^ id ^ " => " ^ string_of_premise p) ^ " " ^ id
+    | P_list_forall2 (I_list, p, id, id2) -> "List.Forall2 " ^ parens ( "fun " ^ id ^ " " ^ id2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
+    | P_list_forall2 (I_option, p, id, id2) -> "Option.Forall2 " ^ parens ( "fun " ^ id ^ " " ^ id2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
     | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body f =
   match f with 
     | F_term term -> string_of_term term
-    | F_premises [] -> "True"
-    | F_premises premises -> String.concat "/\\" (List.map string_of_premise premises)
+    | F_premises (_, []) -> "True"
+    | F_premises (bs, premises) -> string_of_list "forall " ", " " " string_of_binder bs ^ String.concat "/\\" (List.map string_of_premise premises)
     | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
     | F_let (var_term, term, fb) -> "let " ^ string_of_term var_term ^ " := " ^ string_of_term term ^ " in\n\t\t\t" ^ string_of_function_body fb
     | F_match term -> string_of_term term (* Todo extend this *)

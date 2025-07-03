@@ -143,7 +143,7 @@ and preprocess_exp p_env e =
       let typ_name = Print.string_of_typ_name e.note in
       let combined_id = mixop_string_combine m typ_name in
       (match (StringMap.find_opt combined_id p_env.prefix_map) with 
-        | Some prefix -> CaseE (prepend_mixop m prefix, p_func e1)
+        | Some prefix -> CaseE (prepend_mixop m (prefix ^ "_"), p_func e1)
         | None -> CaseE (m, p_func e1)
       )
     | StrE fields ->
@@ -152,7 +152,7 @@ and preprocess_exp p_env e =
       StrE (List.map (fun (a, e1) ->
         let combined_id = atom_string_combine a typ_name in 
         (match (StringMap.find_opt combined_id p_env.prefix_map) with 
-        | Some prefix -> (prepend_atom a prefix, p_func e1)
+        | Some prefix -> (prepend_atom a (prefix ^ "_"), p_func e1)
         | None -> (a, p_func e1)
         )
       ) fields)
