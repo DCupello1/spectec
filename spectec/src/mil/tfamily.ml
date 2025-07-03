@@ -52,6 +52,7 @@ let rec get_binds_from_inst env args = function
   | None -> None  (* id is a type parameter *)
   | Some (_ps, []) -> None
   | Some ([], _) -> None
+  | Some (_, [inst]) when check_normal_type_creation inst -> None  
   | Some (ps, {it = InstD (binds, args', _dt); _}::insts') ->
     match Eval.match_list Eval.match_arg env Subst.empty args args' with
     | exception Eval.Irred -> get_binds_from_inst env args (Some (ps, insts'))
@@ -238,12 +239,20 @@ let rec transform_def env def =
   
 (* Creates new TypD's for each StructT and VariantT *)
 let create_types id inst = 
+  let make_param b = 
+  (match b.it with 
+    | ExpB (id, typ) -> ExpP (id, typ)
+    | TypB  id -> TypP id
+    | DefB (id, params, typ) -> DefP (id, params, typ)
+    | GramB _ -> assert false (* Avoid this *)
+  ) $ b.at in
   match inst.it with
+    (* TODO - figure out why putting args ruins the type family processing *)
     | InstD (binds, _, deftyp) -> (match deftyp.it with 
       | AliasT _ -> []
       | StructT _ | VariantT _ ->         
         let inst = InstD(binds, [], deftyp) $ inst.at in 
-        [TypD (id.it ^ sub_type_name binds $ id.at, [], [inst])]
+        [TypD (id.it ^ sub_type_name binds $ id.at, List.map make_param binds, [inst])]
     )
 
 let rec transform_type_family def =

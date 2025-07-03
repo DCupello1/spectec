@@ -10,8 +10,8 @@ let sub_hastable = Hashtbl.create 16
 
 let get_id_typ term = 
   match term with
-    | T_app (T_ident ids, T_arrowtype _ , _)
-    | T_app (T_ident ids, T_type_basic T_anytype, _) -> String.concat "__" ids
+    | T_app (T_ident id, T_arrowtype _ , _)
+    | T_app (T_ident id, T_type_basic T_anytype, _) -> id
     | _ -> "" 
 
 let rec get_subE_term t =
@@ -23,10 +23,12 @@ let rec get_subE_term t =
     | T_app (term, typ, terms) -> get_subE_term term @ get_subE_term typ @ List.concat_map get_subE_term terms
     | T_app_infix (op_term, term1, term2) -> get_subE_term op_term @ get_subE_term term1 @ get_subE_term term2
     | T_tupletype terms -> List.concat_map get_subE_term terms
-    | T_arrowtype (term1, term2) -> get_subE_term term1 @ get_subE_term term2
+    | T_arrowtype terms -> List.concat_map get_subE_term terms
     | T_cast (_, typ1, typ2) -> 
       let (id1, id2) = (get_id_typ typ1, get_id_typ typ2) in
       if id1 = "" || id2 = "" then [] else [((id1, typ1), (id2, typ2))]
+    | T_record_update (term1, term2, term3) -> get_subE_term term1 @ get_subE_term term2 @ get_subE_term term3
+    | T_tuple terms -> List.concat_map get_subE_term terms
     | _ -> [] (* TODO extend to update and extend terms *)
 
 let rec get_subE_prem (premise : premise) =
@@ -34,7 +36,7 @@ let rec get_subE_prem (premise : premise) =
     | P_rule (_, terms) -> List.concat_map get_subE_term terms
     | P_neg p -> get_subE_prem p
     | P_if term -> get_subE_term term
-    | P_forall (_, p, _) | P_forall2 (_, p, _, _) -> get_subE_prem p
+    | P_list_forall (_, p, _) | P_list_forall2 (_, p, _, _) -> get_subE_prem p
     | _ -> []
 
 let rec is_same_type (t1 : term) (t2 : term) =
@@ -50,11 +52,10 @@ let rec is_same_type (t1 : term) (t2 : term) =
     | T_app (T_type_basic T_opt, _, terms1), T_app (T_type_basic T_opt, _, terms2) ->
       List.length terms1 = List.length terms2 && List.for_all2 is_same_type terms1 terms2
     (* Handle user defined types*)
-    | T_app (T_ident ids1, _, terms1), T_app (T_ident ids2, _, terms2) -> 
-      List.length ids1 = List.length ids2 && List.length terms1 = List.length terms2 &&
-      List.for_all2 (=) ids1 ids2 && List.for_all2 is_same_type terms1 terms2
-    | T_ident ids1, T_ident ids2 ->
-      List.length ids1 = List.length ids2 && List.for_all2 (=) ids1 ids2
+    | T_app (T_ident id1, _, terms1), T_app (T_ident id2, _, terms2) -> 
+      id1 = id2 && List.length terms1 = List.length terms2 &&
+      List.for_all2 is_same_type terms1 terms2
+    | T_ident id, T_ident id2 -> id = id2
     | _ -> false
 
 
@@ -74,8 +75,8 @@ let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term) (t2_id : i
   let func_name = func_prefix ^ coerce_prefix ^ t1_id ^ "__" ^ t2_id in 
   
   [(DefinitionD (func_name, 
-    [(var_prefix ^ t1_id, T_app (T_ident [t1_id], T_type_basic T_anytype, []))],
-    T_app (T_ident [t2_id], T_type_basic T_anytype, []), 
+    [(var_prefix ^ t1_id, T_app (T_ident t1_id, T_type_basic T_anytype, []))],
+    T_app (T_ident t2_id, T_type_basic T_anytype, []), 
     let (_, deftyp) = t1_typ_def in
     let (_, deftyp') = t2_typ_def in
     
@@ -83,11 +84,11 @@ let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term) (t2_id : i
       | T_inductive cases, T_inductive cases' -> 
         List.map (fun (case_id, bs) ->
           let num_binders = List.length bs in 
-          let var_list = List.init num_binders (fun i -> T_ident [var_prefix ^ string_of_int i]) in
+          let var_list = List.init num_binders (fun i -> T_ident (var_prefix ^ string_of_int i)) in
           let opt = find_same_typing case_id bs cases' in
           (match opt with
             | Some (case_id', _) -> 
-              (T_match [T_app (T_ident [case_id], t1_typ, var_list)], F_term (T_app (T_ident [case_id'], t2_typ, var_list)))
+              (T_match [T_app (T_ident case_id, t1_typ, var_list)], F_term (T_app (T_ident case_id', t2_typ, var_list)))
             (* Should find it due to validation *)
             | _ -> error at ("Couldn't coerce type " ^ t1_id ^ " to " ^ t2_id)
           )
