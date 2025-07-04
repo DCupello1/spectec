@@ -9,6 +9,12 @@ let empty_name s = match s with
   | "" -> "NO_NAME"
   | _ -> s
 
+let remove_iter_from_type t =
+  match t with
+    | T_app (T_type_basic T_list, _, [t']) -> t'
+    | T_app (T_type_basic T_opt, _, [t']) -> t'
+    | t' -> t'
+
 let string_of_list_prefix prefix delim str_func ls = 
   match ls with
     | [] -> ""
@@ -118,10 +124,20 @@ let rec string_of_premise p =
     | P_neg prem -> "~" ^ string_of_premise prem
     | P_rule (ident, terms) -> parens (ident ^ string_of_list_prefix " " " " string_of_term terms)
     | P_else -> "otherwise"
-    | P_list_forall (I_list, p, id) -> "List.Forall " ^ parens ( "fun " ^ id ^ " => " ^ string_of_premise p) ^ " " ^ id
-    | P_list_forall (I_option, p, id) -> "Option.Forall " ^ parens ( "fun " ^ id ^ " => " ^ string_of_premise p) ^ " " ^ id
-    | P_list_forall2 (I_list, p, id, id2) -> "List.Forall2 " ^ parens ( "fun " ^ id ^ " " ^ id2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
-    | P_list_forall2 (I_option, p, id, id2) -> "Option.Forall2 " ^ parens ( "fun " ^ id ^ " " ^ id2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
+    | P_list_forall (I_list, p, (id, t)) -> 
+      let binder = string_of_binder (id, remove_iter_from_type t) in
+      "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ id
+    | P_list_forall (I_option, p, (id, t)) -> 
+      let binder = string_of_binder (id, remove_iter_from_type t) in
+      "Option.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ id
+    | P_list_forall2 (I_list, p, (id, t), (id2, t2)) -> 
+      let binder = string_of_binder (id, remove_iter_from_type t) in
+      let binder2 = string_of_binder (id2, remove_iter_from_type t2) in
+      "List.Forall2 " ^ parens ( "fun " ^ binder ^ " " ^ binder2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
+    | P_list_forall2 (I_option, p, (id, t), (id2, t2)) -> 
+      let binder = string_of_binder (id, remove_iter_from_type t) in
+      let binder2 = string_of_binder (id2, remove_iter_from_type t2) in
+      "Option.Forall2 " ^ parens ( "fun " ^ binder ^ " " ^ binder2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
     | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body f =

@@ -61,7 +61,7 @@ let rec is_same_type (t1 : term) (t2 : term) =
 
 (* Assumes that tuple variables will be in same order, can be modified if necessary *)
 (* TODO must also check if some types inside the type are subtyppable and as such it should also be allowed *)
-let find_same_typing (_case_id: ident) (binds: binders) (cases : inductive_type_entry list) =
+let find_same_typing (_case_id: ident) (binds: binder list) (cases : inductive_type_entry list) =
   List.find_opt (fun (_case_id', binds') -> 
     (* TODO introduce this when we find a better way to check ids *)
     (* (String.ends_with ~suffix:case_id case_id' || String.ends_with ~suffix:case_id' case_id) &&  *)
