@@ -20,9 +20,9 @@ type mil_deftyp =
   | T_inductive of inductive_type_entry list
   | T_tfamily of family_type_entry list
 
-type typ_def = binders * mil_deftyp
+type typ_def = binder list * mil_deftyp
 type rel_def = relation_args * relation_type_entry list
-type def_def = binders * return_type * clause_entry list
+type def_def = binder list * return_type * clause_entry list
 
 type t =
   {

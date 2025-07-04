@@ -88,23 +88,23 @@ and premise =
   | P_neg of premise
   | P_rule of ident * term list
   | P_else
-  | P_list_forall of iterator * premise * ident
-  | P_list_forall2 of iterator * premise * ident * ident
+  | P_list_forall of iterator * premise * binder
+  | P_list_forall2 of iterator * premise * binder * binder
   | P_unsupported of string
 
 and function_body = 
   | F_term of term
-  | F_premises of binders * premise list
+  | F_premises of binder list * premise list
   | F_if_else of term * function_body * function_body
   | F_let of term * term * function_body
   | F_match of term (* TODO this one will be tricky *)
   | F_default
 
-and binders = (ident * term) list
+and binder = (ident * term)
 
 and record_entry = (ident * term)
 
-and inductive_type_entry = (ident * binders)
+and inductive_type_entry = (ident * binder list)
 
 and relation_type_entry = inductive_type_entry * premise list * term list
 
@@ -118,18 +118,18 @@ and return_type = term
 
 and clause_entry = term * function_body 
 
-and family_type_entry = ident * binders * term list 
+and family_type_entry = ident * binder list * term list 
 
 and mil_def = mil_def' phrase
 and mil_def' =
-  | TypeAliasD of (ident * binders * term)
+  | TypeAliasD of (ident * binder list * term)
   | RecordD of (ident * record_entry list)
-  | InductiveD of (ident * binders * inductive_type_entry list)
+  | InductiveD of (ident * binder list * inductive_type_entry list)
   | MutualRecD of mil_def list
-  | DefinitionD of (ident * binders * return_type * clause_entry list)
+  | DefinitionD of (ident * binder list * return_type * clause_entry list)
   | GlobalDeclarationD of (ident * return_type * clause_entry)
   | InductiveRelationD of (ident * relation_args * relation_type_entry list)
-  | AxiomD of (ident * binders * return_type)
+  | AxiomD of (ident * binder list * return_type)
   | InductiveFamilyD of (ident * term list * family_type_entry list)
   | CoercionD of (func_name * ident * ident)
   | UnsupportedD of string

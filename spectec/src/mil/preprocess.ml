@@ -30,7 +30,7 @@ let register_prefix (env : env) (id :id) (exp : El.Ast.exp) =
 
 let has_prefix_hint (hint : hint) = hint.hintid.it = "prefix"
 
-let atom_string_combine a typ_name = Xl.Atom.to_string a ^ "__" ^ typ_name
+let atom_string_combine a typ_name = Xl.Atom.name a ^ "__" ^ typ_name
 
 let mixop_string_combine m typ_name = Xl.Mixop.to_string m ^ "__" ^ typ_name
 
@@ -104,12 +104,14 @@ let create_projection_functions id params int_set inst =
   ) (IntSet.elements int_set)
 
 let prepend_atom a prefix = 
+  if prefix = "" then a else 
   (match a.it with
     | Xl.Atom.Atom s -> Xl.Atom.Atom (prefix ^ s)
     | _ -> error a.at "Can only give prefixes to names"
   ) $$ a.at % a.note
 
 let prepend_mixop (m : mixop) (prefix : text) = 
+  if prefix = "" then m else 
   match m with 
     | [] -> [[Xl.Atom.Atom prefix $$ no_region % (Xl.Atom.info "")]]
     | atoms :: ms -> ((Xl.Atom.Atom prefix $$ no_region % (Xl.Atom.info "")) :: atoms) :: ms
@@ -141,19 +143,32 @@ and preprocess_exp p_env e =
     | CaseE (m, e1) -> 
       (* Checking and inserting correct prefix from hint *)
       let typ_name = Print.string_of_typ_name e.note in
+      (* First get the prefix of all cases *)
+      let extra_prefix = (match (StringMap.find_opt typ_name p_env.prefix_map) with 
+        | Some prefix -> prefix ^ "_"
+        | None -> ""
+      ) in 
+
+      (* Then try to get the specfic case prefix*)
       let combined_id = mixop_string_combine m typ_name in
       (match (StringMap.find_opt combined_id p_env.prefix_map) with 
-        | Some prefix -> CaseE (prepend_mixop m (prefix ^ "_"), p_func e1)
-        | None -> CaseE (m, p_func e1)
+        | Some prefix -> CaseE (prepend_mixop m (extra_prefix ^ prefix ^ "_"), p_func e1)
+        | None -> CaseE (prepend_mixop m extra_prefix, p_func e1)
       )
     | StrE fields ->
       (* Checking and inserting correct prefix from hint *) 
       let typ_name = Print.string_of_typ_name e.note in
+      (* First get the prefix of all cases *)
+      let extra_prefix = (match (StringMap.find_opt typ_name p_env.prefix_map) with 
+        | Some prefix -> prefix ^ "_"
+        | None -> ""
+      ) in 
       StrE (List.map (fun (a, e1) ->
+        (* Then try to get the specfic case prefix*)
         let combined_id = atom_string_combine a typ_name in 
         (match (StringMap.find_opt combined_id p_env.prefix_map) with 
-        | Some prefix -> (prepend_atom a (prefix ^ "_"), p_func e1)
-        | None -> (a, p_func e1)
+          | Some prefix -> (prepend_atom a (extra_prefix ^ prefix ^ "_"), p_func e1)
+          | None -> (prepend_atom a extra_prefix, p_func e1)
         )
       ) fields)
     | UnE (unop, optyp, e1) -> UnE (unop, optyp, p_func e1)
@@ -380,6 +395,4 @@ let preprocess (il : script): script =
   p_env.uncase_map <- !acc;
   let transformed_il = Tfamily.transform il in
   List.iter (create_prefix_map_def p_env) transformed_il;
-  print_endline "Printing prefix map";
-  StringMap.iter (fun id s -> print_endline ("Key: " ^ id ^ " Value: " ^ s)) p_env.prefix_map; 
   List.concat_map (preprocess_def p_env) transformed_il

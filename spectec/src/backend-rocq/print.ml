@@ -114,19 +114,19 @@ let rec string_of_term (term : term) =
 let string_of_binder (id, term) = 
   parens (id ^ " : " ^ string_of_term term)
 
-let string_of_binders (binds : binders) = 
+let string_of_binders (binds : binder list) = 
   Mil.Print.string_of_list_prefix " " " " string_of_binder binds
 
-let string_of_binders_ids (binds : binders) = 
+let string_of_binders_ids (binds : binder list) = 
   Mil.Print.string_of_list_prefix " " " " (fun (id, _) -> id) binds
 
-let string_of_list_type (id : ident) (args : binders) =
+let string_of_list_type (id : ident) (args : binder list) =
   "Definition " ^ "list__" ^ id ^ string_of_binders args ^ " := " ^ parens ("list " ^ parens (id ^ string_of_binders_ids args))
   
-let string_of_option_type (id : ident) (args : binders) =
+let string_of_option_type (id : ident) (args : binder list) =
   "Definition " ^ "option__" ^ id ^ string_of_binders args ^  " := " ^ parens ("option " ^ parens (id ^ string_of_binders_ids args))
 
-let string_of_match_binders (binds : binders) =
+let string_of_match_binders (binds : binder list) =
   parens (String.concat ", " (List.map (fun (id, _) -> id) binds))
 
 let string_of_relation_args (args : relation_args) = 
@@ -138,12 +138,15 @@ let rec string_of_premise (prem : premise) =
     | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " string_of_term terms)
     | P_neg p -> parens ("~" ^ string_of_premise p)
     | P_else -> "otherwise" (* Will be removed by an else pass *)
-    | P_list_forall (iterator, p, v) -> 
+    | P_list_forall (iterator, p, (id, t)) -> 
+      let binder = string_of_binder (id, Mil.Print.remove_iter_from_type t) in
       let option_conversion = if iterator = I_option then "option_to_list " else "" in
-      "List.Forall " ^ parens ( "fun " ^ v ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ v)
-    | P_list_forall2 (iterator, p, v, s) -> 
+      "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id)
+    | P_list_forall2 (iterator, p, (id, t), (id2, t2)) -> 
+      let binder = string_of_binder (id, Mil.Print.remove_iter_from_type t) in
+      let binder2 = string_of_binder (id2, Mil.Print.remove_iter_from_type t2) in
       let option_conversion = if iterator = I_option then "option_to_list " else "" in
-      "List.Forall2 " ^ parens ("fun " ^ v ^ " " ^ s ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ v) ^ " " ^ parens (option_conversion ^ s)
+      "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id) ^ " " ^ parens (option_conversion ^ id2)
     | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body f =
@@ -156,7 +159,7 @@ let rec string_of_function_body f =
     | F_match term -> string_of_term term (* Todo extend this *)
     | F_default -> "default_val" 
 
-let string_of_typealias (id : ident) (binds : binders) (typ : term) = 
+let string_of_typealias (id : ident) (binds : binder list) (typ : term) = 
   "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term typ ^ ".\n\n" ^ 
   string_of_list_type id binds ^ ".\n\n" ^
   string_of_option_type id binds
@@ -190,7 +193,7 @@ let string_of_record (id: ident) (entries : record_entry list) =
   "#[export] Instance eta__" ^ id ^ " : Settable _ := settable! " ^ constructor_name ^ " <" ^ 
   String.concat ";" (List.map (fun (record_id, _) -> record_id) entries) ^ ">"  
 
-let string_of_inductive_def (id : ident) (args : binders) (entries : inductive_type_entry list) = 
+let string_of_inductive_def (id : ident) (args : binder list) (entries : inductive_type_entry list) = 
   "Inductive " ^ id ^ string_of_binders args ^ " : Type :=\n\t" ^
   String.concat "\n\t" (List.map (fun (case_id, binds) ->
     "| " ^ Mil.Print.empty_name case_id ^ string_of_binders binds ^ " : " ^ id ^ string_of_binders_ids args   
@@ -208,7 +211,7 @@ let string_of_inductive_def (id : ident) (args : binders) (entries : inductive_t
     | (case_id, binds) :: _ -> " := { default_val := " ^ (Mil.Print.empty_name case_id) ^ binders ^ 
       Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }"
 
-let string_of_definition (prefix : string) (id : ident) (binders : binders) (return_type : return_type) (clauses : clause_entry list) = 
+let string_of_definition (prefix : string) (id : ident) (binders : binder list) (return_type : return_type) (clauses : clause_entry list) = 
   prefix ^ id ^ string_of_binders binders ^ " : " ^ string_of_term return_type ^ " :=\n" ^
   "\tmatch " ^ string_of_match_binders binders ^ " with\n\t\t" ^
   String.concat "\n\t\t" (List.map (fun (match_term, fb) -> 
@@ -216,14 +219,14 @@ let string_of_definition (prefix : string) (id : ident) (binders : binders) (ret
   "\n\tend"
 
 let string_of_inductive_relation (prefix : string) (id : ident) (args : relation_args) (relations : relation_type_entry list) = 
-  prefix ^ id ^ ": " ^ string_of_relation_args args ^ " -> Prop :=\n\t" ^
+  prefix ^ id ^ ":" ^ string_of_relation_args args ^ " -> Prop :=\n\t" ^
   String.concat "\n\t" (List.map (fun ((case_id, binds), premises, end_terms) ->
     let string_prems = Mil.Print.string_of_list_suffix " -> " " -> " string_of_premise premises in
     let forall_quantifiers = Mil.Print.string_of_list "forall " ", " " " string_of_binder binds in
     "| " ^ Mil.Print.empty_name case_id ^ " : " ^ forall_quantifiers ^ string_prems ^ id ^ " " ^ String.concat " " (List.map string_of_term end_terms)
   ) relations)
 
-let string_of_axiom (id : ident) (binds : binders) (r_type: return_type) =
+let string_of_axiom (id : ident) (binds : binder list) (r_type: return_type) =
   "Axiom " ^ id ^ " : forall " ^ string_of_binders binds ^ ", " ^ string_of_term r_type
 
 let string_of_family_types (id : ident) (types: term list) (entries : family_type_entry list) = 

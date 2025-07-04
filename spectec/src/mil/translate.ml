@@ -73,6 +73,11 @@ let transform_mixop (typ_id : id) (m : mixop) =
     | "" -> make_prefix ^ typ_id.it
     | _ -> str
 
+let remove_iterT (t : typ) = 
+  match t.it with
+    | IterT (typ, _) -> typ
+    | _ -> t
+
 (* Type functions *)
 let transform_itertyp (it : iter) =
   match it with
@@ -344,10 +349,12 @@ let rec transform_premise (p : prem) =
     | IfPr exp -> P_if (transform_exp exp)
     | ElsePr -> P_else
     | LetPr (exp1, exp2, _) -> P_if (T_app_infix (T_exp_basic T_eq, transform_exp exp1, transform_exp exp2))
-    | IterPr (p, (iter, [(id, _e)])) ->
-      P_list_forall (transform_iter iter, transform_premise p, transform_var_id id)
-    | IterPr (p, (iter, [(id, _e); (id2, _e2)])) ->
-      P_list_forall2 (transform_iter iter, transform_premise p, transform_var_id id, transform_var_id id2)
+    | IterPr (p, (iter, [(id, e)])) ->
+      P_list_forall (transform_iter iter, transform_premise p, (transform_var_id id, transform_type e.note))
+    | IterPr (p, (iter, [(id, e); (id2, e2)])) ->
+      let id_typ = transform_type e.note in
+      let id_typ2 = transform_type e2.note in 
+      P_list_forall2 (transform_iter iter, transform_premise p, (transform_var_id id, id_typ), (transform_var_id id2, id_typ2))
     | IterPr _ -> P_unsupported (string_of_prem p) (* TODO could potentially extend this further if necessary *)
     | RulePr (id, _mixop, exp) -> P_rule (transform_user_def_id id, transform_tuple_exp transform_exp exp)
 
