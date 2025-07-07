@@ -1,6 +1,6 @@
 open Util.Source
 open Ast
-open Preprocess
+open Translate
 
 (* Generates a fresh name if necessary, and goes up to a maximum which then it will return an error*)
 (* let generate_var at ids i =
@@ -163,4 +163,5 @@ let rec transform_def prefix_map d =
   | UnsupportedD str -> UnsupportedD str
   ) $ d.at
 let transform prefix_map mil = 
+  StringMap.iter (fun key value -> print_endline ("Key: " ^ key ^ " Value: " ^ value)) prefix_map;
   List.map (transform_def prefix_map) mil

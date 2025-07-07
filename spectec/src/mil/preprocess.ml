@@ -19,21 +19,6 @@ let empty_env = {
   env = Il.Env.empty
 }
 
-let string_of_prefix = function
-  | {it = El.Ast.TextE s; _} -> s
-  | {at; _} -> error at "malformed prefix hint"
-
-let register_prefix (map : string StringMap.t ref) (id :id) (exp : El.Ast.exp) =
-  map := StringMap.add id.it (string_of_prefix exp) !map
-
-let has_prefix_hint (hint : hint) = hint.hintid.it = "prefix"
-
-let string_combine id typ_name = id ^ "__" ^ typ_name
-
-let atom_string_combine a typ_name = string_combine (Xl.Atom.to_string a) typ_name
-
-let mixop_string_combine m typ_name = string_combine (Xl.Mixop.to_string m) typ_name
-
 let var_prefix = "v_"
 let proj_prefix = "proj_"
 
@@ -287,43 +272,7 @@ let collect_uncase_iter env: uncase_map ref * (module Iter.Arg) =
     end
   in Arg.acc, (module Arg)
 
-let create_prefix_map_inst (map : string StringMap.t ref) (id : id) (i : inst) =
-  match i.it with
-    | InstD (_binds, _args, deftyp) -> (match deftyp.it with 
-      | AliasT _ -> ()
-      | StructT typfields -> List.iter (fun (a, _, hints) ->
-        (match (List.find_opt has_prefix_hint hints) with
-          | Some h -> 
-            let combined_id = atom_string_combine a id.it in
-            register_prefix map (combined_id $ id.at) h.hintexp
-          | _ -> ()
-        )
-      ) typfields
-      | VariantT typcases -> List.iter (fun (m, _, hints) ->
-        (match (List.find_opt has_prefix_hint hints) with
-          | Some h -> 
-            let combined_id = mixop_string_combine m id.it in
-            register_prefix map (combined_id $ id.at) h.hintexp
-          | _ -> ()
-        )
-      ) typcases
-    )
 
-let create_prefix_map_def (map : string StringMap.t ref) (d : def) = 
-  match d.it with
-    | HintD {it = TypH (id, hints); _}
-    | HintD {it = RelH (id, hints); _} ->
-      (match (List.find_opt has_prefix_hint hints) with
-        | Some h -> register_prefix map id h.hintexp
-        | _ -> ()
-      ) 
-    | TypD (id, _, insts) -> List.iter (create_prefix_map_inst map id) insts
-    | _ -> ()
-
-let create_prefix_map (il : script) = 
-  let map = ref StringMap.empty in
-  List.iter (create_prefix_map_def map) il;
-  !map
 
 let preprocess (il : script): script =
   let p_env = empty_env in 
