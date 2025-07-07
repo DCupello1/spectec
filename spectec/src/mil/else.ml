@@ -69,7 +69,7 @@ let rec apart (e1 : term) (e2: term) : bool =
   | T_exp_basic (T_int i1), T_exp_basic (T_int i2) -> not (i1 = i2)
   | T_exp_basic (T_bool b1), T_exp_basic (T_bool b2) -> not (b1 = b2)
   | T_exp_basic T_string t1, T_exp_basic T_string t2 -> not (t1 = t2)
-  | T_app (a1, _, exp1), T_app (a2, _, exp2) ->
+  | T_app (a1, exp1), T_app (a2, exp2) ->
     not (a1 = a2) || List.exists2 apart exp1 exp2
   | T_match es1, T_match es2 when List.length es1 = List.length es2 ->
     List.exists2 apart es1 es2

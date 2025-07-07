@@ -1,5 +1,5 @@
 (library
   (name mil)
   (libraries util xl il)
-  (modules ast translate env else sub tfamily print preprocess template_pass)
+  (modules ast translate env else sub tfamily print preprocess naming)
 )

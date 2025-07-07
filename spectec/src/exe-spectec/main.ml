@@ -256,7 +256,6 @@ let () =
     Al.Valid.valid al;
     *)
     
-
     let mil =
       if !print_mil_f || (!target = Rocq)
       then (
@@ -267,22 +266,24 @@ let () =
           | Rocq -> Backend_rocq.Utils.reserved_ids
           | _ -> Mil.Env.StringSet.empty
         ) in
-        let mil = Mil.Translate.transform reserved_ids il in
+        let prefix_map, mil = Mil.Translate.transform reserved_ids il in
         if !print_mil_f || !print_all_mil then 
           print_mil mil;
-        Mil.Env.check_uniqueness mil; 
-        List.fold_left (fun mil pass ->
+        let transformed_mil = List.fold_left (fun mil' pass ->
           log ("Running pass " ^ pass_mil_flag pass ^ "...");
-          let transformed_mil = run_pass_mil pass mil in
+          let mil'' = run_pass_mil pass mil' in
           if !print_all_mil then 
-            print_mil transformed_mil;
-          transformed_mil
-        ) mil all_mil_passes
+            print_mil mil'';
+          mil''
+        ) mil all_mil_passes in
+        let final_mil = Mil.Naming.transform prefix_map transformed_mil in
+        if !print_all_mil then 
+          print_mil final_mil;
+        Mil.Env.check_uniqueness final_mil;
+        final_mil
       )
       else []
     in
-
-    
 
     (match !target with
     | Check -> ()
