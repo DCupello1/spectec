@@ -10,17 +10,17 @@ let sub_hastable = Hashtbl.create 16
 
 let get_id_typ term = 
   match term with
-    | T_app (T_ident id, T_arrowtype _ , _)
-    | T_app (T_ident id, T_type_basic T_anytype, _) -> id
+    | T_app (T_ident id, _) -> id
     | _ -> "" 
 
 let rec get_subE_term t =
   match t with
     | T_list terms -> List.concat_map get_subE_term terms
-    | T_record_fields fields -> List.concat_map (fun (_, term) -> get_subE_term term) fields
+    | T_record_fields (typ, fields) -> get_subE_term typ @ List.concat_map (fun (_, term) -> get_subE_term term) fields
     | T_lambda (_, term) -> get_subE_term term
     | T_match terms -> List.concat_map get_subE_term terms
-    | T_app (term, typ, terms) -> get_subE_term term @ get_subE_term typ @ List.concat_map get_subE_term terms
+    | T_caseapp (_id, typ, terms) -> get_subE_term typ @ List.concat_map get_subE_term terms
+    | T_app (term, terms) -> get_subE_term term @ List.concat_map get_subE_term terms
     | T_app_infix (op_term, term1, term2) -> get_subE_term op_term @ get_subE_term term1 @ get_subE_term term2
     | T_tupletype terms -> List.concat_map get_subE_term terms
     | T_arrowtype terms -> List.concat_map get_subE_term terms
@@ -29,7 +29,7 @@ let rec get_subE_term t =
       if id1 = "" || id2 = "" then [] else [((id1, typ1), (id2, typ2))]
     | T_record_update (term1, term2, term3) -> get_subE_term term1 @ get_subE_term term2 @ get_subE_term term3
     | T_tuple terms -> List.concat_map get_subE_term terms
-    | _ -> [] (* TODO extend to update and extend terms *)
+    | _ -> [] 
 
 let rec get_subE_prem (premise : premise) =
   match premise with
@@ -47,12 +47,15 @@ let rec is_same_type (t1 : term) (t2 : term) =
     | T_tupletype terms1, T_tupletype terms2 when List.length terms1 = List.length terms2 -> 
       List.for_all2 is_same_type terms1 terms2
     (* Handle iter types *)
-    | T_app (T_type_basic T_list, _, terms1), T_app (T_type_basic T_list, _, terms2) -> 
+    | T_app (T_type_basic T_list, terms1), T_app (T_type_basic T_list, terms2) -> 
       List.length terms1 = List.length terms2 && List.for_all2 is_same_type terms1 terms2
-    | T_app (T_type_basic T_opt, _, terms1), T_app (T_type_basic T_opt, _, terms2) ->
+    | T_app (T_type_basic T_opt, terms1), T_app (T_type_basic T_opt, terms2) ->
       List.length terms1 = List.length terms2 && List.for_all2 is_same_type terms1 terms2
     (* Handle user defined types*)
-    | T_app (T_ident id1, _, terms1), T_app (T_ident id2, _, terms2) -> 
+    | T_app (T_ident id1, terms1), T_app (T_ident id2, terms2) -> 
+      id1 = id2 && List.length terms1 = List.length terms2 &&
+      List.for_all2 is_same_type terms1 terms2
+    | T_caseapp (id1, _, terms1), T_caseapp (id2, _, terms2) -> 
       id1 = id2 && List.length terms1 = List.length terms2 &&
       List.for_all2 is_same_type terms1 terms2
     | T_ident id, T_ident id2 -> id = id2
@@ -61,10 +64,9 @@ let rec is_same_type (t1 : term) (t2 : term) =
 
 (* Assumes that tuple variables will be in same order, can be modified if necessary *)
 (* TODO must also check if some types inside the type are subtyppable and as such it should also be allowed *)
-let find_same_typing (_case_id: ident) (binds: binder list) (cases : inductive_type_entry list) =
-  List.find_opt (fun (_case_id', binds') -> 
-    (* TODO introduce this when we find a better way to check ids *)
-    (* (String.ends_with ~suffix:case_id case_id' || String.ends_with ~suffix:case_id' case_id) &&  *)
+let find_same_typing (case_id: ident) (binds: binder list) (cases : inductive_type_entry list) =
+  List.find_opt (fun (case_id', binds') -> 
+    case_id = case_id' && 
     List.length binds = List.length binds' &&
     List.for_all2 (fun (typ_id, typ1) (typ_id2, typ2) -> 
       typ_id = typ_id2 && is_same_type typ1 typ2) binds binds'  
@@ -75,8 +77,8 @@ let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term) (t2_id : i
   let func_name = func_prefix ^ coerce_prefix ^ t1_id ^ "__" ^ t2_id in 
   
   [(DefinitionD (func_name, 
-    [(var_prefix ^ t1_id, T_app (T_ident t1_id, T_type_basic T_anytype, []))],
-    T_app (T_ident t2_id, T_type_basic T_anytype, []), 
+    [(var_prefix ^ t1_id, T_caseapp (t1_id, T_type_basic T_anytype, []))],
+    T_caseapp (t2_id, T_type_basic T_anytype, []), 
     let (_, deftyp) = t1_typ_def in
     let (_, deftyp') = t2_typ_def in
     
@@ -88,7 +90,7 @@ let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term) (t2_id : i
           let opt = find_same_typing case_id bs cases' in
           (match opt with
             | Some (case_id', _) -> 
-              (T_match [T_app (T_ident case_id, t1_typ, var_list)], F_term (T_app (T_ident case_id', t2_typ, var_list)))
+              (T_match [T_caseapp (case_id, t1_typ, var_list)], F_term (T_caseapp (case_id', t2_typ, var_list)))
             (* Should find it due to validation *)
             | _ -> error at ("Couldn't coerce type " ^ t1_id ^ " to " ^ t2_id)
           )

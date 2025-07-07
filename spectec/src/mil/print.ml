@@ -11,8 +11,8 @@ let empty_name s = match s with
 
 let remove_iter_from_type t =
   match t with
-    | T_app (T_type_basic T_list, _, [t']) -> t'
-    | T_app (T_type_basic T_opt, _, [t']) -> t'
+    | T_app (T_type_basic T_list, [t']) -> t'
+    | T_app (T_type_basic T_opt, [t']) -> t'
     | t' -> t'
 
 let string_of_list_prefix prefix delim str_func ls = 
@@ -96,12 +96,14 @@ let rec string_of_term t =
     | T_ident id -> id
     | T_list terms -> square_parens (String.concat "; " (List.map string_of_term terms))
     | T_lambda (ids, term) -> parens ("fun " ^ (String.concat " " ids) ^ " => " ^ string_of_term term)
-    | T_record_fields fields -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
+    | T_record_fields (_, fields) -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
     | T_match [] -> ""
     | T_match [pattern] -> string_of_term pattern
     | T_match patterns -> parens (String.concat ", " (List.map string_of_term patterns))
-    | T_app (base_term, _, []) -> empty_name (string_of_term base_term) 
-    | T_app (base_term, _, args) -> parens (empty_name (string_of_term base_term) ^ string_of_list_prefix " " " " string_of_term args)
+    | T_caseapp (id, _, []) -> empty_name id  
+    | T_caseapp (id, _, args) -> parens (empty_name id ^ string_of_list_prefix " " " " string_of_term args)
+    | T_app (base_term, []) -> empty_name (string_of_term base_term) 
+    | T_app (base_term, args) -> parens (empty_name (string_of_term base_term) ^ string_of_list_prefix " " " " string_of_term args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
     | T_tuple [] -> "()"
     | T_tuple terms -> parens (String.concat ", " (List.map string_of_term terms))
