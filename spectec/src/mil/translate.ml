@@ -5,6 +5,7 @@ open Ast
 open Util
 open Source
 
+module StringMap = Map.Make(String)
 let error at msg = Error.error at "MIL Transformation" msg
 
 let coerce_prefix = "coec_"
@@ -62,7 +63,7 @@ let is_atomid (a : atom) =
     | Atom _ -> true
     | _ -> false
 
-let transform_mixop (typ_id : id) (m : mixop) = 
+let transform_mixop (typ_id : string) (m : mixop) = 
   let str = (match m with
   | [{it = Atom a; _}] :: tail when List.for_all ((=) []) tail -> transform_user_def_id (a $ no_region) 
   | mixop -> String.concat "" (List.map (
@@ -70,8 +71,14 @@ let transform_mixop (typ_id : id) (m : mixop) =
     )
   ) in
   match str with
-    | "" -> make_prefix ^ typ_id.it
+    | "" -> make_prefix ^ typ_id
     | _ -> str
+
+let string_combine id typ_name = id ^ "__" ^ typ_name
+
+let atom_string_combine a typ_name = string_combine (transform_atom a) typ_name
+
+let mixop_string_combine m typ_name = string_combine (transform_mixop typ_name m) typ_name
 
 let remove_iterT (t : typ) = 
   match t.it with
@@ -135,7 +142,7 @@ and transform_exp (exp : exp) =
     | CaseE (mixop, e) ->
       let reduced_typ = Il.Eval.reduce_typ !env_ref exp.note in 
       let typ_id = string_of_typ_name reduced_typ $ no_region in
-      T_caseapp ((transform_mixop typ_id mixop), transform_type reduced_typ, transform_tuple_exp transform_exp e)
+      T_caseapp ((transform_mixop typ_id.it mixop), transform_type reduced_typ, transform_tuple_exp transform_exp e)
     | UncaseE (_e, _mixop) -> T_unsupported ("UncaseE: " ^ Il.Print.string_of_exp exp) (* Should be removed by preprocessing *)
     | OptE (Some e) -> T_app (T_exp_basic T_some, [transform_exp e])
     | OptE None -> T_exp_basic T_none
@@ -187,7 +194,7 @@ and transform_match_exp (exp : exp) =
   | ProjE (e, n) -> T_app (T_exp_basic T_listlookup, [transform_match_exp e; T_exp_basic (T_nat (Z.of_int n))])
   | CaseE (mixop, e) ->
     let typ_id = string_of_typ_name exp.note $ no_region in 
-    T_caseapp ((transform_mixop typ_id mixop), typ, transform_tuple_exp transform_match_exp e)
+    T_caseapp ((transform_mixop typ_id.it mixop), typ, transform_tuple_exp transform_match_exp e)
   | OptE (Some e) -> T_app (T_exp_basic T_some, [transform_match_exp e])
   | OptE None -> T_exp_basic T_none
   | TheE e -> T_app (T_exp_basic T_invopt, [transform_match_exp e])
@@ -356,7 +363,7 @@ let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
     | StructT typfields -> RecordD (transform_user_def_id id, List.map (fun (a, (_, t, _), _) -> 
       (transform_atom a, transform_type t)) typfields)
     | VariantT typcases -> InductiveD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (m, (_, t, _), _) ->
-        (transform_mixop id m, transform_typ_args t)) typcases)
+        (transform_mixop id.it m, transform_typ_args t)) typcases)
 
 let transform_rule (id : id) (r : rule) = 
   match r.it with
@@ -483,8 +490,6 @@ let create_well_formed_function id params inst =
       Some (DefinitionD (wf_prefix ^ id.it, List.map transform_param new_params, T_type_basic T_prop, clauses))
     | _ -> None
 
-
-
 let rec transform_def (def : def) : mil_def list =
   let has_prems clause = match clause.it with
     | DefD (_, _, _, prems) -> prems <> []
@@ -520,10 +525,59 @@ let is_not_hintdef (d : def) : bool =
     | HintD _ -> false
     | _ -> true 
 
+(* Making prefix map *)
+
+let string_of_prefix = function
+  | {it = El.Ast.TextE s; _} -> s
+  | {at; _} -> error at "malformed prefix hint"
+
+let register_prefix (map : string StringMap.t ref) (id :id) (exp : El.Ast.exp) =
+  map := StringMap.add id.it (string_of_prefix exp) !map
+
+let has_prefix_hint (hint : hint) = hint.hintid.it = "prefix"
+
+let create_prefix_map_inst (map : string StringMap.t ref) (id : id) (i : inst) =
+  match i.it with
+    | InstD (_binds, _args, deftyp) -> (match deftyp.it with 
+      | AliasT _ -> ()
+      | StructT typfields -> List.iter (fun (a, _, hints) ->
+        (match (List.find_opt has_prefix_hint hints) with
+          | Some h -> 
+            let combined_id = atom_string_combine a id.it in
+            register_prefix map (combined_id $ id.at) h.hintexp
+          | _ -> ()
+        )
+      ) typfields
+      | VariantT typcases -> List.iter (fun (m, _, hints) ->
+        (match (List.find_opt has_prefix_hint hints) with
+          | Some h -> 
+            let combined_id = mixop_string_combine m id.it in
+            register_prefix map (combined_id $ id.at) h.hintexp
+          | _ -> ()
+        )
+      ) typcases
+    )
+
+let create_prefix_map_def (map : string StringMap.t ref) (d : def) = 
+  match d.it with
+    | HintD {it = TypH (id, hints); _}
+    | HintD {it = RelH (id, hints); _} ->
+      (match (List.find_opt has_prefix_hint hints) with
+        | Some h -> register_prefix map id h.hintexp
+        | _ -> ()
+      ) 
+    | TypD (id, _, insts) -> List.iter (create_prefix_map_inst map id) insts
+    | _ -> ()
+
+let create_prefix_map (il : script) = 
+  let map = ref StringMap.empty in
+  List.iter (create_prefix_map_def map) il;
+  !map
+
 (* Main transformation function *)
 let transform (reserved_ids : Env.StringSet.t) (il : script) =
   reserved_ids_set := reserved_ids; 
   let preprocessed_il = Preprocess.preprocess il in
   env_ref := Il.Env.env_of_script preprocessed_il;
-  (Preprocess.create_prefix_map preprocessed_il, 
+  (create_prefix_map preprocessed_il, 
   List.filter is_not_hintdef preprocessed_il |> List.concat_map transform_def)
