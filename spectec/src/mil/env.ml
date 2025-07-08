@@ -81,6 +81,18 @@ let rebind_typ env id rhs = {env with typs = rebind "type" env.typs id rhs}
 let rebind_def env id rhs = {env with defs = rebind "definition" env.defs id rhs}
 let rebind_rel env id rhs = {env with rels = rebind "relation" env.rels id rhs}
 
+let count_case_binders env case_id typ_id = 
+  match (find_opt_typ env typ_id) with
+  | Some (dep_bs, T_inductive cases) -> (match (List.find_opt (fun (case_id', _) -> case_id = case_id') cases) with 
+    | Some (_, binders) -> List.length dep_bs + List.length binders
+    | _ -> 0
+  )
+  | Some (_, T_tfamily entries) -> (match (List.find_opt (fun (case_id', _, _) -> case_id = case_id') entries) with 
+    | Some (_, binders, _) -> List.length binders
+    | _ -> 0
+  )
+  | _ -> 0
+
 (* Extraction *)
 
 let rec env_of_def env d =

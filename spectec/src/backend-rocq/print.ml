@@ -96,10 +96,12 @@ let rec string_of_term (term : term) =
     | T_record_fields (_, fields) -> "{| " ^ (String.concat "; " (List.map (fun (id, term) -> id ^ " := " ^ string_of_term term) fields)) ^ " |}"
     | T_list entries -> square_parens (String.concat "; " (List.map string_of_term entries))
     | T_match [] -> ""
-    | T_match patterns -> parens (String.concat ", " (List.map string_of_term patterns))
-    | T_caseapp (id, T_app (T_ident _, type_args), args) ->
-      let new_args = List.init (List.length type_args) (fun _ -> T_ident "_") @ args in  
-      parens (id ^ Mil.Print.string_of_list_prefix " " " " string_of_term new_args)
+    | T_match patterns -> String.concat ", " (List.map string_of_term patterns)
+    | T_caseapp (case_id, T_app (T_ident typ_id, _), args) ->
+      let total_args = Env.count_case_binders !env_ref case_id typ_id in
+      let num_new_args = total_args - List.length args in 
+      let new_args = List.init num_new_args (fun _ -> T_ident "_") @ args in  
+      parens (case_id ^ Mil.Print.string_of_list_prefix " " " " string_of_term new_args)
     | T_caseapp (id, _, args) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " string_of_term args)  
     | T_app (base_term, []) -> (string_of_term base_term)
     | T_app (base_term, args) -> parens ((string_of_term base_term) ^ Mil.Print.string_of_list_prefix " " " " string_of_term args)
@@ -128,7 +130,7 @@ let string_of_option_type (id : ident) (args : binder list) =
   "Definition " ^ "option__" ^ id ^ string_of_binders args ^  " := " ^ parens ("option " ^ parens (id ^ string_of_binders_ids args))
 
 let string_of_match_binders (binds : binder list) =
-  parens (String.concat ", " (List.map (fun (id, _) -> id) binds))
+  String.concat ", " (List.map (fun (id, _) -> id) binds)
 
 let string_of_relation_args (args : relation_args) = 
   Mil.Print.string_of_list_prefix " " " -> " string_of_term args
