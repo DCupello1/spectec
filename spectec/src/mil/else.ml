@@ -60,9 +60,6 @@ let neg_suffix = "_neg"
          it is better to return false and include ambiguous rules in the negation
          rather than missing them entirely *)
 let rec apart (e1 : term) (e2: term) : bool =
-  (*
-  (fun b -> if not b then Printf.eprintf "apart\n  %s\n  %s\n  %b\n" (Print.string_of_exp e1) (Print.string_of_exp e2) b; b)
-  *)
   (match e1, e2 with
   (* A literal is never a literal of other type *)
   | T_exp_basic (T_nat n1), T_exp_basic (T_nat n2) -> not (n1 = n2)
@@ -71,6 +68,10 @@ let rec apart (e1 : term) (e2: term) : bool =
   | T_exp_basic T_string t1, T_exp_basic T_string t2 -> not (t1 = t2)
   | T_app (a1, exp1), T_app (a2, exp2) ->
     not (a1 = a2) || List.exists2 apart exp1 exp2
+  | T_caseapp (id1, typ1, exps1), T_caseapp (id2, typ2, exps2) ->
+    not (id1 = id2) || apart typ1 typ2 || List.exists2 apart exps1 exps2
+  | T_dotapp (id1, typ1, exp1), T_dotapp (id2, typ2, exp2) ->
+    not (id1 = id2) || apart typ1 typ2 || apart exp1 exp2
   | T_match es1, T_match es2 when List.length es1 = List.length es2 ->
     List.exists2 apart es1 es2
   | (T_app_infix (T_exp_basic T_listconcat, _, _) | T_list _), (T_app_infix (T_exp_basic T_listconcat, _, _) | T_list _) ->

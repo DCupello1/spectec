@@ -75,7 +75,8 @@ and term =
   | T_record_fields of mil_typ * (ident * term) list
   | T_lambda of (ident list * term)
   | T_match of (term list)
-  | T_caseapp of (ident * mil_typ * term list) 
+  | T_caseapp of (ident * mil_typ * term list)
+  | T_dotapp of (ident * mil_typ * term) 
   | T_app of (term * term list)
   | T_app_infix of (term * term * term) (* Same as above but first term is placed in the middle *)
   | T_tuple of (term list)
