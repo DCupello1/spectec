@@ -277,8 +277,10 @@ let () =
           mil''
         ) mil all_mil_passes in
         let final_mil = Mil.Naming.transform prefix_map transformed_mil in
+        log ("Running pass Naming...");
         if !print_all_mil then 
           print_mil final_mil;
+        log ("Checking names are unique...");
         Mil.Env.check_uniqueness final_mil;
         final_mil
       )

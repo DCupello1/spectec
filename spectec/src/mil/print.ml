@@ -99,7 +99,7 @@ let rec string_of_term t =
     | T_record_fields (_, fields) -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
     | T_match [] -> ""
     | T_match [pattern] -> string_of_term pattern
-    | T_match patterns -> parens (String.concat ", " (List.map string_of_term patterns))
+    | T_match patterns -> String.concat ", " (List.map string_of_term patterns)
     | T_caseapp (id, _, []) -> empty_name id  
     | T_caseapp (id, _, args) -> parens (empty_name id ^ string_of_list_prefix " " " " string_of_term args)
     | T_app (base_term, []) -> empty_name (string_of_term base_term) 
@@ -170,7 +170,7 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
     | InductiveD (id, bs, inductive_type_entries) -> region ^ "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t| " ^
       String.concat "\n\t| " (string_of_inductive_type_entries inductive_type_entries) ^ endnewline
     | DefinitionD (id, bs, rt, clauses) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term rt ^ " =\n\t" ^
-      "match " ^ parens (String.concat ", " (grab_id_of_binders bs)) ^ " with\n\t\t| " ^
+      "match " ^ String.concat ", " (grab_id_of_binders bs) ^ " with\n\t\t| " ^
       String.concat "\n\t\t| " (List.map (fun (match_term, f_b) -> string_of_term match_term ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
     | GlobalDeclarationD (id, rt, (_, f_b)) -> region ^ "definition " ^ id ^ " : " ^ string_of_term rt ^ " := " ^ string_of_function_body f_b ^ endnewline
     | MutualRecD defs -> region ^ String.concat "" (List.map (string_of_def ~suppress_unsup) defs)

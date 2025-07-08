@@ -380,14 +380,13 @@ let transform_inst (id : id) (i : inst) =
   match i.it with
     | InstD (binds, args, deftyp) -> 
       let case_name = Tfamily.sub_type_name binds in
-      let name_prefix = id.it ^ "_" in 
       match deftyp.it with
-      | AliasT typ -> (Tfamily.type_family_prefix ^ name_prefix ^ case_name, List.map transform_bind binds @ [("_", transform_type typ)], List.map transform_arg args)
+      | AliasT typ -> (Tfamily.type_family_prefix ^ Tfamily.name_prefix id ^ case_name, List.map transform_bind binds @ [("_", transform_type typ)], List.map transform_arg args)
       | StructT _ -> error i.at "Family of records should not exist" (* This should never occur *)
       | VariantT _ -> 
         let binders = List.map transform_bind binds in 
         let terms = List.map (fun (name, _) -> T_ident name) binders in
-        (Tfamily.type_family_prefix ^ name_prefix ^ case_name, binders @ [("_", 
+        (Tfamily.type_family_prefix ^ Tfamily.name_prefix id ^ case_name, binders @ [("_", 
         T_app (T_ident (id.it ^ case_name), terms))], List.map transform_arg args)
 
 (* Inactive for now - need to understand well function defs with pattern guards *)
@@ -491,7 +490,7 @@ let create_well_formed_function id params inst =
     | _ -> None
 
 let rec transform_def (def : def) : mil_def list =
-  let has_prems clause = match clause.it with
+  let _has_prems clause = match clause.it with
     | DefD (_, _, _, prems) -> prems <> []
   in
   (match def.it with
@@ -509,12 +508,13 @@ let rec transform_def (def : def) : mil_def list =
         | [], [clause] ->
           (* With one clause and no params - this is essentially a global variable *)
           [GlobalDeclarationD (transform_fun_id id, transform_type typ, transform_clause None clause)]
-        | _, clauses when List.exists has_prems clauses -> 
+        | _ ->
+        (* | _, clauses when List.exists has_prems clauses ->  *)
           (* HACK - Need to deal with premises in the future. *)
           [AxiomD (transform_fun_id id, List.map transform_param params, transform_type typ)]
-        | _ -> 
+        (* | _ -> 
           (* Normal function *)
-          [DefinitionD (transform_fun_id id, List.map transform_param params, transform_type typ, List.map (transform_clause None) clauses)]
+          [DefinitionD (transform_fun_id id, List.map transform_param params, transform_type typ, List.map (transform_clause None) clauses)] *)
       )
     | RecD defs -> [MutualRecD (List.concat_map transform_def defs)]
     | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]
