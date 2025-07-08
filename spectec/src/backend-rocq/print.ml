@@ -102,7 +102,8 @@ let rec string_of_term (term : term) =
       let num_new_args = total_args - List.length args in 
       let new_args = List.init num_new_args (fun _ -> T_ident "_") @ args in  
       parens (case_id ^ Mil.Print.string_of_list_prefix " " " " string_of_term new_args)
-    | T_caseapp (id, _, args) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " string_of_term args)  
+    | T_caseapp (id, _, args) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " string_of_term args)
+    | T_dotapp (id, _, arg) -> parens (id ^ " " ^ string_of_term arg)  
     | T_app (base_term, []) -> (string_of_term base_term)
     | T_app (base_term, args) -> parens ((string_of_term base_term) ^ Mil.Print.string_of_list_prefix " " " " string_of_term args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
@@ -236,7 +237,18 @@ let string_of_family_types (id : ident) (types: term list) (entries : family_typ
   "Inductive " ^ id ^ " : " ^ Mil.Print.string_of_list_suffix " -> " " -> " string_of_term types ^ "Type :=\n\t| " ^
   String.concat "\n\t| " (List.map (fun (case_id, bs, terms) -> 
     case_id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_term terms) 
-  entries)
+  entries) 
+  (* ^ ".\n\n" ^
+
+  let args = List.mapi (fun i t -> ("v_" ^ Int.to_string i, t)) types in 
+  let inhabitance_binders = string_of_binders args in 
+  let binders = string_of_binders_ids args in 
+  match entries with
+    | [] -> ""
+    | (case_id, binds, _) :: _ -> 
+      "Global Instance Inhabited__" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^
+      " := { default_val := " ^ case_id ^ 
+      Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }" *)
 
 let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
   let list_func = "list__" ^ typ1 ^ "__" ^ typ2 in

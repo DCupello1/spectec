@@ -148,7 +148,7 @@ and transform_exp (exp : exp) =
     | OptE None -> T_exp_basic T_none
     | TheE e -> T_app (T_exp_basic T_invopt, [transform_exp e])
     | StrE expfields -> T_record_fields (transform_type exp.note, (List.map (fun (a, e) -> (transform_atom a, transform_exp e)) expfields))
-    | DotE (e, atom) -> T_app (T_ident (transform_atom atom), [transform_exp e])
+    | DotE (e, atom) -> T_dotapp (transform_atom atom, transform_type e.note, transform_exp e)
     | CompE (exp1, exp2) -> T_app_infix (T_exp_basic T_recordconcat, transform_exp exp1, transform_exp exp2)
     | ListE exps -> T_list (List.map transform_exp exps)
     | LenE e -> T_app (T_exp_basic T_listlength, [transform_exp e])
@@ -199,7 +199,7 @@ and transform_match_exp (exp : exp) =
   | OptE None -> T_exp_basic T_none
   | TheE e -> T_app (T_exp_basic T_invopt, [transform_match_exp e])
   | StrE expfields -> T_record_fields (transform_type exp.note, (List.map (fun (a, e) -> (transform_atom a, transform_match_exp e)) expfields))
-  | DotE (e, atom) -> T_app (T_ident (transform_atom atom), [transform_match_exp e])
+  | DotE (e, atom) -> T_dotapp (transform_atom atom, transform_type e.note, transform_match_exp e)
   | CompE (exp1, exp2) -> T_app_infix (T_exp_basic T_recordconcat, transform_match_exp exp1, transform_match_exp exp2)
   | LenE e -> T_app (T_exp_basic T_listlength, [transform_match_exp e])
   | IdxE (exp1, exp2) -> T_app (T_exp_basic T_listlookup, [transform_match_exp exp1; transform_match_exp exp2])
@@ -328,7 +328,7 @@ and transform_path' (paths : path list) at n name is_extend end_term =
       let (dot_paths, ps') = list_split is_dot ps in 
       let projection_term = List.fold_right (fun p acc -> 
         match p.it with
-          | DotP (_, a') -> T_app (T_ident (transform_atom a'), [acc])
+          | DotP (_, a') -> T_dotapp (transform_atom a', transform_type p.note, acc)
           | _ -> error at "Should be a record access" (* Should not happen *)
       ) dot_paths (list_name n) in
       let new_term = T_app(T_ident (transform_atom a), [projection_term]) in

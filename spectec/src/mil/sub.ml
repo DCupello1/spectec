@@ -20,6 +20,7 @@ let rec get_subE_term t =
     | T_lambda (_, term) -> get_subE_term term
     | T_match terms -> List.concat_map get_subE_term terms
     | T_caseapp (_id, typ, terms) -> get_subE_term typ @ List.concat_map get_subE_term terms
+    | T_dotapp (_id, typ, term) -> get_subE_term typ @ get_subE_term term
     | T_app (term, terms) -> get_subE_term term @ List.concat_map get_subE_term terms
     | T_app_infix (op_term, term1, term2) -> get_subE_term op_term @ get_subE_term term1 @ get_subE_term term2
     | T_tupletype terms -> List.concat_map get_subE_term terms

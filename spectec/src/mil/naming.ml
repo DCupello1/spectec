@@ -56,6 +56,16 @@ let rec transform_term prefix_map t =
       | Some prefix -> T_caseapp (extra_prefix ^ prefix ^id, t_func typ, List.map t_func terms) 
       | None -> T_caseapp (extra_prefix ^ id, t_func typ, List.map t_func terms)
     )
+  | T_dotapp (id, (T_app (T_ident id', _) as typ), term) -> 
+    let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
+      | Some prefix -> prefix
+      | None -> ""
+    ) in 
+    let combined_id = string_combine id id' in
+    (match (StringMap.find_opt combined_id prefix_map) with 
+      | Some prefix -> T_dotapp (extra_prefix ^ prefix ^id, t_func typ, t_func term) 
+      | None -> T_dotapp (extra_prefix ^ id, t_func typ, t_func term)
+    )
   | T_record_fields ((T_app (T_ident id, _) as typ), fields) -> 
     let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
         | Some prefix -> prefix
@@ -70,9 +80,10 @@ let rec transform_term prefix_map t =
       ) in  
       (new_id, transform_term prefix_map t)
     ) fields)
+  (* TODO need to add correct prefix to t2 *)
+  | T_record_update (t1, t2, t3) -> T_record_update (t_func t1, t_func t2, t_func t3)
   (* Descend *)
   | T_list terms -> T_list (List.map t_func terms)
-  | T_record_update (t1, t2, t3) -> T_record_update (t_func t1, t_func t2, t_func t3)
   | T_lambda (ids, t) -> T_lambda (ids, t_func t)
   | T_match terms -> T_match (List.map t_func terms)
   | T_caseapp (id, typ, terms) -> T_caseapp (id, t_func typ, List.map t_func terms)

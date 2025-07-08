@@ -102,6 +102,7 @@ let rec string_of_term t =
     | T_match patterns -> String.concat ", " (List.map string_of_term patterns)
     | T_caseapp (id, _, []) -> empty_name id  
     | T_caseapp (id, _, args) -> parens (empty_name id ^ string_of_list_prefix " " " " string_of_term args)
+    | T_dotapp (id, _, arg) -> parens (empty_name id ^ " " ^ string_of_term arg)
     | T_app (base_term, []) -> empty_name (string_of_term base_term) 
     | T_app (base_term, args) -> parens (empty_name (string_of_term base_term) ^ string_of_list_prefix " " " " string_of_term args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
