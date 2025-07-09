@@ -10,21 +10,21 @@ let sub_hastable = Hashtbl.create 16
 
 let get_id_typ term = 
   match term with
-    | T_app (T_ident id, _) -> id
+    | T_app ({it = T_ident id; _} , _) -> id
     | _ -> "" 
 
-let rec get_subE_term t =
+let rec get_subE_term (t : term) = get_subE_term' t.it
+and get_subE_term' t =
   match t with
     | T_list terms -> List.concat_map get_subE_term terms
-    | T_record_fields (typ, fields) -> get_subE_term typ @ List.concat_map (fun (_, term) -> get_subE_term term) fields
+    | T_record_fields (fields) -> List.concat_map (fun (_, term) -> get_subE_term term) fields
     | T_lambda (_, term) -> get_subE_term term
-    | T_match terms -> List.concat_map get_subE_term terms
-    | T_caseapp (_id, typ, terms) -> get_subE_term typ @ List.concat_map get_subE_term terms
-    | T_dotapp (_id, typ, term) -> get_subE_term typ @ get_subE_term term
+    | T_caseapp (_id, terms) -> List.concat_map get_subE_term terms
+    | T_dotapp (_id, term) -> get_subE_term term
     | T_app (term, terms) -> get_subE_term term @ List.concat_map get_subE_term terms
     | T_app_infix (op_term, term1, term2) -> get_subE_term op_term @ get_subE_term term1 @ get_subE_term term2
-    | T_tupletype terms -> List.concat_map get_subE_term terms
-    | T_arrowtype terms -> List.concat_map get_subE_term terms
+    | T_tupletype terms -> List.concat_map get_subE_term' terms
+    | T_arrowtype terms -> List.concat_map get_subE_term' terms
     | T_cast (_, typ1, typ2) -> 
       let (id1, id2) = (get_id_typ typ1, get_id_typ typ2) in
       if id1 = "" || id2 = "" then [] else [((id1, typ1), (id2, typ2))]
@@ -40,23 +40,24 @@ let rec get_subE_prem (premise : premise) =
     | P_list_forall (_, p, _) | P_list_forall2 (_, p, _, _) -> get_subE_prem p
     | _ -> []
 
-let rec is_same_type (t1 : term) (t2 : term) =
+let rec is_same_type (t1 : term) (t2 : term) = is_same_type' t1.it t2.it
+and is_same_type' (t1 : mil_typ) (t2 : mil_typ) =
   match (t1, t2) with
     (* Normal types *)
     | T_type_basic t1, T_type_basic t2 -> t1 = t2
     (* Tuple types *)
     | T_tupletype terms1, T_tupletype terms2 when List.length terms1 = List.length terms2 -> 
-      List.for_all2 is_same_type terms1 terms2
+      List.for_all2 is_same_type' terms1 terms2
     (* Handle iter types *)
-    | T_app (T_type_basic T_list, terms1), T_app (T_type_basic T_list, terms2) -> 
+    | T_app ({it = T_type_basic T_list; _}, terms1), T_app ({it = T_type_basic T_list; _}, terms2) -> 
       List.length terms1 = List.length terms2 && List.for_all2 is_same_type terms1 terms2
-    | T_app (T_type_basic T_opt, terms1), T_app (T_type_basic T_opt, terms2) ->
+    | T_app ({it = T_type_basic T_opt; _}, terms1), T_app ({it = T_type_basic T_opt; _}, terms2) ->
       List.length terms1 = List.length terms2 && List.for_all2 is_same_type terms1 terms2
     (* Handle user defined types*)
-    | T_app (T_ident id1, terms1), T_app (T_ident id2, terms2) -> 
+    | T_app ({it = T_ident id1; _}, terms1), T_app ({it = T_ident id2; _}, terms2) -> 
       id1 = id2 && List.length terms1 = List.length terms2 &&
       List.for_all2 is_same_type terms1 terms2
-    | T_caseapp (id1, _, terms1), T_caseapp (id2, _, terms2) -> 
+    | T_caseapp (id1, terms1), T_caseapp (id2, terms2) -> 
       id1 = id2 && List.length terms1 = List.length terms2 &&
       List.for_all2 is_same_type terms1 terms2
     | T_ident id, T_ident id2 -> id = id2
@@ -70,28 +71,28 @@ let find_same_typing (case_id: ident) (binds: binder list) (cases : inductive_ty
     case_id = case_id' && 
     List.length binds = List.length binds' &&
     List.for_all2 (fun (typ_id, typ1) (typ_id2, typ2) -> 
-      typ_id = typ_id2 && is_same_type typ1 typ2) binds binds'  
+      typ_id = typ_id2 && is_same_type' typ1 typ2) binds binds'  
   ) cases
 
 
-let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term) (t2_id : ident) (t2_typ : term) (t1_typ_def : typ_def) (t2_typ_def : typ_def) =
+let transform_sub_types (at : region) (t1_id : ident) (t1_typ : term') (t2_id : ident) (t2_typ : term') (t1_typ_def : typ_def) (t2_typ_def : typ_def) =
   let func_name = func_prefix ^ coerce_prefix ^ t1_id ^ "__" ^ t2_id in 
   
   [(DefinitionD (func_name, 
-    [(var_prefix ^ t1_id, T_caseapp (t1_id, T_type_basic T_anytype, []))],
-    T_caseapp (t2_id, T_type_basic T_anytype, []), 
+    [(var_prefix ^ t1_id, T_app (T_ident t1_id $@ anytype', []))],
+    T_app (T_ident t2_id $@ anytype', []), 
     let (_, deftyp) = t1_typ_def in
     let (_, deftyp') = t2_typ_def in
     
     match deftyp, deftyp' with
       | T_inductive cases, T_inductive cases' -> 
         List.map (fun (case_id, bs) ->
-          let num_binders = List.length bs in 
-          let var_list = List.init num_binders (fun i -> T_ident (var_prefix ^ string_of_int i)) in
+          let var_list = List.mapi (fun i (_, typ) -> T_ident (var_prefix ^ string_of_int i) $@ typ) bs in
           let opt = find_same_typing case_id bs cases' in
           (match opt with
             | Some (case_id', _) -> 
-              (T_match [T_caseapp (case_id, t1_typ, var_list)], F_term (T_caseapp (case_id', t2_typ, var_list)))
+              ([T_caseapp (case_id, var_list) $@ t1_typ], 
+              F_term (T_caseapp (case_id', var_list) $@ t2_typ))
             (* Should find it due to validation *)
             | _ -> error at ("Couldn't coerce type " ^ t1_id ^ " to " ^ t2_id)
           )
@@ -119,9 +120,9 @@ let rec transform_sub_def (env : Env.t) (d : mil_def) =
       let sub_expressions = List.concat_map (fun (_, prems, terms) -> List.concat_map get_subE_term terms @ List.concat_map get_subE_prem prems) rules in
       transform_subE sub_expressions @ [d]
     | InductiveFamilyD (_, types, type_family_entries) -> 
-      let sub_expressions = List.concat_map get_subE_term types @ 
+      let sub_expressions = List.concat_map get_subE_term' types @ 
         List.concat_map (fun (_, bs, terms) -> 
-          List.concat_map get_subE_term terms @ List.concat_map (fun (_, t) -> get_subE_term t) bs
+          List.concat_map get_subE_term terms @ List.concat_map (fun (_, t) -> get_subE_term' t) bs
         ) type_family_entries in
       transform_subE sub_expressions @ [d]
     | MutualRecD defs -> [MutualRecD (List.concat_map (transform_sub_def env) defs) $ d.at]

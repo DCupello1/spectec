@@ -27,9 +27,9 @@ let neg_suffix = "_neg"
    known _elements_, followed by the list of all list expressions.
    Returns it all in reverse order.
  *)
- let rec to_snoc_list (e : term) : term list * term list = match e with
+ let rec to_snoc_list (e : term) : term list * term list = match e.it with
   | T_list es -> List.rev es, []
-  | T_app_infix (T_exp_basic T_listconcat, e1, e2) ->
+  | T_app_infix ({it = T_exp_basic T_listconcat; _}, e1, e2) ->
     let tailelems2, listelems2 = to_snoc_list e2 in
     if listelems2 = []
     (* Second list is fully known? Can look at first list *)
@@ -59,8 +59,8 @@ let neg_suffix = "_neg"
 (* MEMO: This behaves in a conservative manner because
          it is better to return false and include ambiguous rules in the negation
          rather than missing them entirely *)
-let rec apart (e1 : term) (e2: term) : bool =
-  (match e1, e2 with
+and apart (e1 : term) (e2: term) : bool =
+  (match e1.it, e2.it with
   (* A literal is never a literal of other type *)
   | T_exp_basic (T_nat n1), T_exp_basic (T_nat n2) -> not (n1 = n2)
   | T_exp_basic (T_int i1), T_exp_basic (T_int i2) -> not (i1 = i2)
@@ -68,13 +68,11 @@ let rec apart (e1 : term) (e2: term) : bool =
   | T_exp_basic T_string t1, T_exp_basic T_string t2 -> not (t1 = t2)
   | T_app (a1, exp1), T_app (a2, exp2) ->
     not (a1 = a2) || List.exists2 apart exp1 exp2
-  | T_caseapp (id1, typ1, exps1), T_caseapp (id2, typ2, exps2) ->
-    not (id1 = id2) || apart typ1 typ2 || List.exists2 apart exps1 exps2
-  | T_dotapp (id1, typ1, exp1), T_dotapp (id2, typ2, exp2) ->
-    not (id1 = id2) || apart typ1 typ2 || apart exp1 exp2
-  | T_match es1, T_match es2 when List.length es1 = List.length es2 ->
-    List.exists2 apart es1 es2
-  | (T_app_infix (T_exp_basic T_listconcat, _, _) | T_list _), (T_app_infix (T_exp_basic T_listconcat, _, _) | T_list _) ->
+  | T_caseapp (id1, exps1), T_caseapp (id2, exps2) ->
+    not (id1 = id2) || List.exists2 apart exps1 exps2
+  | T_dotapp (id1, exp1), T_dotapp (id2, exp2) ->
+    not (id1 = id2) || apart exp1 exp2
+  | (T_app_infix ({it = T_exp_basic T_listconcat; _}, _, _) | T_list _), (T_app_infix ({it = T_exp_basic T_listconcat; _}, _, _) | T_list _) ->
     list_exp_apart e1 e2
   | T_cast (e1, _, _), T_cast (e2, _, _) -> apart e1 e2
   (* We do not know anything about variables and functions *)

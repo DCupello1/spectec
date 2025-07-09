@@ -11,9 +11,9 @@ let family_type_suffix = "entry"
 let env_ref = ref Env.empty
 
 let check_trivial_append ident term = 
-  match (Env.find_opt_typ !env_ref ident), term with
+  match (Env.find_opt_typ !env_ref ident), term.it with
     | Some (_, T_record _), _ -> true 
-    | _, (T_app (T_type_basic T_list, _)) -> true
+    | _, (T_app ({it = T_type_basic T_list; _}, _)) -> true
     | _, _ -> false
 
 let is_inductive (d : mil_def) = 
@@ -36,8 +36,9 @@ let comment_desc_def (def: mil_def): string =
     | GlobalDeclarationD _ -> "Global Declaration Definition"
     | UnsupportedD _ -> ""
 
-let rec string_of_term (term : term) =
-  match term with
+let rec string_of_type term = string_of_term (term $@ anytype')
+and string_of_term (term : term) =
+  match term.it with
     | T_exp_basic (T_bool b) -> string_of_bool b
     | T_exp_basic (T_nat n) -> Z.to_string n
     | T_exp_basic (T_int _i) -> "" (* TODO Manage ints well *)
@@ -93,30 +94,28 @@ let rec string_of_term (term : term) =
     | T_type_basic T_prop -> "Prop"
     | T_ident id -> id
     | T_list [] -> "[]"
-    | T_record_fields (_, fields) -> "{| " ^ (String.concat "; " (List.map (fun (id, term) -> id ^ " := " ^ string_of_term term) fields)) ^ " |}"
+    | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (id, term) -> id ^ " := " ^ string_of_term term) fields)) ^ " |}"
     | T_list entries -> square_parens (String.concat "; " (List.map string_of_term entries))
-    | T_match [] -> ""
-    | T_match patterns -> String.concat ", " (List.map string_of_term patterns)
-    | T_caseapp (case_id, T_app (T_ident typ_id, _), args) ->
+    | T_caseapp (case_id, args) ->
+      let typ_id = Print.get_id term.typ in 
       let total_args = Env.count_case_binders !env_ref case_id typ_id in
       let num_new_args = total_args - List.length args in 
-      let new_args = List.init num_new_args (fun _ -> T_ident "_") @ args in  
+      let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in  
       parens (case_id ^ Mil.Print.string_of_list_prefix " " " " string_of_term new_args)
-    | T_caseapp (id, _, args) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " string_of_term args)
-    | T_dotapp (id, _, arg) -> parens (id ^ " " ^ string_of_term arg)  
+    | T_dotapp (id, arg) -> parens (id ^ " " ^ string_of_term arg)  
     | T_app (base_term, []) -> (string_of_term base_term)
     | T_app (base_term, args) -> parens ((string_of_term base_term) ^ Mil.Print.string_of_list_prefix " " " " string_of_term args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
     | T_tuple types -> parens (String.concat " * " (List.map string_of_term types))
     | T_record_update (t1, t2, t3) -> parens (string_of_term t1 ^ " <|" ^ string_of_term t2 ^ " := " ^ string_of_term t3 ^ " |>")
-    | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_term terms))
+    | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
     | T_lambda (ids, term) -> parens ("fun " ^ (String.concat " " ids) ^ " => " ^ string_of_term term)
-    | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_term typ)
-    | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term terms))
+    | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_type typ)
+    | T_tupletype terms -> parens (String.concat " * " (List.map string_of_type terms))
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 
 let string_of_binder (id, term) = 
-  parens (id ^ " : " ^ string_of_term term)
+  parens (id ^ " : " ^ string_of_type term)
 
 let string_of_binders (binds : binder list) = 
   Mil.Print.string_of_list_prefix " " " " string_of_binder binds
@@ -216,10 +215,10 @@ let string_of_inductive_def (id : ident) (args : binder list) (entries : inducti
       Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }"
 
 let string_of_definition (prefix : string) (id : ident) (binders : binder list) (return_type : return_type) (clauses : clause_entry list) = 
-  prefix ^ id ^ string_of_binders binders ^ " : " ^ string_of_term return_type ^ " :=\n" ^
+  prefix ^ id ^ string_of_binders binders ^ " : " ^ string_of_type return_type ^ " :=\n" ^
   "\tmatch " ^ string_of_match_binders binders ^ " with\n\t\t" ^
-  String.concat "\n\t\t" (List.map (fun (match_term, fb) -> 
-    "| " ^ string_of_term match_term ^ " => " ^ string_of_function_body fb) clauses) ^
+  String.concat "\n\t\t" (List.map (fun (match_terms, fb) -> 
+    "| " ^ Print.string_of_list_prefix "" ", " string_of_term match_terms ^ " => " ^ string_of_function_body fb) clauses) ^
   "\n\tend"
 
 let string_of_inductive_relation (prefix : string) (id : ident) (args : relation_args) (relations : relation_type_entry list) = 
@@ -231,10 +230,10 @@ let string_of_inductive_relation (prefix : string) (id : ident) (args : relation
   ) relations)
 
 let string_of_axiom (id : ident) (binds : binder list) (r_type: return_type) =
-  "Axiom " ^ id ^ " : forall" ^ string_of_binders binds ^ ", " ^ string_of_term r_type
+  "Axiom " ^ id ^ " : forall" ^ string_of_binders binds ^ ", " ^ string_of_type r_type
 
-let string_of_family_types (id : ident) (types: term list) (entries : family_type_entry list) = 
-  "Inductive " ^ id ^ " : " ^ Mil.Print.string_of_list_suffix " -> " " -> " string_of_term types ^ "Type :=\n\t| " ^
+let string_of_family_types (id : ident) (types: mil_typ list) (entries : family_type_entry list) = 
+  "Inductive " ^ id ^ " : " ^ Mil.Print.string_of_list_suffix " -> " " -> " string_of_type types ^ "Type :=\n\t| " ^
   String.concat "\n\t| " (List.map (fun (case_id, bs, terms) -> 
     case_id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_term terms) 
   entries) 
@@ -275,7 +274,7 @@ let rec string_of_def (recursive : bool) (def : mil_def) =
     | DefinitionD (id, binds, typ, clauses) -> let prefix = if recursive then "Fixpoint " else "Definition " in
       start ^ string_of_definition prefix id binds typ clauses ^ end_newline
     | GlobalDeclarationD (id, rt, (_, f_b)) -> 
-      start ^ "Definition " ^ id ^ " : " ^ string_of_term rt ^ " := " ^ string_of_function_body f_b ^ end_newline
+      start ^ "Definition " ^ id ^ " : " ^ string_of_type rt ^ " := " ^ string_of_function_body f_b ^ end_newline
     | InductiveRelationD (id, args, relations) -> let prefix = if recursive then "" else "Inductive " in
       start ^ string_of_inductive_relation prefix id args relations ^ end_newline
     | AxiomD (id, binds, r_type) -> 
