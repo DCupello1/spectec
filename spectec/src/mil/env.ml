@@ -105,8 +105,8 @@ let rec env_of_def env d =
   | InductiveRelationD (id, r_args, rules) -> bind_rel env id (r_args, rules)
   | AxiomD (id, bs, rt) -> bind_def env id (bs, rt, [])
   | MutualRecD ds -> List.fold_left env_of_def env ds
-  | InductiveFamilyD (id, terms, entries) -> 
-    let binds = List.map (fun t -> ("_", t)) terms in 
+  | InductiveFamilyD (id, types, entries) -> 
+    let binds = List.map (fun t -> ("_", t)) types in 
     bind_typ env id (binds, T_tfamily entries)
   | _ -> env
 

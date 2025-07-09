@@ -11,9 +11,14 @@ let empty_name s = match s with
 
 let remove_iter_from_type t =
   match t with
-    | T_app (T_type_basic T_list, [t']) -> t'
-    | T_app (T_type_basic T_opt, [t']) -> t'
+    | T_app ({it = T_type_basic T_list; _}, [t']) -> t'.it
+    | T_app ({it = T_type_basic T_opt; _}, [t']) -> t'.it
     | t' -> t'
+
+let get_id t = 
+  match t with
+    | T_app ({it = T_ident id; _}, _) -> id
+    | _ -> assert false
 
 let string_of_list_prefix prefix delim str_func ls = 
   match ls with
@@ -89,34 +94,32 @@ let string_of_basic_type_term t =
     | T_anytype -> "Type"
     | T_prop -> "Proposition"
 
-let rec string_of_term t = 
+let rec string_of_term t = string_of_term' t.it
+and string_of_term' t = 
   match t with 
     | T_exp_basic t_basic -> string_of_basic_exp_term t_basic
     | T_type_basic t_typ_basic -> string_of_basic_type_term t_typ_basic
     | T_ident id -> id
     | T_list terms -> square_parens (String.concat "; " (List.map string_of_term terms))
     | T_lambda (ids, term) -> parens ("fun " ^ (String.concat " " ids) ^ " => " ^ string_of_term term)
-    | T_record_fields (_, fields) -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
-    | T_match [] -> ""
-    | T_match [pattern] -> string_of_term pattern
-    | T_match patterns -> String.concat ", " (List.map string_of_term patterns)
-    | T_caseapp (id, _, []) -> empty_name id  
-    | T_caseapp (id, _, args) -> parens (empty_name id ^ string_of_list_prefix " " " " string_of_term args)
-    | T_dotapp (id, _, arg) -> parens (empty_name id ^ " " ^ string_of_term arg)
+    | T_record_fields fields -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
+    | T_caseapp (id, []) -> empty_name id  
+    | T_caseapp (id, args) -> parens (empty_name id ^ string_of_list_prefix " " " " string_of_term args)
+    | T_dotapp (id, arg) -> parens (empty_name id ^ " " ^ string_of_term arg)
     | T_app (base_term, []) -> empty_name (string_of_term base_term) 
     | T_app (base_term, args) -> parens (empty_name (string_of_term base_term) ^ string_of_list_prefix " " " " string_of_term args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
     | T_tuple [] -> "()"
     | T_tuple terms -> parens (String.concat ", " (List.map string_of_term terms))
-    | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term terms))
-    | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_term terms))
-    | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_term typ)
+    | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term' terms))
+    | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_term' terms))
+    | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_term' typ)
     | T_record_update (t1, t2, t3) -> parens ("record_update " ^ string_of_term t1 ^ " " ^ string_of_term t2 ^ " " ^ string_of_term t3)
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 
 let string_of_binder b = 
   let (id, term) = b in
-  parens (id ^ " : " ^ string_of_term term)
+  parens (id ^ " : " ^ string_of_term' term)
 
 let grab_id_of_binders bs = 
   List.map fst bs
@@ -170,12 +173,12 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
       ) record_entry) ^ "\n") ^ endnewline
     | InductiveD (id, bs, inductive_type_entries) -> region ^ "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t| " ^
       String.concat "\n\t| " (string_of_inductive_type_entries inductive_type_entries) ^ endnewline
-    | DefinitionD (id, bs, rt, clauses) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term rt ^ " =\n\t" ^
+    | DefinitionD (id, bs, rt, clauses) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term' rt ^ " =\n\t" ^
       "match " ^ String.concat ", " (grab_id_of_binders bs) ^ " with\n\t\t| " ^
-      String.concat "\n\t\t| " (List.map (fun (match_term, f_b) -> string_of_term match_term ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
-    | GlobalDeclarationD (id, rt, (_, f_b)) -> region ^ "definition " ^ id ^ " : " ^ string_of_term rt ^ " := " ^ string_of_function_body f_b ^ endnewline
+      String.concat "\n\t\t| " (List.map (fun (match_terms, f_b) -> string_of_list_prefix " " ", " string_of_term match_terms ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
+    | GlobalDeclarationD (id, rt, (_, f_b)) -> region ^ "definition " ^ id ^ " : " ^ string_of_term' rt ^ " := " ^ string_of_function_body f_b ^ endnewline
     | MutualRecD defs -> region ^ String.concat "" (List.map (string_of_def ~suppress_unsup) defs)
-    | AxiomD (id, bs, rt) -> region ^ "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term rt ^ endnewline
+    | AxiomD (id, bs, rt) -> region ^ "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term' rt ^ endnewline
     | CoercionD (fn_name, typ1, typ2) -> region ^ "coercion " ^ fn_name ^ " : " ^ typ1 ^ " <: " ^ typ2 ^ endnewline
     | UnsupportedD str when not suppress_unsup -> "Unsupported definition: " ^ str
     | InductiveRelationD (id, rel_args, relation_type_entries) -> 
@@ -186,7 +189,7 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
           string_of_list_prefix " " " " string_of_term terms
       
       ) relation_type_entries) ^ endnewline
-    | InductiveFamilyD (id, types, family_type_entries) -> region ^ "inductive " ^ id ^ " : " ^ string_of_list_suffix " -> " " -> " string_of_term types ^ "Type =\n\t| " ^
+    | InductiveFamilyD (id, types, family_type_entries) -> region ^ "inductive " ^ id ^ " : " ^ string_of_list_suffix " -> " " -> " string_of_term' types ^ "Type =\n\t| " ^
       String.concat "\n\t| " (string_of_family_type_entries id family_type_entries) ^ endnewline
     | _ -> ""
   )

@@ -17,7 +17,7 @@ type basic_type =
   | T_string
   | T_list
   | T_opt
-  | T_anytype (* Generic type for type parameters *)
+  | T_anytype (* Generic type for type parameters and types themselves *)
   | T_prop (* Generic type for propositions *)
 
 type basic_term = 
@@ -66,22 +66,23 @@ and iterator =
   | I_option
   | I_list
 
-and term = 
+(* MEMO - type themselves don't have a type. Maybe we should fix that? *)
+and term = {it : term'; typ: mil_typ}
+and term' = 
   | T_exp_basic of basic_term
   | T_type_basic of basic_type
   | T_ident of ident
   | T_list of (term list)
   | T_record_update of (term * term * term)
-  | T_record_fields of mil_typ * (ident * term) list
+  | T_record_fields of (ident * term) list
   | T_lambda of (ident list * term)
-  | T_match of (term list)
-  | T_caseapp of (ident * mil_typ * term list)
-  | T_dotapp of (ident * mil_typ * term) 
+  | T_caseapp of (ident * term list)
+  | T_dotapp of (ident * term) 
   | T_app of (term * term list)
   | T_app_infix of (term * term * term) (* Same as above but first term is placed in the middle *)
   | T_tuple of (term list)
-  | T_tupletype of (term list)
-  | T_arrowtype of (term list)
+  | T_tupletype of (mil_typ list)
+  | T_arrowtype of (mil_typ list)
   | T_cast of (term * mil_typ * mil_typ)
   | T_unsupported of string
 
@@ -102,7 +103,7 @@ and function_body =
   | F_match of term (* TODO this one will be tricky *)
   | F_default
 
-and binder = (ident * term)
+and binder = (ident * mil_typ)
 
 and record_entry = (ident * term)
 
@@ -114,11 +115,11 @@ and relation_args = term list
 
 and inferred_types = term list 
 
-and mil_typ = term
+and mil_typ = term'
 
-and return_type = term
+and return_type = mil_typ
 
-and clause_entry = term * function_body 
+and clause_entry = term list * function_body 
 
 and family_type_entry = ident * binder list * term list 
 
@@ -132,8 +133,59 @@ and mil_def' =
   | GlobalDeclarationD of (ident * return_type * clause_entry)
   | InductiveRelationD of (ident * relation_args * relation_type_entry list)
   | AxiomD of (ident * binder list * return_type)
-  | InductiveFamilyD of (ident * term list * family_type_entry list)
+  | InductiveFamilyD of (ident * mil_typ list * family_type_entry list)
   | CoercionD of (func_name * ident * ident)
   | UnsupportedD of string
   
 type mil_script = mil_def list
+
+let ($@) it typ = {it; typ}
+
+(* TODO - obviously this is wrong but will keep for now *)
+let anytype' = T_type_basic T_anytype
+let anytype = anytype' $@ anytype'
+
+let typ_to_term t = t $@ anytype'
+
+let num_typ nt = T_arrowtype [nt; nt; nt]
+let bool_binop_typ = T_arrowtype [T_type_basic T_bool; T_type_basic T_bool; T_type_basic T_bool]
+(* TODO - improve this later, can't just use any for everything *)
+(* let typ_of_exp_basic t nt = 
+  let any = T_type_basic T_anytype in
+  match t with
+  | T_bool _ -> T_type_basic T_bool
+  | T_nat _ -> T_type_basic T_nat
+  | T_int _ -> T_type_basic T_int
+  | T_rat _ -> T_type_basic T_rat
+  | T_real _ -> T_type_basic T_real
+  | T_string _ -> T_type_basic T_string
+  | T_exp_unit -> T_tupletype []
+  | T_not -> T_arrowtype [T_type_basic T_bool $@ any; T_type_basic T_bool $@ any]
+  | T_and | T_or | T_impl | T_equiv -> T_arrowtype [T_type_basic T_bool $@ any; T_type_basic T_bool $@ any; T_type_basic T_bool $@ any]
+  | T_add
+  | T_sub
+  | T_mul
+  | T_div
+  | T_exp
+  | T_mod -> T_arrowtype [nt; nt; nt]
+  | T_eq | T_neq -> T_arrowtype [any $@ any; any $@ any; T_type_basic T_bool $@ any]
+  | T_lt
+  | T_gt
+  | T_le
+  | T_ge -> T_arrowtype [nt; nt; T_type_basic T_bool $@ any]
+  | T_some -> T_arrowtype [any $@ any; (T_app (T_type_basic T_opt $@ any, [any $@ any])) $@ any]
+  | T_none -> T_app (T_type_basic T_opt $@ any, [any $@ any])
+  | T_recordconcat
+  | T_listconcat
+  | T_listcons
+  | T_listlength
+  | T_listmember
+  | T_slicelookup
+  | T_listlookup
+  | T_listupdate
+  | T_sliceupdate
+  | T_succ 
+  | T_invopt
+  | T_opttolist
+  | T_map of iterator
+  | T_zipwith of iterator *)
