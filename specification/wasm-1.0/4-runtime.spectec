@@ -17,7 +17,7 @@ var ma : memaddr
 
 ;; External addresses
 
-syntax externaddr hint(desc "external value") =
+syntax externaddr hint(desc "external value") hint(prefix "EXTVAL_") =
   | FUNC funcaddr | GLOBAL globaladdr | TABLE tableaddr | MEM memaddr
 
 var xa : externaddr
@@ -29,7 +29,7 @@ var xa : externaddr
 
 ;; Basic values
 
-syntax val hint(desc "value") =
+syntax val hint(desc "value") hint(prefix "VAL_") =
   | CONST valtype val_(valtype)   hint(show %.CONST %)
 
 syntax result hint(desc "result") =
@@ -46,23 +46,23 @@ var res : result
 ;; Instances
 
 syntax funcinst hint(desc "function instance") =
-  { TYPE functype,
-    MODULE moduleinst,
+  { TYPE functype hint(prefix "FUNC_"),
+    MODULE moduleinst hint(prefix "FUNC_"),
     CODE func }
 syntax globalinst hint(desc "global instance") =
-  { TYPE globaltype,
+  { TYPE globaltype hint(prefix "GLOB_"),
     VALUE val }
 syntax tableinst hint(desc "table instance") =
-  { TYPE tabletype,
+  { TYPE tabletype hint(prefix "TAB_"),
     REFS (funcaddr?)* }
 syntax meminst hint(desc "memory instance") =
-  { TYPE memtype,
+  { TYPE memtype hint(prefix "MEM_"),
     BYTES byte* }
 syntax exportinst hint(desc "export instance") =
   { NAME name,
     ADDR externaddr }
 
-syntax moduleinst hint(desc "module instance") =
+syntax moduleinst hint(desc "module instance") hint(prefix "MODULE_") =
   { TYPES functype*,
     FUNCS funcaddr*,
     GLOBALS globaladdr*,
@@ -88,7 +88,7 @@ syntax store hint(desc "store") =
 
 syntax frame hint(desc "frame") =
   { LOCALS val*,
-    MODULE moduleinst }
+    MODULE moduleinst hint(prefix "F_")}
 
 syntax state hint(desc "state") = store; frame
 syntax config hint(desc "configuration") = state; admininstr*
@@ -102,7 +102,7 @@ var z : state
 ;; Administrative Instructions
 ;;
 
-syntax admininstr hint(show instr) hint(desc "administrative instruction") =
+syntax admininstr hint(show instr) hint(desc "administrative instruction") hint(prefix "AI_") =
   | instr
   | CALL_ADDR funcaddr             hint(show CALL %)
   | LABEL_ n `{instr*} admininstr* hint(show LABEL_%#% %%)

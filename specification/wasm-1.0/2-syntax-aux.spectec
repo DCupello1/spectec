@@ -24,19 +24,19 @@ def $memsxt(externtype*) : memtype*        hint(show $mems(%))
 
 def $funcsxt(eps) = eps
 def $funcsxt((FUNC ft) xt*) = ft $funcsxt(xt*)
-def $funcsxt(externtype xt*) = $funcsxt(xt*)  -- otherwise
+def $funcsxt(externtype xt*) = $funcsxt(xt*)
 
 def $globalsxt(eps) = eps
 def $globalsxt((GLOBAL gt) xt*) = gt $globalsxt(xt*)
-def $globalsxt(externtype xt*) = $globalsxt(xt*)  -- otherwise
+def $globalsxt(externtype xt*) = $globalsxt(xt*)
 
 def $tablesxt(eps) = eps
 def $tablesxt((TABLE tt) xt*) = tt $tablesxt(xt*)
-def $tablesxt(externtype xt*) = $tablesxt(xt*)  -- otherwise
+def $tablesxt(externtype xt*) = $tablesxt(xt*)
 
 def $memsxt(eps) = eps
 def $memsxt((MEM mt) xt*) = mt $memsxt(xt*)
-def $memsxt(externtype xt*) = $memsxt(xt*)  -- otherwise
+def $memsxt(externtype xt*) = $memsxt(xt*)
 
 
 
