@@ -81,16 +81,9 @@ let rebind_typ env id rhs = {env with typs = rebind "type" env.typs id rhs}
 let rebind_def env id rhs = {env with defs = rebind "definition" env.defs id rhs}
 let rebind_rel env id rhs = {env with rels = rebind "relation" env.rels id rhs}
 
-let count_case_binders env case_id typ_id = 
+let count_case_binders env typ_id = 
   match (find_opt_typ env typ_id) with
-  | Some (dep_bs, T_inductive cases) -> (match (List.find_opt (fun (case_id', _) -> case_id = case_id') cases) with 
-    | Some (_, binders) -> List.length dep_bs + List.length binders
-    | _ -> 0
-  )
-  | Some (_, T_tfamily entries) -> (match (List.find_opt (fun (case_id', _, _) -> case_id = case_id') entries) with 
-    | Some (_, binders, _) -> List.length binders
-    | _ -> 0
-  )
+  | Some (dep_bs, T_inductive _) -> List.length dep_bs 
   | _ -> 0
 
 (* Extraction *)
@@ -105,8 +98,7 @@ let rec env_of_def env d =
   | InductiveRelationD (id, r_args, rules) -> bind_rel env id (r_args, rules)
   | AxiomD (id, bs, rt) -> bind_def env id (bs, rt, [])
   | MutualRecD ds -> List.fold_left env_of_def env ds
-  | InductiveFamilyD (id, types, entries) -> 
-    let binds = List.map (fun t -> ("_", t)) types in 
+  | InductiveFamilyD (id, binds, entries) -> 
     bind_typ env id (binds, T_tfamily entries)
   | _ -> env
 
@@ -122,7 +114,8 @@ let check_map map id at =
 let rec check_uniqueness_def map d = 
   match d.it with
   | TypeAliasD (id, _, _) | DefinitionD (id, _, _, _) 
-  | GlobalDeclarationD (id, _, _) | AxiomD (id, _, _) -> 
+  | GlobalDeclarationD (id, _, _) | AxiomD (id, _, _) 
+  | InductiveFamilyD (id, _, _) -> 
     map := check_map !map id d.at
   | RecordD (id, records) -> 
     List.iter (fun (r_id, _t) -> 
@@ -133,11 +126,6 @@ let rec check_uniqueness_def map d =
     List.iter (fun (case_id, _bs') -> 
       map := check_map !map case_id d.at 
     ) cases;
-    map := check_map !map id d.at
-  | InductiveFamilyD (id, _terms, entries) -> 
-    List.iter (fun (case_id, _bs, _terms') -> 
-      map := check_map !map case_id d.at  
-    ) entries;
     map := check_map !map id d.at
   | InductiveRelationD (id, _r_args, rules) -> 
     List.iter (fun ((rule_id, _bs), _prems, _terms) -> 

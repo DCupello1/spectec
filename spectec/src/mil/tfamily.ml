@@ -1,7 +1,6 @@
 open Il.Ast
 open Util.Source
 open Il
-open Xl
 open Util
 
 (* Exception raised when a type has unbounded cases *)
@@ -57,7 +56,7 @@ let get_var_typ typ =
     | VarT (id, args) -> (id, args)
     | _ -> assert false
 
-    let empty_tuple_exp at = TupE [] $$ at % (TupT [] $ at)
+let empty_tuple_exp at = TupE [] $$ at % (TupT [] $ at)
 
 let rec check_recursive_type (id : id) (t : typ): bool =
   match t.it with
@@ -175,44 +174,19 @@ and transform_typ exp_type env t =
 
 (* TODO Come up with a better solution other than this handling *)
 and transform_exp exp_type env e =  
-  let get_typ b = 
-    match b.it with
-      | ExpB (_, t) -> t
-      | _ -> error b.at "Binds should be exp"
-  in
-  let tupt typs = TupT (List.map (fun t -> ((VarE ("_" $ t.at)) $$ t.at % t, t)) typs) $ e.at in 
-  let tupe exps typs = 
-    (* Apply correct typing to expressions according to binds *)
-    let new_exps = List.map2 (fun e' t -> e'.it $$ e'.at % t) exps typs in
-    TupE new_exps $$ e.at % tupt typs in 
   let typ = transform_typ exp_type env e.note in
   let t_func = transform_exp exp_type env in
-  let handle_type_family typ_to_check final_exp = 
-    let (id, args) = get_var_typ typ_to_check in 
-    let opt = Env.find_opt_typ env id in
-    (match (get_binds_from_inst env args opt) with
-      | None -> final_exp $$ e.at % e.note
-      | Some (exps, binds) -> 
-        let new_mixop = [[Atom.Atom (type_family_prefix ^ name_prefix id ^ sub_type_name binds) $$ e.at % Atom.info ""]] in
-        let final_exp = final_exp $$ e.at % typ in
-        CaseE (new_mixop, tupe (exps @ [final_exp]) (List.map get_typ binds @ [typ])) $$ e.at % e.note
-    )
-  in
   (match e.it with
     (* Specific type family handling for variable and case expressions *)
-    | VarE _ when exp_type = MATCH && is_var_typ e.note ->
-      handle_type_family e.note e.it
-    | CaseE (m, e1) when exp_type = MATCH -> 
-      handle_type_family e.note (CaseE (m, t_func e1))
-    | CallE (fun_id, fun_args) when exp_type = RETURN && is_var_typ typ -> 
-      handle_type_family typ (CallE (fun_id, List.map (transform_arg exp_type env) fun_args))
+    | CaseE (m, e1) -> CaseE (m, t_func e1) $$ e.at % typ
+    | CallE (fun_id, fun_args)-> 
+      CallE (fun_id, List.map (transform_arg exp_type env) fun_args) $$ e.at % typ
     (* Descend *)
     | UnE (unop, optyp, e1) -> UnE (unop, optyp, t_func e1) $$ e.at % typ
     | BinE (binop, optyp, e1, e2) -> BinE (binop, optyp, t_func e1, t_func e2) $$ e.at % typ
     | CmpE (cmpop, optyp, e1, e2) -> CmpE (cmpop, optyp, t_func e1, t_func e2) $$ e.at % typ
     | TupE (exps) -> TupE (List.map t_func exps) $$ e.at % typ
     | ProjE (e1, n) -> ProjE (t_func e1, n) $$ e.at % typ
-    | CaseE (m, e1) -> CaseE (m, t_func e1) $$ e.at % typ
     | UncaseE (e1, m) -> UncaseE (t_func e1, m) $$ e.at % typ
     | OptE e1 -> OptE (Option.map t_func e1) $$ e.at % typ
     | TheE e1 -> TheE (t_func e1) $$ e.at % typ
@@ -228,7 +202,6 @@ and transform_exp exp_type env e =
     | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3) $$ e.at % typ
     | UpdE (e1, p, e2) -> UpdE (t_func e1, p, t_func e2) $$ e.at % typ
     | ExtE (e1, p, e2) -> ExtE (t_func e1, p, t_func e2) $$ e.at % typ
-    | CallE (id, args) -> CallE (id, List.map (transform_arg exp_type env) args) $$ e.at % typ
     | IterE (e1, (iter, id_exp_pairs)) -> IterE (t_func e1, (transform_iter exp_type env iter, List.map (fun (id, exp) -> (id, t_func exp)) id_exp_pairs)) $$ e.at % typ
     | CvtE (e1, nt1, nt2) -> CvtE (t_func e1, nt1, nt2) $$ e.at % typ
     | SubE (e1, _, t2) when exp_type = MATCH || exp_type = RETURN -> (t_func e1).it $$ e.at % t2
@@ -352,20 +325,35 @@ let transform_prod env prod =
 
 let transform_deftyp env deftyp = 
   (match deftyp.it with
-    | AliasT typ -> AliasT (transform_typ NORMAL env typ)
+    | AliasT typ -> AliasT (Il.Eval.reduce_typ env (transform_typ NORMAL env typ))
     | StructT typfields -> StructT (List.map (fun (a, (bs, t, prems), hints) -> (a, (List.map (transform_bind env) bs, transform_typ NORMAL env t, List.map (transform_prem env) prems), hints)) typfields)
     | VariantT typcases -> VariantT (List.map (fun (m, (bs, t, prems), hints) -> (m, (List.map (transform_bind env) bs, transform_typ NORMAL env t, List.map (transform_prem env) prems), hints)) typcases)
   ) $ deftyp.at
 
 let transform_inst env inst =
   (match inst.it with 
-    | InstD (binds, args, deftyp) -> InstD (List.map (transform_bind env) binds, List.map (transform_arg NORMAL env) args, transform_deftyp env deftyp)
-  ) $ inst.at
+    | (InstD (binds, args, deftyp)) when check_normal_type_creation inst -> 
+      [InstD (List.map (transform_bind env) binds, List.map (transform_arg NORMAL env) args, transform_deftyp env deftyp) $ inst.at]
+    | InstD (binds, args, deftyp) -> 
+      let acc_cases, (module Arg: Iter.Arg) = collect_sub_matches env in
+      let module Acc = Iter.Make(Arg) in
+      Acc.args args;
+      let cases_list = product_of_lists !acc_cases in
+      let subst_list = List.map (List.fold_left (fun acc (id, exp) -> 
+        Il.Subst.add_varid acc id exp) Il.Subst.empty
+      ) cases_list in
+      List.map (fun subst -> 
+        let (new_binds, _) = Il.Subst.subst_binds subst binds in
+        let new_args = Il.Subst.subst_args subst args in
+        let new_deftyp = Il.Subst.subst_deftyp subst deftyp in
+        InstD (List.map (transform_bind env) new_binds, List.map (transform_arg NORMAL env) new_args, transform_deftyp env new_deftyp) $ inst.at
+      ) subst_list
+  ) 
 
 let rec transform_def env def = 
   (match def.it with
-      | TypD (id, [], [inst]) -> TypD (id, [], [transform_inst env inst])
-      | TypD (id, params, insts) -> TypD (id, List.map (transform_param env) params, List.map (transform_inst env) insts)
+      | TypD (id, params, [inst]) when check_normal_type_creation inst -> TypD (id, params, transform_inst env inst)
+      | TypD (id, params, insts) -> TypD (id, List.map (transform_param env) params, List.concat_map (transform_inst env) insts)
       | RecD defs -> RecD (List.map (transform_def env) defs)
       | RelD (id, m, typ, rules) -> RelD (id, m, transform_typ NORMAL env typ, List.map (transform_rule env) rules)
       | DecD (id, params, typ, clauses) -> DecD (id, List.map (transform_param env) params, transform_typ RETURN env typ, List.concat_map (transform_clause id env) clauses)
@@ -375,7 +363,7 @@ let rec transform_def env def =
   
 (* Creates new TypD's for each StructT and VariantT *)
 let create_types id inst = 
-  let make_param b = 
+  let make_param_from_bind b = 
   (match b.it with 
     | ExpB (id, typ) -> ExpP (id, typ)
     | TypB id -> TypP id
@@ -383,12 +371,11 @@ let create_types id inst =
     | GramB _ -> assert false (* Avoid this *)
   ) $ b.at in
   match inst.it with
-    (* TODO - figure out why putting args ruins the type family processing *)
     | InstD (binds, _, deftyp) -> (match deftyp.it with 
       | AliasT _ -> []
       | StructT _ | VariantT _ ->         
-        let inst = InstD(binds, [], deftyp) $ inst.at in 
-        [TypD (id.it ^ sub_type_name binds $ id.at, List.map make_param binds, [inst])]
+        let inst = InstD(binds, List.map make_arg binds, deftyp) $ inst.at in 
+        [TypD (id.it ^ sub_type_name binds $ id.at, List.map make_param_from_bind binds, [inst])]
     )
 
 let rec transform_type_family def =

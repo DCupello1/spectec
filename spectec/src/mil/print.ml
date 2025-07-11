@@ -101,7 +101,7 @@ and string_of_term' t =
     | T_type_basic t_typ_basic -> string_of_basic_type_term t_typ_basic
     | T_ident id -> id
     | T_list terms -> square_parens (String.concat "; " (List.map string_of_term terms))
-    | T_lambda (ids, term) -> parens ("fun " ^ (String.concat " " ids) ^ " => " ^ string_of_term term)
+    | T_lambda (bs, term) -> parens ("fun" ^ string_of_list_prefix " " " " string_of_binder bs ^ " => " ^ string_of_term term)
     | T_record_fields fields -> "{| " ^ String.concat "; " (List.map (fun (id, t) -> id ^ " := " ^ string_of_term t) fields ) ^ " |}"
     | T_caseapp (id, []) -> empty_name id  
     | T_caseapp (id, args) -> parens (empty_name id ^ string_of_list_prefix " " " " string_of_term args)
@@ -115,9 +115,10 @@ and string_of_term' t =
     | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_term' terms))
     | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_term' typ)
     | T_record_update (t1, t2, t3) -> parens ("record_update " ^ string_of_term t1 ^ " " ^ string_of_term t2 ^ " " ^ string_of_term t3)
+    | T_default -> "default_val"
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 
-let string_of_binder b = 
+and string_of_binder b = 
   let (id, term) = b in
   parens (id ^ " : " ^ string_of_term' term)
 
@@ -159,8 +160,8 @@ let rec string_of_function_body f =
 let string_of_inductive_type_entries entries = 
   List.map (fun (id, bs') -> empty_name id ^ string_of_list_prefix " " " " string_of_binder bs') entries
 
-let string_of_family_type_entries id entries =
-  List.map (fun (case_id, bs, terms) -> case_id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ id ^ string_of_list_prefix " " " " string_of_term terms) entries
+let string_of_family_type_entries _id entries =
+  List.map (fun (match_terms, term) -> string_of_list_prefix " " ", " string_of_term match_terms ^ " => " ^ string_of_term term) entries
   
 let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
   let region = ";; " ^ Util.Source.string_of_region d.at ^ "\n" in 
@@ -189,8 +190,9 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
           string_of_list_prefix " " " " string_of_term terms
       
       ) relation_type_entries) ^ endnewline
-    | InductiveFamilyD (id, types, family_type_entries) -> region ^ "inductive " ^ id ^ " : " ^ string_of_list_suffix " -> " " -> " string_of_term' types ^ "Type =\n\t| " ^
-      String.concat "\n\t| " (string_of_family_type_entries id family_type_entries) ^ endnewline
+    | InductiveFamilyD (id, bs, family_type_entries) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t" ^
+      "match " ^ String.concat ", " (grab_id_of_binders bs) ^ " with\n\t\t|" ^
+      String.concat "\n\t\t|" (string_of_family_type_entries id family_type_entries) ^ endnewline
     | _ -> ""
   )
 

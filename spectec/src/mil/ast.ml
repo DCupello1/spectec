@@ -75,7 +75,7 @@ and term' =
   | T_list of (term list)
   | T_record_update of (term * term * term)
   | T_record_fields of (ident * term) list
-  | T_lambda of (ident list * term)
+  | T_lambda of (binder list * term)
   | T_caseapp of (ident * term list)
   | T_dotapp of (ident * term) 
   | T_app of (term * term list)
@@ -84,6 +84,7 @@ and term' =
   | T_tupletype of (mil_typ list)
   | T_arrowtype of (mil_typ list)
   | T_cast of (term * mil_typ * mil_typ)
+  | T_default
   | T_unsupported of string
 
 and premise =
@@ -121,7 +122,7 @@ and return_type = mil_typ
 
 and clause_entry = term list * function_body 
 
-and family_type_entry = ident * binder list * term list 
+and family_type_entry = term list * term
 
 and mil_def = mil_def' phrase
 and mil_def' =
@@ -133,7 +134,7 @@ and mil_def' =
   | GlobalDeclarationD of (ident * return_type * clause_entry)
   | InductiveRelationD of (ident * relation_args * relation_type_entry list)
   | AxiomD of (ident * binder list * return_type)
-  | InductiveFamilyD of (ident * mil_typ list * family_type_entry list)
+  | InductiveFamilyD of (ident * binder list * family_type_entry list)
   | CoercionD of (func_name * ident * ident)
   | UnsupportedD of string
   
@@ -141,7 +142,6 @@ type mil_script = mil_def list
 
 let ($@) it typ = {it; typ}
 
-(* TODO - obviously this is wrong but will keep for now *)
 let anytype' = T_type_basic T_anytype
 let anytype = anytype' $@ anytype'
 
@@ -149,43 +149,3 @@ let typ_to_term t = t $@ anytype'
 
 let num_typ nt = T_arrowtype [nt; nt; nt]
 let bool_binop_typ = T_arrowtype [T_type_basic T_bool; T_type_basic T_bool; T_type_basic T_bool]
-(* TODO - improve this later, can't just use any for everything *)
-(* let typ_of_exp_basic t nt = 
-  let any = T_type_basic T_anytype in
-  match t with
-  | T_bool _ -> T_type_basic T_bool
-  | T_nat _ -> T_type_basic T_nat
-  | T_int _ -> T_type_basic T_int
-  | T_rat _ -> T_type_basic T_rat
-  | T_real _ -> T_type_basic T_real
-  | T_string _ -> T_type_basic T_string
-  | T_exp_unit -> T_tupletype []
-  | T_not -> T_arrowtype [T_type_basic T_bool $@ any; T_type_basic T_bool $@ any]
-  | T_and | T_or | T_impl | T_equiv -> T_arrowtype [T_type_basic T_bool $@ any; T_type_basic T_bool $@ any; T_type_basic T_bool $@ any]
-  | T_add
-  | T_sub
-  | T_mul
-  | T_div
-  | T_exp
-  | T_mod -> T_arrowtype [nt; nt; nt]
-  | T_eq | T_neq -> T_arrowtype [any $@ any; any $@ any; T_type_basic T_bool $@ any]
-  | T_lt
-  | T_gt
-  | T_le
-  | T_ge -> T_arrowtype [nt; nt; T_type_basic T_bool $@ any]
-  | T_some -> T_arrowtype [any $@ any; (T_app (T_type_basic T_opt $@ any, [any $@ any])) $@ any]
-  | T_none -> T_app (T_type_basic T_opt $@ any, [any $@ any])
-  | T_recordconcat
-  | T_listconcat
-  | T_listcons
-  | T_listlength
-  | T_listmember
-  | T_slicelookup
-  | T_listlookup
-  | T_listupdate
-  | T_sliceupdate
-  | T_succ 
-  | T_invopt
-  | T_opttolist
-  | T_map of iterator
-  | T_zipwith of iterator *)
