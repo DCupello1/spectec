@@ -20,6 +20,11 @@ let get_id t =
     | T_app ({it = T_ident id; _}, _) -> id
     | _ -> assert false
 
+let is_dependent_type t =
+  match t with
+    | T_app ({it = T_ident _; _}, args) -> args <> []
+    | _ -> false 
+
 let string_of_list_prefix prefix delim str_func ls = 
   match ls with
     | [] -> ""

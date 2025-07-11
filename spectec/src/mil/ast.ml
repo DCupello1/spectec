@@ -149,3 +149,4 @@ let typ_to_term t = t $@ anytype'
 
 let num_typ nt = T_arrowtype [nt; nt; nt]
 let bool_binop_typ = T_arrowtype [T_type_basic T_bool; T_type_basic T_bool; T_type_basic T_bool]
+let prop_binop_typ = T_arrowtype [T_type_basic T_prop; T_type_basic T_prop; T_type_basic T_prop]
