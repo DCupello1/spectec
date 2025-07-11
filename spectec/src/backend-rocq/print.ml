@@ -81,7 +81,7 @@ and string_of_term is_match (term : term) =
     | T_exp_basic (T_map I_option) -> "option_map"
     | T_exp_basic (T_zipwith I_list) -> "list_zipwith"
     | T_exp_basic (T_zipwith I_option) -> "option_zipwith" 
-    | T_exp_basic T_listmember -> "List.in" (* TODO check Rocq stdlib *)
+    | T_exp_basic T_listmember -> "List.In"
     | T_exp_basic T_listupdate -> "list_update_func"
     | T_exp_basic T_opttolist -> "option_to_list"
     | T_exp_basic T_sliceupdate -> "list_slice_update"
@@ -112,12 +112,13 @@ and string_of_term is_match (term : term) =
     | T_app (base_term, []) -> (string_of_term is_match base_term)
     | T_app (base_term, args) -> parens ((string_of_term is_match base_term) ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term is_match term1 ^ string_of_term is_match infix_op ^ string_of_term is_match term2)
-    | T_tuple types -> parens (String.concat " * " (List.map (string_of_term is_match) types))
+    | T_tuple types -> parens (String.concat ", " (List.map (string_of_term is_match) types))
     | T_record_update (t1, id, t3) -> parens (string_of_term is_match t1 ^ " <| " ^ id ^ " := " ^ string_of_term is_match t3 ^ " |>")
     | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
     | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term is_match term)
     | T_cast (term, _, typ) -> parens (string_of_term is_match term ^ " : " ^ string_of_type typ)
-    | T_tupletype terms -> parens (String.concat " * " (List.map string_of_type terms))
+    | T_tupletype [] -> "unit"
+    | T_tupletype (t :: ts) -> List.fold_left (fun acc tup_typ -> parens ("prod " ^ acc ^ " " ^ (string_of_type tup_typ))) (string_of_type t) ts 
     | T_default -> "default_val"
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 
