@@ -40,6 +40,15 @@ let rec get_subE_prem (premise : premise) =
     | P_list_forall (_, p, _) | P_list_forall2 (_, p, _, _) -> get_subE_prem p
     | _ -> []
 
+let rec get_subE_fb (fb : function_body) = 
+  match fb with
+    | F_term term -> get_subE_term term
+    | F_premises (_bs, prems) -> List.concat_map get_subE_prem prems
+    | F_if_else (t, if_fb, else_fb) -> get_subE_term t @ get_subE_fb if_fb @ get_subE_fb else_fb
+    | F_let (t1, t2, fb) -> get_subE_term t1 @ get_subE_term t2 @ get_subE_fb fb
+    | F_match t -> get_subE_term t
+    | _ -> []
+
 let rec is_same_type (t1 : term) (t2 : term) = is_same_type' t1.it t2.it
 and is_same_type' (t1 : mil_typ) (t2 : mil_typ) =
   match (t1, t2) with
@@ -119,11 +128,16 @@ let rec transform_sub_def (env : Env.t) (d : mil_def) =
     | InductiveRelationD (_, _, rules) -> 
       let sub_expressions = List.concat_map (fun (_, prems, terms) -> List.concat_map get_subE_term terms @ List.concat_map get_subE_prem prems) rules in
       transform_subE sub_expressions @ [d]
-    | InductiveFamilyD (_, types, type_family_entries) -> 
-      let sub_expressions = List.concat_map get_subE_term' types @ 
-        List.concat_map (fun (_, bs, terms) -> 
-          List.concat_map get_subE_term terms @ List.concat_map (fun (_, t) -> get_subE_term' t) bs
+    | InductiveFamilyD (_, binders, type_family_entries) -> 
+      let sub_expressions = List.concat_map (fun (_, t) -> get_subE_term' t) binders @ 
+        List.concat_map (fun (terms, t) -> 
+          List.concat_map get_subE_term terms @ get_subE_term t
         ) type_family_entries in
+      transform_subE sub_expressions @ [d]
+    | DefinitionD (_, _, _, clauses) ->
+      let sub_expressions = List.concat_map (fun (terms, fb) ->
+        List.concat_map get_subE_term terms @ get_subE_fb fb
+      ) clauses in 
       transform_subE sub_expressions @ [d]
     | MutualRecD defs -> [MutualRecD (List.concat_map (transform_sub_def env) defs) $ d.at]
     | _ -> [d]

@@ -174,8 +174,8 @@ let rec transform_def prefix_map (d : mil_def) =
         List.map (transform_term prefix_map) terms)
     ) entries)
   | AxiomD (id, bs, rt) -> AxiomD (id, transform_binders prefix_map bs, transform_type prefix_map rt)
-  | InductiveFamilyD (id, types, entries) -> InductiveFamilyD (id, List.map (transform_type prefix_map) types, 
-    List.map (fun (id, bs, terms) -> (id, transform_binders prefix_map bs, List.map (transform_term prefix_map) terms)) entries)
+  | InductiveFamilyD (id, bs, entries) -> InductiveFamilyD (id, transform_binders prefix_map bs, 
+    List.map (fun (terms, t) -> (List.map (transform_term prefix_map) terms, transform_term prefix_map t)) entries)
   | CoercionD (id1, id2, id3) -> CoercionD (id1, id2, id3)
   | UnsupportedD str -> UnsupportedD str
   ) $ d.at

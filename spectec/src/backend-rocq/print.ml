@@ -38,6 +38,7 @@ let comment_desc_def (def: mil_def): string =
 
 let rec string_of_type term = string_of_term (term $@ anytype')
 and string_of_term (term : term) =
+  (* let is_prop typ = typ = T_type_basic T_prop in *)
   match term.it with
     | T_exp_basic (T_bool b) -> string_of_bool b
     | T_exp_basic (T_nat n) -> Z.to_string n
@@ -85,7 +86,7 @@ and string_of_term (term : term) =
     | T_type_basic T_bool -> "bool"
     | T_type_basic T_nat -> "nat"
     | T_type_basic T_int -> "Z"
-    | T_type_basic T_rat -> "Q"
+    | T_type_basic T_rat -> "nat" (* TODO change later to Q*)
     | T_type_basic T_real -> "R"
     | T_type_basic T_string -> "string"
     | T_type_basic T_list -> "list"
@@ -98,8 +99,7 @@ and string_of_term (term : term) =
     | T_list entries -> square_parens (String.concat "; " (List.map string_of_term entries))
     | T_caseapp (case_id, args) ->
       let typ_id = Print.get_id term.typ in 
-      let total_args = Env.count_case_binders !env_ref case_id typ_id in
-      let num_new_args = total_args - List.length args in 
+      let num_new_args = Env.count_case_binders !env_ref typ_id in 
       let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in  
       parens (case_id ^ Mil.Print.string_of_list_prefix " " " " string_of_term new_args)
     | T_dotapp (id, arg) -> parens (id ^ " " ^ string_of_term arg)  
@@ -109,15 +109,16 @@ and string_of_term (term : term) =
     | T_tuple types -> parens (String.concat " * " (List.map string_of_term types))
     | T_record_update (t1, t2, t3) -> parens (string_of_term t1 ^ " <|" ^ string_of_term t2 ^ " := " ^ string_of_term t3 ^ " |>")
     | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
-    | T_lambda (ids, term) -> parens ("fun " ^ (String.concat " " ids) ^ " => " ^ string_of_term term)
+    | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term term)
     | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_type typ)
     | T_tupletype terms -> parens (String.concat " * " (List.map string_of_type terms))
+    | T_default -> "default_val"
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 
-let string_of_binder (id, term) = 
+and string_of_binder (id, term) = 
   parens (id ^ " : " ^ string_of_type term)
 
-let string_of_binders (binds : binder list) = 
+and string_of_binders (binds : binder list) = 
   Mil.Print.string_of_list_prefix " " " " string_of_binder binds
 
 let string_of_binders_ids (binds : binder list) = 
@@ -131,6 +132,39 @@ let string_of_option_type (id : ident) (args : binder list) =
 
 let string_of_match_binders (binds : binder list) =
   String.concat ", " (List.map (fun (id, _) -> id) binds)
+
+let string_of_eqtype_proof (_id : ident) (_args : binder list) =
+  (* let binders = string_of_binders args in 
+  let binder_ids = string_of_binders_ids args in
+  (* Decidable equality proof *)
+  (* e.g.
+    Definition functype_eq_dec : forall (tf1 tf2 : functype),
+      {tf1 = tf2} + {tf1 <> tf2}.
+    Proof. decidable_equality. Defined.
+    Definition functype_eqb v1 v2 : bool := functype_eq_dec v1 v2.
+    Definition eqfunctypeP : Equality.axiom functype_eqb :=
+      eq_dec_Equality_axiom functype functype_eq_dec.
+    Canonical Structure functype_eqMixin := EqMixin eqfunctypeP.
+    Canonical Structure functype_eqType :=
+      Eval hnf in EqType functype functype_eqMixin. *)
+  (match id with
+  | "instr" | "admininstr" -> 
+    "Fixpoint " ^ id ^ "_eq_dec " ^ binders ^ " (v1 v2 : " ^ id ^ " " ^ binder_ids ^ ") {struct v1} :\n" ^
+    "  {v1 = v2} + {v1 <> v2}.\n" ^
+    "Proof. decide equality; do ? decidable_equality_step. Defined.\n\n"
+  | _ -> 
+    "Definition " ^ id ^ "_eq_dec : forall " ^ binders ^ " (v1 v2 : " ^ id ^ " " ^ binder_ids ^ "),\n" ^
+    "  {v1 = v2} + {v1 <> v2}.\n" ^
+    "Proof. do ? decidable_equality_step. Defined.\n\n") ^ 
+
+  "Definition " ^ id ^ "_eqb " ^ binders ^ " (v1 v2 : " ^ id ^ " " ^ binder_ids ^ ") : bool :=\n" ^
+  "  is_left" ^ parens (id ^ "_eq_dec " ^ binder_ids ^ " v1 v2") ^ ".\n" ^  
+  "Definition eq" ^ id ^ "P " ^ binders ^ " : Equality.axiom " ^ parens (id ^ "_eqb " ^ binder_ids) ^ " :=\n" ^
+  "  eq_dec_Equality_axiom " ^ parens (id ^ " " ^ binder_ids) ^ " " ^ parens (id ^ "_eq_dec " ^ binder_ids) ^ ".\n\n" ^
+  "Canonical Structure " ^ id ^ "_eqMixin " ^ binders ^ " := EqMixin " ^ parens ("eq" ^ id ^ "P " ^ binder_ids) ^ ".\n" ^
+  "Canonical Structure " ^ id ^ "_eqType " ^ binders ^ " :=\n" ^
+  "  Eval hnf in EqType " ^ parens (id ^ " " ^ binder_ids) ^ " " ^ parens (id ^ "_eqMixin " ^ binder_ids) ^  ".\n\n" ^
+  "Hint Resolve " ^ id ^ "_eq_dec : eq_dec_db" *) ""
 
 let string_of_relation_args (args : relation_args) = 
   Mil.Print.string_of_list_prefix " " " -> " string_of_term args
@@ -163,9 +197,8 @@ let rec string_of_function_body f =
     | F_default -> "default_val" 
 
 let string_of_typealias (id : ident) (binds : binder list) (typ : term) = 
-  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term typ ^ ".\n\n" ^ 
-  string_of_list_type id binds ^ ".\n\n" ^
-  string_of_option_type id binds
+  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term typ
+  (* ^ ".\n\n" ^ string_of_eqtype_proof id binds  *)
 
 let string_of_record (id: ident) (entries : record_entry list) = 
   let constructor_name = "MK" ^ id in
@@ -180,9 +213,6 @@ let string_of_record (id: ident) (entries : record_entry list) =
   "{default_val := {|\n\t" ^
       String.concat ";\n\t" (List.map (fun (record_id, _) -> 
         record_id ^ " := default_val") entries) ^ "|} }.\n\n" ^
-
-  string_of_list_type id [] ^ ".\n\n" ^
-  string_of_option_type id [] ^ ".\n\n" ^
   (* Record Append proof (TODO might need information on type to improve this) *)
   "Definition _append_" ^ id ^ " (arg1 arg2 : " ^ id ^ ") :=\n" ^ 
   "{|\n\t" ^ String.concat "\t" ((List.map (fun (record_id, term) -> 
@@ -194,25 +224,25 @@ let string_of_record (id: ident) (entries : record_entry list) =
 
   (* Setter proof *)
   "#[export] Instance eta__" ^ id ^ " : Settable _ := settable! " ^ constructor_name ^ " <" ^ 
-  String.concat ";" (List.map (fun (record_id, _) -> record_id) entries) ^ ">"  
+  String.concat ";" (List.map (fun (record_id, _) -> record_id) entries) ^ ">"
+  (* ^ ".\n\n" ^ string_of_eqtype_proof id []  *)
 
 let string_of_inductive_def (id : ident) (args : binder list) (entries : inductive_type_entry list) = 
   "Inductive " ^ id ^ string_of_binders args ^ " : Type :=\n\t" ^
   String.concat "\n\t" (List.map (fun (case_id, binds) ->
     "| " ^ case_id ^ string_of_binders binds ^ " : " ^ id ^ string_of_binders_ids args   
   )  entries) ^ ".\n\n" ^
-
-  string_of_list_type id args ^ ".\n\n" ^
-  string_of_option_type id args ^ ".\n\n" ^
   (* Inhabitance proof for default values *)
   let inhabitance_binders = string_of_binders args in 
   let binders = string_of_binders_ids args in 
   "Global Instance Inhabited__" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^
-  match entries with
+  (match entries with
     | [] -> "(* FIXME: no inhabitant found! *) .\n" ^
             "\tAdmitted"
     | (case_id, binds) :: _ -> " := { default_val := " ^ case_id ^ binders ^ 
-      Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }"
+      Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }")
+  (* ^  *)
+  (* (if (List.exists (fun (_, t) -> t = anytype') args) then "\n\nFIXME - No clear way to do decidable equality" else ".\n\n" ^ string_of_eqtype_proof id args) *)
 
 let string_of_definition (prefix : string) (id : ident) (binders : binder list) (return_type : return_type) (clauses : clause_entry list) = 
   prefix ^ id ^ string_of_binders binders ^ " : " ^ string_of_type return_type ^ " :=\n" ^
@@ -232,11 +262,12 @@ let string_of_inductive_relation (prefix : string) (id : ident) (args : relation
 let string_of_axiom (id : ident) (binds : binder list) (r_type: return_type) =
   "Axiom " ^ id ^ " : forall" ^ string_of_binders binds ^ ", " ^ string_of_type r_type
 
-let string_of_family_types (id : ident) (types: mil_typ list) (entries : family_type_entry list) = 
-  "Inductive " ^ id ^ " : " ^ Mil.Print.string_of_list_suffix " -> " " -> " string_of_type types ^ "Type :=\n\t| " ^
-  String.concat "\n\t| " (List.map (fun (case_id, bs, terms) -> 
-    case_id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_term terms) 
-  entries) 
+let string_of_family_types (id : ident) (bs: binder list) (entries : family_type_entry list) = 
+  "Definition " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ ": Type :=\n" ^
+  "\tmatch " ^ string_of_match_binders bs ^ " with\n\t\t| " ^
+  String.concat "\n\t\t| " (List.map (fun (match_terms, t) -> 
+    Print.string_of_list_prefix "" ", " string_of_term match_terms ^ " => " ^ string_of_term t) 
+  entries) ^ "\n\tend"
   (* ^ ".\n\n" ^
 
   let args = List.mapi (fun i t -> ("v_" ^ Int.to_string i, t)) types in 
@@ -246,20 +277,14 @@ let string_of_family_types (id : ident) (types: mil_typ list) (entries : family_
     | [] -> ""
     | (case_id, binds, _) :: _ -> 
       "Global Instance Inhabited__" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^
-      " := { default_val := " ^ case_id ^ 
+      " := { default_val := " ^ case_id ^
       Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }" *)
 
 let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
-  let list_func = "list__" ^ typ1 ^ "__" ^ typ2 in
-  let opt_func = "option__" ^ typ1 ^ "__" ^ typ2 in
-  "Coercion " ^ func_name ^ " : " ^ typ1 ^ " >-> " ^ typ2 ^ ".\n\n" ^
-  "Definition " ^ list_func ^ " : list__" ^ typ1 ^ " -> " ^ "list__" ^ typ2 ^ " := map " ^ func_name ^ ".\n\n" ^
-  "Coercion " ^ list_func ^ " : list__" ^ typ1 ^ " >-> " ^ "list__" ^ typ2 ^ ".\n\n" ^
-  "Definition " ^ opt_func ^ " : option__" ^ typ1 ^ " -> " ^ "option__" ^ typ2 ^ " := option_map " ^ func_name ^ ".\n\n" ^
-  "Coercion " ^ opt_func ^ " : option__" ^ typ1 ^ " >-> " ^ "option__" ^ typ2
+  "Coercion " ^ func_name ^ " : " ^ typ1 ^ " >-> " ^ typ2
 
-let rec string_of_def (recursive : bool) (def : mil_def) = 
-  let end_newline = ".\n\n" in 
+let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) = 
+  let end_newline = if has_endline then ".\n\n" else "" in 
   let start = comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region (def.at)) ^ "\n" in
   match def.it with
     | TypeAliasD (id, binds, typ) -> start ^ string_of_typealias id binds typ ^ end_newline
@@ -267,10 +292,12 @@ let rec string_of_def (recursive : bool) (def : mil_def) =
     | InductiveD (id, args, entries) -> start ^ string_of_inductive_def id args entries ^ end_newline
     | MutualRecD defs -> start ^ (match defs with
       | [] -> ""
-      | [d] -> string_of_def (not (is_inductive d)) d
-      | d :: defs -> let prefix = if List.for_all is_inductive (d :: defs) then "\n\nwith\n\n" else "\n\n" in
-        string_of_def false d ^ prefix ^ String.concat prefix (List.map (string_of_def true) defs)
+      | [d] -> string_of_def true (not (is_inductive d)) d
+      | d :: defs when (List.for_all is_inductive defs) -> let prefix = "\n\nwith\n\n" in
+        string_of_def false false d ^ prefix ^ String.concat prefix (List.map (string_of_def false true) defs) ^ end_newline
+      | _ -> String.concat "" (List.map (string_of_def true true) defs)
       )
+      
     | DefinitionD (id, binds, typ, clauses) -> let prefix = if recursive then "Fixpoint " else "Definition " in
       start ^ string_of_definition prefix id binds typ clauses ^ end_newline
     | GlobalDeclarationD (id, rt, (_, f_b)) -> 
@@ -279,8 +306,8 @@ let rec string_of_def (recursive : bool) (def : mil_def) =
       start ^ string_of_inductive_relation prefix id args relations ^ end_newline
     | AxiomD (id, binds, r_type) -> 
       start ^ string_of_axiom id binds r_type ^ end_newline
-    | InductiveFamilyD (id, types, entries) -> 
-      start ^ string_of_family_types id types entries  ^ end_newline
+    | InductiveFamilyD (id, bs, entries) -> 
+      start ^ string_of_family_types id bs entries  ^ end_newline
     | CoercionD (func_name, typ1, typ2) -> 
       start ^ string_of_coercion func_name typ1 typ2 ^ end_newline
     | UnsupportedD _str -> "" (* TODO maybe introduce later if people want it. need to escape "\(*\)" *)
@@ -288,6 +315,7 @@ let rec string_of_def (recursive : bool) (def : mil_def) =
 let exported_string = 
   "(* Imported Code *)\n" ^
   "From Coq Require Import String List Unicode.Utf8 Reals.\n" ^
+  (* "From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool seq eqtype.\n" ^ *)
   "From RecordUpdate Require Import RecordSet.\n" ^
   "Require Import NArith.\n" ^
   "Require Import Arith.\n" ^
@@ -359,6 +387,7 @@ let exported_string =
   "Global Instance Inh_option {T: Type} : Inhabited (option T) := { default_val := None }.\n\n" ^
   "Global Instance Inh_Z : Inhabited Z := { default_val := Z0 }.\n\n" ^
   "Global Instance Inh_prod {T1 T2: Type} {_: Inhabited T1} {_: Inhabited T2} : Inhabited (prod T1 T2) := { default_val := (default_val, default_val) }.\n\n" ^
+  "Global Instance Inh_type : Inhabited Type := { default_val := nat }.\n\n" ^
   "Definition option_to_list {T: Type} (arg : option T) : list T :=\n" ^
 	"\tmatch arg with\n" ^
 	"\t\t| None => nil\n" ^
@@ -367,13 +396,25 @@ let exported_string =
   "Coercion option_to_list: option >-> list.\n\n" ^
   "Coercion Z.to_nat: Z >-> nat.\n\n" ^
   "Coercion Z.of_nat: nat >-> Z.\n\n" ^
+  (* "Create HintDb eq_dec_db.\n\n" ^
+  "Ltac decidable_equality_step :=\n" ^
+  "  do [ by eauto with eq_dec_db | decide equality ].\n\n" ^
+  "Lemma eq_dec_Equality_axiom :\n" ^
+  "  forall (T : Type) (eq_dec : forall (x y : T), decidable (x = y)),\n" ^
+  "  let eqb v1 v2 := is_left (eq_dec v1 v2) in Equality.axiom eqb.\n" ^
+  "Proof.\n" ^
+  "  move=> T eq_dec eqb x y. rewrite /eqb.\n" ^
+  "  case: (eq_dec x y); by [apply: ReflectT | apply: ReflectF].\n" ^
+  "Qed.\n\n" ^ *)
+  
   "Open Scope wasm_scope.\n" ^
   "Import ListNotations.\n" ^
-  "Import RecordSetNotations.\n\n"
+  "Import RecordSetNotations.\n\n" ^
+  "Unset Implicit Arguments.\n\n" 
   
 
 let string_of_script (mil : mil_script) =
   env_ref := Env.env_of_script mil;
   exported_string ^ 
   "(* Generated Code *)\n" ^
-  String.concat "" (List.map (string_of_def false) mil)
+  String.concat "" (List.map (string_of_def true false) mil)
