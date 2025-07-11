@@ -20,7 +20,11 @@ let is_inductive (d : mil_def) =
   match d.it with
     | (InductiveRelationD _ | InductiveD _) -> true
     | _ -> false
-
+    
+let is_prop (t: mil_typ) = 
+  match t with
+    | T_arrowtype [_; _; T_type_basic T_prop] | T_type_basic T_prop -> true
+    | _ -> false 
 let comment_desc_def (def: mil_def): string = 
   match def.it with
     | TypeAliasD _ -> "Type Alias Definition"
@@ -36,9 +40,8 @@ let comment_desc_def (def: mil_def): string =
     | GlobalDeclarationD _ -> "Global Declaration Definition"
     | UnsupportedD _ -> ""
 
-let rec string_of_type term = string_of_term (term $@ anytype')
-and string_of_term (term : term) =
-  (* let is_prop typ = typ = T_type_basic T_prop in *)
+let rec string_of_type term = string_of_term false (term $@ anytype')
+and string_of_term is_match (term : term) =
   match term.it with
     | T_exp_basic (T_bool b) -> string_of_bool b
     | T_exp_basic (T_nat n) -> Z.to_string n
@@ -58,8 +61,8 @@ and string_of_term (term : term) =
     | T_exp_basic T_div -> " / "
     | T_exp_basic T_exp -> " ^ "
     | T_exp_basic T_mod -> " mod "
-    | T_exp_basic T_eq -> " = "
-    | T_exp_basic T_neq -> " <> "
+    | T_exp_basic T_eq -> if is_prop term.typ then " = " else " == "
+    | T_exp_basic T_neq -> if is_prop term.typ then " <> " else " != "
     | T_exp_basic T_lt -> " < "
     | T_exp_basic T_gt -> " > "
     | T_exp_basic T_le -> " <= "
@@ -95,22 +98,24 @@ and string_of_term (term : term) =
     | T_type_basic T_prop -> "Prop"
     | T_ident id -> id
     | T_list [] -> "[]"
-    | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (id, term) -> id ^ " := " ^ string_of_term term) fields)) ^ " |}"
-    | T_list entries -> square_parens (String.concat "; " (List.map string_of_term entries))
+    | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (id, term) -> id ^ " := " ^ string_of_term is_match term) fields)) ^ " |}"
+    | T_list entries -> square_parens (String.concat "; " (List.map (string_of_term is_match) entries))
+    | T_caseapp (case_id, args) when is_match -> 
+      parens (case_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
     | T_caseapp (case_id, args) ->
       let typ_id = Print.get_id term.typ in 
       let num_new_args = Env.count_case_binders !env_ref typ_id in 
       let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in  
-      parens (case_id ^ Mil.Print.string_of_list_prefix " " " " string_of_term new_args)
-    | T_dotapp (id, arg) -> parens (id ^ " " ^ string_of_term arg)  
-    | T_app (base_term, []) -> (string_of_term base_term)
-    | T_app (base_term, args) -> parens ((string_of_term base_term) ^ Mil.Print.string_of_list_prefix " " " " string_of_term args)
-    | T_app_infix (infix_op, term1, term2) -> parens (string_of_term term1 ^ string_of_term infix_op ^ string_of_term term2)
-    | T_tuple types -> parens (String.concat " * " (List.map string_of_term types))
-    | T_record_update (t1, t2, t3) -> parens (string_of_term t1 ^ " <|" ^ string_of_term t2 ^ " := " ^ string_of_term t3 ^ " |>")
+      parens (case_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) new_args)
+    | T_dotapp (id, arg) -> parens (id ^ " " ^ string_of_term is_match arg)  
+    | T_app (base_term, []) -> (string_of_term is_match base_term)
+    | T_app (base_term, args) -> parens ((string_of_term is_match base_term) ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
+    | T_app_infix (infix_op, term1, term2) -> parens (string_of_term is_match term1 ^ string_of_term is_match infix_op ^ string_of_term is_match term2)
+    | T_tuple types -> parens (String.concat " * " (List.map (string_of_term is_match) types))
+    | T_record_update (t1, t2, t3) -> parens (string_of_term is_match t1 ^ " <|" ^ string_of_term is_match t2 ^ " := " ^ string_of_term is_match t3 ^ " |>")
     | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
-    | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term term)
-    | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_type typ)
+    | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term is_match term)
+    | T_cast (term, _, typ) -> parens (string_of_term is_match term ^ " : " ^ string_of_type typ)
     | T_tupletype terms -> parens (String.concat " * " (List.map string_of_type terms))
     | T_default -> "default_val"
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
@@ -133,8 +138,8 @@ let string_of_option_type (id : ident) (args : binder list) =
 let string_of_match_binders (binds : binder list) =
   String.concat ", " (List.map (fun (id, _) -> id) binds)
 
-let string_of_eqtype_proof (_id : ident) (_args : binder list) =
-  (* let binders = string_of_binders args in 
+let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder list) =
+  let binders = string_of_binders args in 
   let binder_ids = string_of_binders_ids args in
   (* Decidable equality proof *)
   (* e.g.
@@ -147,32 +152,38 @@ let string_of_eqtype_proof (_id : ident) (_args : binder list) =
     Canonical Structure functype_eqMixin := EqMixin eqfunctypeP.
     Canonical Structure functype_eqType :=
       Eval hnf in EqType functype functype_eqMixin. *)
+  (if cant_do_equality then "(* FIXME - No clear way to do decidable equality *)\n" else "") ^
   (match id with
+  (* TODO - Modify this to be for all recursive inductive types *)
   | "instr" | "admininstr" -> 
-    "Fixpoint " ^ id ^ "_eq_dec " ^ binders ^ " (v1 v2 : " ^ id ^ " " ^ binder_ids ^ ") {struct v1} :\n" ^
+    
+    "Fixpoint " ^ id ^ "_eq_dec" ^ binders ^ " (v1 v2 : " ^ id ^ binder_ids ^ ") {struct v1} :\n" ^
     "  {v1 = v2} + {v1 <> v2}.\n" ^
-    "Proof. decide equality; do ? decidable_equality_step. Defined.\n\n"
+    let proof = if cant_do_equality then "Admitted" else "decide equality; do ? decidable_equality_step. Defined" in
+    "Proof. " ^ proof ^ ".\n\n"
   | _ -> 
-    "Definition " ^ id ^ "_eq_dec : forall " ^ binders ^ " (v1 v2 : " ^ id ^ " " ^ binder_ids ^ "),\n" ^
+    "Definition " ^ id ^ "_eq_dec : forall" ^ binders ^ " (v1 v2 : " ^ id ^ binder_ids ^ "),\n" ^
     "  {v1 = v2} + {v1 <> v2}.\n" ^
-    "Proof. do ? decidable_equality_step. Defined.\n\n") ^ 
+    
+    let proof = if cant_do_equality then "Admitted" else "do ? decidable_equality_step. Defined" in
+    "Proof. " ^ proof ^ ".\n\n") ^ 
 
-  "Definition " ^ id ^ "_eqb " ^ binders ^ " (v1 v2 : " ^ id ^ " " ^ binder_ids ^ ") : bool :=\n" ^
-  "  is_left" ^ parens (id ^ "_eq_dec " ^ binder_ids ^ " v1 v2") ^ ".\n" ^  
-  "Definition eq" ^ id ^ "P " ^ binders ^ " : Equality.axiom " ^ parens (id ^ "_eqb " ^ binder_ids) ^ " :=\n" ^
-  "  eq_dec_Equality_axiom " ^ parens (id ^ " " ^ binder_ids) ^ " " ^ parens (id ^ "_eq_dec " ^ binder_ids) ^ ".\n\n" ^
-  "Canonical Structure " ^ id ^ "_eqMixin " ^ binders ^ " := EqMixin " ^ parens ("eq" ^ id ^ "P " ^ binder_ids) ^ ".\n" ^
-  "Canonical Structure " ^ id ^ "_eqType " ^ binders ^ " :=\n" ^
-  "  Eval hnf in EqType " ^ parens (id ^ " " ^ binder_ids) ^ " " ^ parens (id ^ "_eqMixin " ^ binder_ids) ^  ".\n\n" ^
-  "Hint Resolve " ^ id ^ "_eq_dec : eq_dec_db" *) ""
+  "Definition " ^ id ^ "_eqb" ^ binders ^ " (v1 v2 : " ^ id ^ binder_ids ^ ") : bool :=\n" ^
+  "  is_left" ^ parens (id ^ "_eq_dec" ^ binder_ids ^ " v1 v2") ^ ".\n" ^  
+  "Definition eq" ^ id ^ "P" ^ binders ^ " : Equality.axiom " ^ parens (id ^ "_eqb " ^ binder_ids) ^ " :=\n" ^
+  "  eq_dec_Equality_axiom " ^ parens (id ^ " " ^ binder_ids) ^ " " ^ parens (id ^ "_eq_dec" ^ binder_ids) ^ ".\n\n" ^
+  "Canonical Structure " ^ id ^ "_eqMixin" ^ binders ^ " := EqMixin " ^ parens ("eq" ^ id ^ "P" ^ binder_ids) ^ ".\n" ^
+  "Canonical Structure " ^ id ^ "_eqType" ^ binders ^ " :=\n" ^
+  "  Eval hnf in EqType " ^ parens (id ^ " " ^ binder_ids) ^ " " ^ parens (id ^ "_eqMixin" ^ binder_ids) ^  ".\n\n" ^
+  "Hint Resolve " ^ id ^ "_eq_dec : eq_dec_db" 
 
 let string_of_relation_args (args : relation_args) = 
-  Mil.Print.string_of_list_prefix " " " -> " string_of_term args
+  Mil.Print.string_of_list_prefix " " " -> " (string_of_term false) args
 
 let rec string_of_premise (prem : premise) =
   match prem with
-    | P_if term -> string_of_term term
-    | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " string_of_term terms)
+    | P_if term -> string_of_term false term
+    | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term false) terms)
     | P_neg p -> parens ("~" ^ string_of_premise p)
     | P_else -> "otherwise" (* Will be removed by an else pass *)
     | P_list_forall (iterator, p, (id, t)) -> 
@@ -188,17 +199,17 @@ let rec string_of_premise (prem : premise) =
 
 let rec string_of_function_body f =
   match f with 
-    | F_term term -> string_of_term term
+    | F_term term -> string_of_term false term
     | F_premises (_ ,[]) -> "True"
     | F_premises (bs, prems) -> Mil.Print.string_of_list "forall " ", " " " string_of_binder bs ^ String.concat "/\\" (List.map string_of_premise prems)
-    | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
-    | F_let (var_term, term, fb) -> "let " ^ string_of_term var_term ^ " := " ^ string_of_term term ^ " in\n\t\t\t" ^ string_of_function_body fb
-    | F_match term -> string_of_term term (* Todo extend this *)
+    | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term false bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
+    | F_let (var_term, term, fb) -> "let " ^ string_of_term false var_term ^ " := " ^ string_of_term false term ^ " in\n\t\t\t" ^ string_of_function_body fb
+    | F_match term -> string_of_term false term (* Todo extend this *)
     | F_default -> "default_val" 
 
 let string_of_typealias (id : ident) (binds : binder list) (typ : term) = 
-  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term typ
-  (* ^ ".\n\n" ^ string_of_eqtype_proof id binds  *)
+  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term false typ
+  ^ ".\n\n" ^ string_of_eqtype_proof false id binds 
 
 let string_of_record (id: ident) (entries : record_entry list) = 
   let constructor_name = "MK" ^ id in
@@ -206,7 +217,7 @@ let string_of_record (id: ident) (entries : record_entry list) =
   (* Standard Record definition *)
   "Record " ^ id ^ " := " ^ constructor_name ^ "\n{\t" ^ 
   String.concat "\n;\t" (List.map (fun (record_id, typ) -> 
-    record_id ^ " : " ^ string_of_term typ) entries) ^ "\n}.\n\n" ^
+    record_id ^ " : " ^ string_of_term false typ) entries) ^ "\n}.\n\n" ^
 
   (* Inhabitance proof for default values *)
   "Global Instance Inhabited_" ^ id ^ " : Inhabited " ^ id ^ " := \n" ^
@@ -225,9 +236,14 @@ let string_of_record (id: ident) (entries : record_entry list) =
   (* Setter proof *)
   "#[export] Instance eta__" ^ id ^ " : Settable _ := settable! " ^ constructor_name ^ " <" ^ 
   String.concat ";" (List.map (fun (record_id, _) -> record_id) entries) ^ ">"
-  (* ^ ".\n\n" ^ string_of_eqtype_proof id []  *)
+  ^ ".\n\n" ^ string_of_eqtype_proof false id [] 
 
 let string_of_inductive_def (id : ident) (args : binder list) (entries : inductive_type_entry list) = 
+  let cant_do_equality = 
+    (List.exists (fun (_, t) -> t = anytype') args) ||
+    (List.exists (fun (_, binds) -> List.exists (fun (_, t) -> Print.is_dependent_type t) binds) entries)
+  in 
+  
   "Inductive " ^ id ^ string_of_binders args ^ " : Type :=\n\t" ^
   String.concat "\n\t" (List.map (fun (case_id, binds) ->
     "| " ^ case_id ^ string_of_binders binds ^ " : " ^ id ^ string_of_binders_ids args   
@@ -241,14 +257,16 @@ let string_of_inductive_def (id : ident) (args : binder list) (entries : inducti
             "\tAdmitted"
     | (case_id, binds) :: _ -> " := { default_val := " ^ case_id ^ binders ^ 
       Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }")
-  (* ^  *)
-  (* (if (List.exists (fun (_, t) -> t = anytype') args) then "\n\nFIXME - No clear way to do decidable equality" else ".\n\n" ^ string_of_eqtype_proof id args) *)
+  ^
+    
+  (* Eq proof *)
+  ".\n\n" ^ string_of_eqtype_proof cant_do_equality id args
 
 let string_of_definition (prefix : string) (id : ident) (binders : binder list) (return_type : return_type) (clauses : clause_entry list) = 
   prefix ^ id ^ string_of_binders binders ^ " : " ^ string_of_type return_type ^ " :=\n" ^
   "\tmatch " ^ string_of_match_binders binders ^ " with\n\t\t" ^
   String.concat "\n\t\t" (List.map (fun (match_terms, fb) -> 
-    "| " ^ Print.string_of_list_prefix "" ", " string_of_term match_terms ^ " => " ^ string_of_function_body fb) clauses) ^
+    "| " ^ Print.string_of_list_prefix "" ", " (string_of_term true) match_terms ^ " => " ^ string_of_function_body fb) clauses) ^
   "\n\tend"
 
 let string_of_inductive_relation (prefix : string) (id : ident) (args : relation_args) (relations : relation_type_entry list) = 
@@ -256,7 +274,7 @@ let string_of_inductive_relation (prefix : string) (id : ident) (args : relation
   String.concat "\n\t" (List.map (fun ((case_id, binds), premises, end_terms) ->
     let string_prems = Mil.Print.string_of_list_suffix " -> " " -> " string_of_premise premises in
     let forall_quantifiers = Mil.Print.string_of_list "forall " ", " " " string_of_binder binds in
-    "| " ^ case_id ^ " : " ^ forall_quantifiers ^ string_prems ^ id ^ " " ^ String.concat " " (List.map string_of_term end_terms)
+    "| " ^ case_id ^ " : " ^ forall_quantifiers ^ string_prems ^ id ^ " " ^ String.concat " " (List.map (string_of_term false) end_terms)
   ) relations)
 
 let string_of_axiom (id : ident) (binds : binder list) (r_type: return_type) =
@@ -266,19 +284,8 @@ let string_of_family_types (id : ident) (bs: binder list) (entries : family_type
   "Definition " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ ": Type :=\n" ^
   "\tmatch " ^ string_of_match_binders bs ^ " with\n\t\t| " ^
   String.concat "\n\t\t| " (List.map (fun (match_terms, t) -> 
-    Print.string_of_list_prefix "" ", " string_of_term match_terms ^ " => " ^ string_of_term t) 
+    Print.string_of_list_prefix "" ", " (string_of_term true) match_terms ^ " => " ^ string_of_term false t) 
   entries) ^ "\n\tend"
-  (* ^ ".\n\n" ^
-
-  let args = List.mapi (fun i t -> ("v_" ^ Int.to_string i, t)) types in 
-  let inhabitance_binders = string_of_binders args in 
-  let binders = string_of_binders_ids args in 
-  match entries with
-    | [] -> ""
-    | (case_id, binds, _) :: _ -> 
-      "Global Instance Inhabited__" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^
-      " := { default_val := " ^ case_id ^
-      Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }" *)
 
 let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
   "Coercion " ^ func_name ^ " : " ^ typ1 ^ " >-> " ^ typ2
@@ -315,7 +322,7 @@ let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) =
 let exported_string = 
   "(* Imported Code *)\n" ^
   "From Coq Require Import String List Unicode.Utf8 Reals.\n" ^
-  (* "From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool seq eqtype.\n" ^ *)
+  "From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool seq eqtype.\n" ^
   "From RecordUpdate Require Import RecordSet.\n" ^
   "Require Import NArith.\n" ^
   "Require Import Arith.\n" ^
@@ -396,7 +403,7 @@ let exported_string =
   "Coercion option_to_list: option >-> list.\n\n" ^
   "Coercion Z.to_nat: Z >-> nat.\n\n" ^
   "Coercion Z.of_nat: nat >-> Z.\n\n" ^
-  (* "Create HintDb eq_dec_db.\n\n" ^
+  "Create HintDb eq_dec_db.\n\n" ^
   "Ltac decidable_equality_step :=\n" ^
   "  do [ by eauto with eq_dec_db | decide equality ].\n\n" ^
   "Lemma eq_dec_Equality_axiom :\n" ^
@@ -405,8 +412,7 @@ let exported_string =
   "Proof.\n" ^
   "  move=> T eq_dec eqb x y. rewrite /eqb.\n" ^
   "  case: (eq_dec x y); by [apply: ReflectT | apply: ReflectF].\n" ^
-  "Qed.\n\n" ^ *)
-  
+  "Qed.\n\n" ^
   "Open Scope wasm_scope.\n" ^
   "Import ListNotations.\n" ^
   "Import RecordSetNotations.\n\n" ^
