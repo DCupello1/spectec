@@ -73,7 +73,7 @@ and term' =
   | T_type_basic of basic_type
   | T_ident of ident
   | T_list of (term list)
-  | T_record_update of (term * term * term)
+  | T_record_update of (term * ident * term)
   | T_record_fields of (ident * term) list
   | T_lambda of (binder list * term)
   | T_caseapp of (ident * term list)

@@ -73,22 +73,33 @@ let rec transform_term prefix_map t =
       | None -> T_dotapp (extra_prefix ^ id, t_func term)
     )
   | T_record_fields fields -> 
-    let id = Print.get_id t.typ in 
-    let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
+    let id' = Print.get_id t.typ in 
+    let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
         | Some prefix -> prefix
         | None -> ""
     ) in 
     T_record_fields ( 
-    List.map (fun (id', t) -> 
-      let combined_id = string_combine id' id in
+    List.map (fun (id, t) -> 
+      let combined_id = string_combine id id' in
       let new_id = (match (StringMap.find_opt combined_id prefix_map) with
-        | Some prefix -> extra_prefix ^ prefix ^ id'
-        | None -> extra_prefix ^ id'
+        | Some prefix -> extra_prefix ^ prefix ^ id
+        | None -> extra_prefix ^ id
       ) in  
       (new_id, t_func t)
     ) fields)
   (* TODO need to add correct prefix to t2 *)
-  | T_record_update (t1, t2, t3) -> T_record_update (t_func t1, t_func t2, t_func t3)
+  | T_record_update (t1, id, t3) -> 
+    let id' = Print.get_id t1.typ in 
+    let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
+        | Some prefix -> prefix
+        | None -> ""
+    ) in 
+    let combined_id = string_combine id id' in
+    let new_id = (match (StringMap.find_opt combined_id prefix_map) with
+      | Some prefix -> extra_prefix ^ prefix ^ id
+      | None -> extra_prefix ^ id
+    ) in  
+    T_record_update (t_func t1, new_id, t_func t3)
   (* Descend *)
   | T_list terms -> T_list (List.map t_func terms)
   | T_lambda (ids, t) -> T_lambda (ids, t_func t)
