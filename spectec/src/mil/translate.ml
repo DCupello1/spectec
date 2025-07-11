@@ -213,7 +213,10 @@ and transform_exp exp_type (exp : exp) =
       let typ1 = transform_type' exp_type exp1.note in
       let slicetyp = T_arrowtype [typ1; transform_type' exp_type exp2.note; transform_type' exp_type exp3.note; exp_typ] in
       T_app (T_exp_basic T_slicelookup $@ slicetyp, [transform_exp exp_type exp1; transform_exp exp_type exp2; transform_exp exp_type exp3]) $@ exp_typ
-    | UpdE (exp1, path, exp2) -> transform_path_start' path (transform_exp exp_type exp1) false (transform_exp exp_type exp2) $@ exp_typ
+    | UpdE (exp1, path, exp2) -> 
+      print_endline "UPDATE!!!!!!!";
+      print_endline (Il.Print.string_of_exp exp);
+      transform_path_start' path (transform_exp exp_type exp1) false (transform_exp exp_type exp2) $@ exp_typ
     | ExtE (exp1, path, exp2) -> transform_path_start' path (transform_exp exp_type exp1) true (transform_exp exp_type exp2) $@ exp_typ
     | CallE (id, args) -> 
       let fun_type = T_arrowtype ((List.map (get_typ_from_arg exp_type) args) @ [exp_typ]) in
@@ -348,62 +351,84 @@ and transform_list_path (p : path) =
     | IdxP (p', _) | SliceP (p', _, _) | DotP (p', _) when p'.it = RootP -> []
     | IdxP (p', _) | SliceP (p', _, _) | DotP (p', _) -> p' :: transform_list_path p'
 
-and transform_path_start' (p : path) name_term is_extend end_term  = 
-  let paths = List.rev (p :: transform_list_path p) in
-  (transform_path' paths p.at 0 (Some name_term) is_extend end_term)
+and print_path_type (p : path) = 
+  let str = Il.Print.string_of_typ p.note in 
+  match p.it with   
+    | RootP -> print_endline ("RootP: " ^ str)
+    | IdxP (p', _) -> print_endline ("IdxP: " ^ str); print_path_type p' 
+    | SliceP (p', _, _) -> print_endline ("SliceP: " ^ str); print_path_type p'
+    | DotP (p', _) -> print_endline ("DotP: " ^ str); print_path_type p'
 
-and transform_path' (paths : path list) at n name is_extend end_term = 
+and transform_path_start' (p : path) name_term is_extend end_term = 
+  print_path_type p;
+  let paths = List.rev (p :: transform_list_path p) in
+  (transform_path' paths (name_term.typ) p.at 0 (Some name_term) is_extend end_term)
+
+and transform_path' (paths : path list) typ at n name is_extend end_term = 
   let is_dot p = (match p.it with
-        | DotP _ -> true
-        | _ -> false 
+    | DotP _ -> true
+    | _ -> false 
   ) in
   let list_name num = (match name with
     | Some term -> term
-    | None -> T_ident (var_prefix ^ string_of_int num) $@ anytype'
+    | None -> T_ident (var_prefix ^ string_of_int num) $@ typ
   ) in
+
+  let new_name_typ = Print.remove_iter_from_type (list_name n).typ in
+  let new_name = var_prefix ^ string_of_int (n + 1) in 
   (* TODO fix typing of newly created terms *)
   match paths with
     (* End logic for extend *)
     | [{it = IdxP (_, e); _}] when is_extend -> 
-      let extend_term = T_app_infix (T_exp_basic T_listconcat $@ anytype', list_name n, end_term) $@ anytype' in
-      T_app (T_exp_basic T_listupdate $@ anytype',  [list_name n; transform_exp NORMAL e; T_lambda (["_", anytype'], extend_term) $@ anytype'])
-    | [{it = DotP (_, a); _}] when is_extend -> 
-      let projection_term = T_app (T_ident (transform_atom a) $@ anytype', [list_name n]) $@ anytype' in
-      let extend_term = T_app_infix (T_exp_basic T_listconcat $@ anytype', projection_term, end_term) in
-      T_record_update (list_name n, T_ident (transform_atom a) $@ anytype', extend_term $@ anytype')
+      let extend_term = T_app_infix (T_exp_basic T_listconcat $@ anytype', T_ident new_name $@ new_name_typ, end_term) $@ new_name_typ in
+      let lambda_typ = T_arrowtype [new_name_typ; new_name_typ] in
+      T_app (T_exp_basic T_listupdate $@ anytype',  [list_name n; transform_exp NORMAL e; T_lambda ([new_name, new_name_typ], extend_term) $@ lambda_typ])
+    | [{it = DotP (_, a); note; _ }] when is_extend -> 
+      let projection_term = T_dotapp (transform_atom a, list_name n) $@ transform_type' NORMAL note in
+      let extend_term = T_app_infix (T_exp_basic T_listconcat $@ anytype', projection_term, end_term) $@ end_term.typ in
+      T_record_update (list_name n, transform_atom a, extend_term)
     | [{it = SliceP (_, e1, e2); _}] when is_extend -> 
-      let extend_term = T_app_infix (T_exp_basic T_listconcat $@ anytype', list_name n, end_term) $@ anytype' in
+      let extend_term = T_app_infix (T_exp_basic T_listconcat $@ anytype', T_ident new_name $@ new_name_typ, end_term) $@ new_name_typ in
+      let lambda_typ = T_arrowtype [new_name_typ; new_name_typ] in
       T_app (T_exp_basic T_sliceupdate $@ anytype', 
-        [list_name n; transform_exp NORMAL e1; transform_exp NORMAL e2; T_lambda (["_", anytype'], extend_term) $@ anytype'])
+        [list_name n; transform_exp NORMAL e1; transform_exp NORMAL e2; T_lambda ([new_name, new_name_typ], extend_term) $@ lambda_typ])
     (* End logic for update *)
     | [{it = IdxP (_, e); _}] -> 
-      T_app (T_exp_basic T_listupdate $@ anytype', [list_name n; transform_exp NORMAL e; T_lambda (["_", anytype'], end_term) $@ anytype'])
+      let lambda_typ = T_arrowtype [new_name_typ; end_term.typ] in
+      T_app (T_exp_basic T_listupdate $@ anytype', [list_name n; transform_exp NORMAL e; T_lambda (["_", new_name_typ], end_term) $@ lambda_typ])
     | [{it = DotP (_, a); _}] -> 
-      T_record_update (list_name n, T_ident (transform_atom a) $@ anytype', end_term)
+      T_record_update (list_name n, transform_atom a, end_term)
     | [{it = SliceP (_, e1, e2); _}] -> 
       T_app (T_exp_basic T_sliceupdate $@ anytype',
-        [list_name n; transform_exp NORMAL e1; transform_exp NORMAL e2; T_lambda (["_", anytype'], end_term) $@ anytype'])
+        [list_name n; transform_exp NORMAL e1; transform_exp NORMAL e2; end_term])
     (* Middle logic *)
     | {it = IdxP (_, e); note; _} :: ps -> 
-      let path_term = transform_path' ps at (n + 1) None is_extend end_term $@ transform_type' NORMAL note in
+      let new_typ = transform_type' NORMAL note in
+      let path_term = transform_path' ps new_typ at (n + 1) None is_extend end_term $@ new_typ in
       let new_name = var_prefix ^ string_of_int (n + 1) in 
+      let lambda_typ = T_arrowtype [new_name_typ; new_typ] in
       T_app (T_exp_basic T_listupdate $@ anytype', 
-        [list_name n; transform_exp NORMAL e; T_lambda ([new_name, anytype'], path_term) $@ anytype'])
+        [list_name n; transform_exp NORMAL e; T_lambda ([new_name, new_name_typ], path_term) $@ lambda_typ])
     | {it = DotP (_, a); note; _} :: ps -> 
+      let new_typ = transform_type' NORMAL note in
       let (dot_paths, ps') = list_split is_dot ps in 
       let projection_term = List.fold_right (fun p acc -> 
         match p.it with
-          | DotP (_, a') -> T_app (T_ident (transform_atom a') $@ anytype', [acc]) $@ transform_type' NORMAL p.note
+          | DotP (_, a') -> 
+            T_dotapp (transform_atom a', acc) $@ transform_type' NORMAL p.note
           | _ -> error at "Should be a record access" (* Should not happen *)
       ) dot_paths (list_name n) in
-      let new_term = T_app(T_ident (transform_atom a) $@ anytype', [projection_term]) $@ anytype' in
-      let path_term = transform_path' ps' at n (Some new_term) is_extend end_term $@ transform_type' NORMAL note in
-      T_record_update (projection_term, T_ident (transform_atom a) $@ anytype', path_term)
+      let new_term = T_dotapp (transform_atom a, projection_term) $@ new_typ in
+      let path_term = transform_path' ps' new_typ at n (Some new_term) is_extend end_term $@ new_typ in
+      T_record_update (projection_term, transform_atom a, path_term)
     | {it = SliceP (_, e1, e2); note; _} :: ps ->
-      let path_term = transform_path' ps at (n + 1) None is_extend end_term $@ transform_type' NORMAL note in
+      (* TODO this is not entirely correct. Still unsure how to implement this as a term *)
+      let new_typ = transform_type' NORMAL note in
+      let path_term = transform_path' ps new_typ at (n + 1) None is_extend end_term $@ transform_type' NORMAL note in
       let new_name = var_prefix ^ string_of_int (n + 1) in
+      let lambda_typ = T_arrowtype [new_name_typ; new_typ] in
       T_app (T_exp_basic T_sliceupdate $@ anytype',
-        [list_name n; transform_exp NORMAL e1; transform_exp NORMAL e2; T_lambda ([new_name, anytype'], path_term) $@ anytype'])
+        [list_name n; transform_exp NORMAL e1; transform_exp NORMAL e2; T_lambda ([(new_name, new_name_typ)], path_term) $@ lambda_typ])
     (* Catch all error if we encounter empty list or RootP *)
     | _ -> error at "Paths should not be empty"
 

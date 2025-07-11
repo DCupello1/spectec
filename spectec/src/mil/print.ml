@@ -119,7 +119,7 @@ and string_of_term' t =
     | T_tupletype terms -> parens (String.concat " * " (List.map string_of_term' terms))
     | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_term' terms))
     | T_cast (term, _, typ) -> parens (string_of_term term ^ " : " ^ string_of_term' typ)
-    | T_record_update (t1, t2, t3) -> parens ("record_update " ^ string_of_term t1 ^ " " ^ string_of_term t2 ^ " " ^ string_of_term t3)
+    | T_record_update (t1, id, t3) -> parens ("record_update " ^ string_of_term t1 ^ " " ^ id ^ " " ^ string_of_term t3)
     | T_default -> "default_val"
     | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 

@@ -100,6 +100,7 @@ and string_of_term is_match (term : term) =
     | T_list [] -> "[]"
     | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (id, term) -> id ^ " := " ^ string_of_term is_match term) fields)) ^ " |}"
     | T_list entries -> square_parens (String.concat "; " (List.map (string_of_term is_match) entries))
+    | T_caseapp (case_id, []) -> case_id
     | T_caseapp (case_id, args) when is_match -> 
       parens (case_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
     | T_caseapp (case_id, args) ->
@@ -112,7 +113,7 @@ and string_of_term is_match (term : term) =
     | T_app (base_term, args) -> parens ((string_of_term is_match base_term) ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
     | T_app_infix (infix_op, term1, term2) -> parens (string_of_term is_match term1 ^ string_of_term is_match infix_op ^ string_of_term is_match term2)
     | T_tuple types -> parens (String.concat " * " (List.map (string_of_term is_match) types))
-    | T_record_update (t1, t2, t3) -> parens (string_of_term is_match t1 ^ " <|" ^ string_of_term is_match t2 ^ " := " ^ string_of_term is_match t3 ^ " |>")
+    | T_record_update (t1, id, t3) -> parens (string_of_term is_match t1 ^ " <| " ^ id ^ " := " ^ string_of_term is_match t3 ^ " |>")
     | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
     | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term is_match term)
     | T_cast (term, _, typ) -> parens (string_of_term is_match term ^ " : " ^ string_of_type typ)
@@ -171,10 +172,10 @@ let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder 
   "Definition " ^ id ^ "_eqb" ^ binders ^ " (v1 v2 : " ^ id ^ binder_ids ^ ") : bool :=\n" ^
   "  is_left" ^ parens (id ^ "_eq_dec" ^ binder_ids ^ " v1 v2") ^ ".\n" ^  
   "Definition eq" ^ id ^ "P" ^ binders ^ " : Equality.axiom " ^ parens (id ^ "_eqb " ^ binder_ids) ^ " :=\n" ^
-  "  eq_dec_Equality_axiom " ^ parens (id ^ " " ^ binder_ids) ^ " " ^ parens (id ^ "_eq_dec" ^ binder_ids) ^ ".\n\n" ^
+  "  eq_dec_Equality_axiom " ^ parens (id ^ binder_ids) ^ " " ^ parens (id ^ "_eq_dec" ^ binder_ids) ^ ".\n\n" ^
   "Canonical Structure " ^ id ^ "_eqMixin" ^ binders ^ " := EqMixin " ^ parens ("eq" ^ id ^ "P" ^ binder_ids) ^ ".\n" ^
   "Canonical Structure " ^ id ^ "_eqType" ^ binders ^ " :=\n" ^
-  "  Eval hnf in EqType " ^ parens (id ^ " " ^ binder_ids) ^ " " ^ parens (id ^ "_eqMixin" ^ binder_ids) ^  ".\n\n" ^
+  "  Eval hnf in EqType " ^ parens (id ^ binder_ids) ^ " " ^ parens (id ^ "_eqMixin" ^ binder_ids) ^  ".\n\n" ^
   "Hint Resolve " ^ id ^ "_eq_dec : eq_dec_db" 
 
 let string_of_relation_args (args : relation_args) = 
@@ -304,7 +305,6 @@ let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) =
         string_of_def false false d ^ prefix ^ String.concat prefix (List.map (string_of_def false true) defs) ^ end_newline
       | _ -> String.concat "" (List.map (string_of_def true true) defs)
       )
-      
     | DefinitionD (id, binds, typ, clauses) -> let prefix = if recursive then "Fixpoint " else "Definition " in
       start ^ string_of_definition prefix id binds typ clauses ^ end_newline
     | GlobalDeclarationD (id, rt, (_, f_b)) -> 

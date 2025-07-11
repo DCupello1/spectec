@@ -28,7 +28,7 @@ and get_subE_term' t =
     | T_cast (_, typ1, typ2) -> 
       let (id1, id2) = (get_id_typ typ1, get_id_typ typ2) in
       if id1 = "" || id2 = "" then [] else [((id1, typ1), (id2, typ2))]
-    | T_record_update (term1, term2, term3) -> get_subE_term term1 @ get_subE_term term2 @ get_subE_term term3
+    | T_record_update (term1, _, term3) -> get_subE_term term1  @ get_subE_term term3
     | T_tuple terms -> List.concat_map get_subE_term terms
     | _ -> [] 
 
