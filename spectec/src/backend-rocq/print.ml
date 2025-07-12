@@ -88,9 +88,9 @@ and string_of_term is_match (term : term) =
     | T_type_basic T_unit -> "unit"
     | T_type_basic T_bool -> "bool"
     | T_type_basic T_nat -> "nat"
-    | T_type_basic T_int -> "Z"
+    | T_type_basic T_int -> "nat"
     | T_type_basic T_rat -> "nat" (* TODO change later to Q*)
-    | T_type_basic T_real -> "R"
+    | T_type_basic T_real -> "nat"
     | T_type_basic T_string -> "string"
     | T_type_basic T_list -> "list"
     | T_type_basic T_opt -> "option"
@@ -151,9 +151,9 @@ let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder 
     Definition functype_eqb v1 v2 : bool := functype_eq_dec v1 v2.
     Definition eqfunctypeP : Equality.axiom functype_eqb :=
       eq_dec_Equality_axiom functype functype_eq_dec.
-    Canonical Structure functype_eqMixin := EqMixin eqfunctypeP.
-    Canonical Structure functype_eqType :=
-      Eval hnf in EqType functype functype_eqMixin. *)
+
+    HB.instance Definition _ := hasDecEq.Build (functype) (eqfunctypeP).
+    *)
   (if cant_do_equality then "(* FIXME - No clear way to do decidable equality *)\n" else "") ^
   (match id with
   (* TODO - Modify this to be for all recursive inductive types *)
@@ -171,12 +171,10 @@ let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder 
     "Proof. " ^ proof ^ ".\n\n") ^ 
 
   "Definition " ^ id ^ "_eqb" ^ binders ^ " (v1 v2 : " ^ id ^ binder_ids ^ ") : bool :=\n" ^
-  "  is_left" ^ parens (id ^ "_eq_dec" ^ binder_ids ^ " v1 v2") ^ ".\n" ^  
+  "\tis_left" ^ parens (id ^ "_eq_dec" ^ binder_ids ^ " v1 v2") ^ ".\n" ^  
   "Definition eq" ^ id ^ "P" ^ binders ^ " : Equality.axiom " ^ parens (id ^ "_eqb " ^ binder_ids) ^ " :=\n" ^
-  "  eq_dec_Equality_axiom " ^ parens (id ^ binder_ids) ^ " " ^ parens (id ^ "_eq_dec" ^ binder_ids) ^ ".\n\n" ^
-  "Canonical Structure " ^ id ^ "_eqMixin" ^ binders ^ " := EqMixin " ^ parens ("eq" ^ id ^ "P" ^ binder_ids) ^ ".\n" ^
-  "Canonical Structure " ^ id ^ "_eqType" ^ binders ^ " :=\n" ^
-  "  Eval hnf in EqType " ^ parens (id ^ binder_ids) ^ " " ^ parens (id ^ "_eqMixin" ^ binder_ids) ^  ".\n\n" ^
+  "\teq_dec_Equality_axiom " ^ parens (id ^ binder_ids) ^ " " ^ parens (id ^ "_eq_dec" ^ binder_ids) ^ ".\n\n" ^
+  "HB.instance Definition _" ^ binders ^ " := hasDecEq.Build " ^ parens (id ^ binder_ids) ^ " " ^ parens ("eq" ^ id ^ "P" ^ binder_ids) ^ ".\n" ^
   "Hint Resolve " ^ id ^ "_eq_dec : eq_dec_db" 
 
 let string_of_relation_args (args : relation_args) = 
@@ -323,10 +321,9 @@ let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) =
 let exported_string = 
   "(* Imported Code *)\n" ^
   "From Coq Require Import String List Unicode.Utf8 Reals.\n" ^
-  "From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool seq eqtype.\n" ^
+  "From mathcomp Require Import ssreflect ssrfun ssrnat ssrbool seq eqtype rat ssrint.\n" ^
+  "From HB Require Import structures.\n" ^
   "From RecordUpdate Require Import RecordSet.\n" ^
-  "Require Import NArith.\n" ^
-  "Require Import Arith.\n" ^
   "Declare Scope wasm_scope.\n\n" ^
   "Class Inhabited (T: Type) := { default_val : T }.\n\n" ^
   "Definition lookup_total {T: Type} {_: Inhabited T} (l: list T) (n: nat) : T :=\n" ^
@@ -337,8 +334,8 @@ let exported_string =
 	"\t\t| Some v => v\n" ^
 	"\tend.\n\n" ^
   "Definition list_zipWith {X Y Z : Type} (f : X -> Y -> Z) (xs : list X) (ys : list Y) : list Z :=\n" ^
-  "\tmap (fun '(x, y) => f x y) (combine xs ys).\n\n" ^
-  "Definition option_zipWith {α β γ: Type} (f: α → β → γ) (x: option α) (y: option β): option γ := \n" ^
+  "\tList.map (fun '(x, y) => f x y) (List.combine xs ys).\n\n" ^
+  "Definition option_zipWith {α β γ: Type} (f: α -> β -> γ) (x: option α) (y: option β): option γ := \n" ^
   "\tmatch x, y with\n" ^
   "\t\t| Some x, Some y => Some (f x y)\n" ^
   "\t\t| _, _ => None\n" ^
@@ -346,7 +343,7 @@ let exported_string =
   "Fixpoint list_update {α: Type} (l: list α) (n: nat) (y: α): list α :=\n" ^
   "\tmatch l, n with\n" ^
   "\t\t| nil, _ => nil\n" ^
-  "\t\t| x :: l', 0 => y :: l'\n" ^
+  "\t\t| x :: l', O => y :: l'\n" ^
   "\t\t| x :: l', S n => x :: list_update l' n y\n" ^
   "\tend.\n\n" ^
   "Definition option_append {α: Type} (x y: option α) : option α :=\n" ^
@@ -362,24 +359,24 @@ let exported_string =
   "Fixpoint list_update_func {α: Type} (l: list α) (n: nat) (y: α -> α): list α :=\n" ^
 	"\tmatch l, n with\n" ^
 	"\t\t| nil, _ => nil\n" ^
-	"\t\t| x :: l', 0 => (y x) :: l'\n" ^
+	"\t\t| x :: l', O => (y x) :: l'\n" ^
 	"\t\t| x :: l', S n => x :: list_update_func l' n y\n" ^
 	"\tend.\n\n" ^
   "Fixpoint list_slice {α: Type} (l: list α) (i: nat) (j: nat): list α :=\n" ^
 	"\tmatch l, i, j with\n" ^
 	"\t\t| nil, _, _ => nil\n" ^
-	"\t\t| x :: l', 0, 0 => nil\n" ^
-	"\t\t| x :: l', S n, 0 => nil\n" ^
-	"\t\t| x :: l', 0, S m => x :: list_slice l' 0 m\n" ^
+	"\t\t| x :: l', O, O => nil\n" ^
+	"\t\t| x :: l', S n, O => nil\n" ^
+	"\t\t| x :: l', O, S m => x :: list_slice l' 0 m\n" ^
 	"\t\t| x :: l', S n, m => list_slice l' n m\n" ^
 	"\tend.\n\n" ^
   "Fixpoint list_slice_update {α: Type} (l: list α) (i: nat) (j: nat) (update_l: list α): list α :=\n" ^
 	"\tmatch l, i, j, update_l with\n" ^
 	"\t\t| nil, _, _, _ => nil\n" ^
 	"\t\t| l', _, _, nil => l'\n" ^
-	"\t\t| x :: l', 0, 0, _ => nil\n" ^
-	"\t\t| x :: l', S n, 0, _ => nil\n" ^
-	"\t\t| x :: l', 0, S m, y :: u_l' => y :: list_slice_update l' 0 m u_l'\n" ^
+	"\t\t| x :: l', O, O, _ => nil\n" ^
+	"\t\t| x :: l', S n, O, _ => nil\n" ^
+	"\t\t| x :: l', O, S m, y :: u_l' => y :: list_slice_update l' 0 m u_l'\n" ^
 	"\t\t| x :: l', S n, m, _ => x :: list_slice_update l' n m update_l\n" ^
 	"\tend.\n\n" ^
   "Definition list_extend {α: Type} (l: list α) (y: α): list α :=\n" ^
@@ -404,6 +401,7 @@ let exported_string =
   "Coercion option_to_list: option >-> list.\n\n" ^
   "Coercion Z.to_nat: Z >-> nat.\n\n" ^
   "Coercion Z.of_nat: nat >-> Z.\n\n" ^
+  "Coercion ratz: int >-> rat.\n\n" ^
   "Create HintDb eq_dec_db.\n\n" ^
   "Ltac decidable_equality_step :=\n" ^
   "  do [ by eauto with eq_dec_db | decide equality ].\n\n" ^
@@ -416,8 +414,7 @@ let exported_string =
   "Qed.\n\n" ^
   "Open Scope wasm_scope.\n" ^
   "Import ListNotations.\n" ^
-  "Import RecordSetNotations.\n\n" ^
-  "Unset Implicit Arguments.\n\n" 
+  "Import RecordSetNotations.\n\n"
   
 
 let string_of_script (mil : mil_script) =
