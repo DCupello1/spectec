@@ -107,6 +107,10 @@ syntax valtype hint(desc "number type") =
 syntax Inn hint(show I#n) hint(prefix "INN_") = I32 | I64
 syntax Fnn hint(show F#n) hint(prefix "FNN_") = F32 | F64
 
+def $optionSize(valtype?) : nat
+def $optionSize(valtype) = 1
+def $optionSize(eps) = 0
+
 var t : valtype
 
 syntax resulttype hint(desc "result type") =
