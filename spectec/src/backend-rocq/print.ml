@@ -25,6 +25,7 @@ let is_prop (t: mil_typ) =
   match t with
     | T_arrowtype [_; _; T_type_basic T_prop] | T_type_basic T_prop -> true
     | _ -> false 
+
 let comment_desc_def (def: mil_def): string = 
   match def.it with
     | TypeAliasD _ -> "Type Alias Definition"
@@ -50,9 +51,12 @@ and string_of_term is_match (term : term) =
     | T_exp_basic (T_real _r) -> "" (* TODO Manage reals well *)
     | T_exp_basic (T_string s) -> "\"" ^ String.escaped s ^ "\""
     | T_exp_basic T_exp_unit -> "tt"
-    | T_exp_basic T_not -> "~"
-    | T_exp_basic T_and -> " /\\ "
-    | T_exp_basic T_or -> " \\/ "
+    | T_exp_basic T_not when is_prop term.typ -> "~"
+    | T_exp_basic T_not -> "negb"
+    | T_exp_basic T_and when is_prop term.typ -> " /\\ "
+    | T_exp_basic T_and -> " && "
+    | T_exp_basic T_or when is_prop term.typ -> " \\/ "
+    | T_exp_basic T_or -> " || "
     | T_exp_basic T_impl -> " -> "
     | T_exp_basic T_equiv -> " <-> "
     | T_exp_basic T_add -> " + "
@@ -61,8 +65,10 @@ and string_of_term is_match (term : term) =
     | T_exp_basic T_div -> " / "
     | T_exp_basic T_exp -> " ^ "
     | T_exp_basic T_mod -> " mod "
-    | T_exp_basic T_eq -> if is_prop term.typ then " = " else " == "
-    | T_exp_basic T_neq -> if is_prop term.typ then " <> " else " != "
+    | T_exp_basic T_eq when is_prop term.typ -> " = "
+    | T_exp_basic T_eq -> " == "
+    | T_exp_basic T_neq when is_prop term.typ -> " <> "
+    | T_exp_basic T_neq -> " != "
     | T_exp_basic T_lt -> " < "
     | T_exp_basic T_gt -> " > "
     | T_exp_basic T_le -> " <= "
@@ -172,7 +178,7 @@ let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder 
 
   "Definition " ^ id ^ "_eqb" ^ binders ^ " (v1 v2 : " ^ id ^ binder_ids ^ ") : bool :=\n" ^
   "\tis_left" ^ parens (id ^ "_eq_dec" ^ binder_ids ^ " v1 v2") ^ ".\n" ^  
-  "Definition eq" ^ id ^ "P" ^ binders ^ " : Equality.axiom " ^ parens (id ^ "_eqb " ^ binder_ids) ^ " :=\n" ^
+  "Definition eq" ^ id ^ "P" ^ binders ^ " : Equality.axiom " ^ parens (id ^ "_eqb" ^ binder_ids) ^ " :=\n" ^
   "\teq_dec_Equality_axiom " ^ parens (id ^ binder_ids) ^ " " ^ parens (id ^ "_eq_dec" ^ binder_ids) ^ ".\n\n" ^
   "HB.instance Definition _" ^ binders ^ " := hasDecEq.Build " ^ parens (id ^ binder_ids) ^ " " ^ parens ("eq" ^ id ^ "P" ^ binder_ids) ^ ".\n" ^
   "Hint Resolve " ^ id ^ "_eq_dec : eq_dec_db" 
