@@ -1,4 +1,5 @@
 open Ast
+open Utils
 
 let parens s = "(" ^ s ^ ")"
 let square_parens s = "[" ^ s ^ "]"
@@ -8,22 +9,6 @@ let curly_parens s = "{" ^ s ^ "}"
 let empty_name s = match s with
   | "" -> "NO_NAME"
   | _ -> s
-
-let remove_iter_from_type t =
-  match t with
-    | T_app ({it = T_type_basic T_list; _}, [t']) -> t'.it
-    | T_app ({it = T_type_basic T_opt; _}, [t']) -> t'.it
-    | t' -> t'
-
-let get_id t = 
-  match t with
-    | T_app ({it = T_ident id; _}, _) -> id
-    | _ -> assert false
-
-let is_dependent_type t =
-  match t with
-    | T_app ({it = T_ident _; _}, args) -> args <> []
-    | _ -> false 
 
 let string_of_list_prefix prefix delim str_func ls = 
   match ls with

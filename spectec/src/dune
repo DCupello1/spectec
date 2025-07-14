@@ -15,5 +15,6 @@
     (re_export backend_rocq)
     (re_export il2al)
     (re_export mil)
+    (re_export il2mil)
   )
 )

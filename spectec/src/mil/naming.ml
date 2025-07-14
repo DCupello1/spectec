@@ -1,7 +1,8 @@
 open Util.Source
 open Ast
-open Translate
+open Utils
 
+let error at msg = Util.Error.error at "MIL Naming Pass" msg
 
 (* Generates a fresh name if necessary, and goes up to a maximum which then it will return an error*)
 let generate_var at ids i =
@@ -42,7 +43,7 @@ let rec transform_term prefix_map t =
   (match t.it with
   (* Specific case and record fields handling *)
   | T_caseapp (id, terms) -> 
-    let id' = Print.get_id t.typ in
+    let id' = get_id t.typ in
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
       | Some prefix -> prefix
       | None -> ""
@@ -53,7 +54,7 @@ let rec transform_term prefix_map t =
       | None -> T_caseapp (extra_prefix ^ id, List.map t_func terms)
     )
   | T_dotapp (id, term) -> 
-    let id' = Print.get_id term.typ in
+    let id' = get_id term.typ in
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
       | Some prefix -> prefix
       | None -> ""
@@ -64,7 +65,7 @@ let rec transform_term prefix_map t =
       | None -> T_dotapp (extra_prefix ^ id, t_func term)
     )
   | T_record_fields fields -> 
-    let id' = Print.get_id t.typ in 
+    let id' = get_id t.typ in 
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
         | Some prefix -> prefix
         | None -> ""
@@ -79,7 +80,7 @@ let rec transform_term prefix_map t =
       (new_id, t_func t)
     ) fields)
   | T_record_update (t1, id, t3) -> 
-    let id' = Print.get_id t1.typ in 
+    let id' = get_id t1.typ in 
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
         | Some prefix -> prefix
         | None -> ""
