@@ -180,8 +180,8 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
     | InductiveD (id, bs, inductive_type_entries) -> region ^ "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t| " ^
       String.concat "\n\t| " (string_of_inductive_type_entries inductive_type_entries) ^ endnewline
     | DefinitionD (id, bs, rt, clauses) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term' rt ^ " =\n\t" ^
-      "match " ^ String.concat ", " (grab_id_of_binders bs) ^ " with\n\t\t| " ^
-      String.concat "\n\t\t| " (List.map (fun (match_terms, f_b) -> string_of_list_prefix " " ", " string_of_term match_terms ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
+      "match " ^ String.concat ", " (grab_id_of_binders bs) ^ " with\n\t\t|" ^
+      String.concat "\n\t\t|" (List.map (fun (match_terms, f_b) -> string_of_list_prefix " " ", " string_of_term match_terms ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
     | GlobalDeclarationD (id, rt, (_, f_b)) -> region ^ "definition " ^ id ^ " : " ^ string_of_term' rt ^ " := " ^ string_of_function_body f_b ^ endnewline
     | MutualRecD defs -> region ^ String.concat "" (List.map (string_of_def ~suppress_unsup) defs)
     | AxiomD (id, bs, rt) -> region ^ "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term' rt ^ endnewline

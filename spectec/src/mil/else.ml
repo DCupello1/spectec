@@ -42,11 +42,6 @@ let neg_suffix = "_neg"
 (* We assume the expressions to be of the same type; for ill-typed inputs
   no guarantees are made. *)
 (* TODO: e.g. 
-  Step_read__call_indirect_call has the following conclusion:
-  Step_read (config__ v_z 
-  [(admininstr__CONST (valtype__INN (inn__I32 )) (v_i : val_)); 
-   (admininstr__CALL_INDIRECT v_x)]) [(admininstr__CALL_ADDR v_a)] *)
-(* TODO: e.g. 
   Step_read__call_indirect_trap has the following conclusion:
   Step_read (config__ v_z 
   [(admininstr__CONST (valtype__INN (inn__I32 )) (v_i : val_));

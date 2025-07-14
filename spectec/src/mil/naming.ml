@@ -22,7 +22,7 @@ let generate_var at ids i =
     | s when List.mem s ids -> go i start
     | _ -> i
 
-(* NOTE - This only works for function defs binders since they are not used later.
+(* NOTE - This only works for function defs binders since the variables are not used later.
   Would need to make a subst for MIL to make this work for all binders *)
 let improve_ids_binders at binders = 
   let rec improve_ids_helper ids bs = 
@@ -60,7 +60,7 @@ let rec transform_term prefix_map t =
     ) in 
     let combined_id = string_combine id id' in
     (match (StringMap.find_opt combined_id prefix_map) with 
-      | Some prefix -> T_dotapp (extra_prefix ^ prefix ^id, t_func term) 
+      | Some prefix -> T_dotapp (extra_prefix ^ prefix ^ id, t_func term) 
       | None -> T_dotapp (extra_prefix ^ id, t_func term)
     )
   | T_record_fields fields -> 
@@ -78,7 +78,6 @@ let rec transform_term prefix_map t =
       ) in  
       (new_id, t_func t)
     ) fields)
-  (* TODO need to add correct prefix to t2 *)
   | T_record_update (t1, id, t3) -> 
     let id' = Print.get_id t1.typ in 
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
