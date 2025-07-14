@@ -316,7 +316,7 @@ and transform_cmpop (exp_type : exp_type) (at : region) (c : cmpop) (op : optyp)
       T_exp_basic T_le $@ cmpnum_typ (transform_numtyp nt)
     | `GeOp, (#Xl.Num.typ as nt) -> 
       T_exp_basic T_ge $@ cmpnum_typ (transform_numtyp nt)
-    | _, _ -> error at "Malformed binary operation"
+    | _, _ -> error at "Malformed comparison operation"
 
 (* Binds, args, and params functions *)
 and transform_arg exp_type (arg : arg) =
@@ -411,7 +411,7 @@ and transform_path' (paths : path list) typ at n name is_extend end_term =
       let path_term = transform_path' ps' new_typ at n (Some new_term) is_extend end_term $@ new_typ in
       T_record_update (projection_term, transform_atom a, path_term)
     | ({it = SliceP (_, _e1, _e2); _} as p) :: _ps ->
-      (* TODO this is not entirely correct. Still unsure how to implement this as a term *)
+      (* TODO - this is not entirely correct. Still unsure how to implement this as a term *)
       (* let new_typ = transform_type' NORMAL note in
       let path_term = transform_path' ps new_typ at (n + 1) None is_extend end_term $@ transform_type' NORMAL note in
       let new_name = var_prefix ^ string_of_int (n + 1) in
@@ -614,11 +614,6 @@ let rec transform_def (map : string StringMap.t ref) (def : def) : mil_def list 
     | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]
   ) |> List.map (fun d -> d $ def.at)
 
-let is_not_hintdef (d : def) : bool =
-  match d.it with
-    | HintD _ -> false
-    | _ -> true 
-
 (* Making prefix map *)
 
 let string_of_prefix = function
@@ -628,12 +623,7 @@ let string_of_prefix = function
 let register_prefix (map : string StringMap.t ref) (id :id) (exp : El.Ast.exp) =
   map := StringMap.add id.it (string_of_prefix exp) !map
 
-let register_partial_type (map : string StringMap.t ref) (id :id) =
-  map := StringMap.add id.it id.it !map
-
 let has_prefix_hint (hint : hint) = hint.hintid.it = "prefix"
-
-let has_partialtype_hint (hint : hint) = hint.hintid.it = "partialtype"
 
 let create_prefix_map_inst (map : string StringMap.t ref) (id : id) (i : inst) =
   match i.it with
@@ -673,6 +663,13 @@ let create_prefix_map (il : script) =
   List.iter (create_prefix_map_def map) il;
   !map
 
+(* Making partial type family map *)
+
+let register_partial_type (map : string StringMap.t ref) (id :id) =
+  map := StringMap.add id.it id.it !map
+
+let has_partialtype_hint (hint : hint) = hint.hintid.it = "partialtype"
+
 let register_partial_type_hint_def (map : string StringMap.t ref) (d : def) = 
   match d.it with
     | HintD {it = TypH (id, hints); _} ->
@@ -683,6 +680,12 @@ let register_partial_type_hint_def (map : string StringMap.t ref) (d : def) =
     | _ -> ()
 
 (* Main transformation function *)
+
+let is_not_hintdef (d : def) : bool =
+  match d.it with
+    | HintD _ -> false
+    | _ -> true 
+
 let transform (reserved_ids : Env.StringSet.t) (il : script) =
   reserved_ids_set := reserved_ids; 
   let preprocessed_il = Preprocess.preprocess il in

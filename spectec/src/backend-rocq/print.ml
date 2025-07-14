@@ -160,7 +160,7 @@ let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder 
 
     HB.instance Definition _ := hasDecEq.Build (functype) (eqfunctypeP).
     *)
-  (if cant_do_equality then "(* FIXME - No clear way to do decidable equality *)\n" else "") ^
+  (if cant_do_equality then comment_parens "FIXME - No clear way to do decidable equality" ^ "\n" else "") ^
   (match id with
   (* TODO - Modify this to be for all recursive inductive types *)
   | "instr" | "admininstr" -> 
@@ -235,7 +235,7 @@ let string_of_record (id: ident) (entries : record_entry list) =
   "{|\n\t" ^ String.concat "\t" ((List.map (fun (record_id, term) -> 
     if (check_trivial_append record_id term) 
     then record_id ^ " := " ^ "arg1.(" ^ record_id ^ ") @@ arg2.(" ^ record_id ^ ");\n" 
-    else record_id ^ " := " ^ "arg1.(" ^ record_id ^ "); (* FIXME - Non-trivial append*)\n" 
+    else record_id ^ " := " ^ "arg1.(" ^ record_id ^ "); " ^ comment_parens "FIXME - Non-trivial append" ^ "\n" 
   )) entries) ^ "|}.\n\n" ^ 
   "Global Instance Append_" ^ id ^ " : Append " ^ id ^ " := { _append arg1 arg2 := _append_" ^ id ^ " arg1 arg2 }.\n\n" ^
 
@@ -270,7 +270,7 @@ let string_of_inductive_def (id : ident) (args : binder list) (entries : inducti
 
 let string_of_definition (prefix : string) (id : ident) (binders : binder list) (return_type : return_type) (clauses : clause_entry list) = 
   prefix ^ id ^ string_of_binders binders ^ " : " ^ string_of_type return_type ^ " :=\n" ^
-  "\tmatch " ^ string_of_match_binders binders ^ " with\n\t\t" ^
+  "\tmatch " ^ string_of_match_binders binders ^ " return " ^ string_of_type return_type ^ " with\n\t\t" ^
   String.concat "\n\t\t" (List.map (fun (match_terms, fb) -> 
     "| " ^ Print.string_of_list_prefix "" ", " (string_of_term true) match_terms ^ " => " ^ string_of_function_body fb) clauses) ^
   "\n\tend"
