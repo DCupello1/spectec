@@ -1,6 +1,7 @@
 open Ast
 open Env
 open Util.Source
+open Utils
 
 let coerce_prefix = "coec_"
 
@@ -108,15 +109,15 @@ and find_same_typing at env (case_id: ident) (binds: binder list) (cases : induc
 and transform_sub_types (at : region) (env : Env.t) (t1_id : ident) (t1_typ : term') (t2_id : ident) (t2_typ : term') =
   let (_, deftyp) = find_typ env t1_id at in
   let (_, deftyp') = find_typ env t2_id at in
-  let func_name = Translate.fun_prefix ^ coerce_prefix ^ t1_id ^ "__" ^ t2_id in 
-  let params = [(Translate.var_prefix ^ t1_id, T_app (T_ident t1_id $@ anytype', []))] in 
+  let func_name = fun_prefix ^ coerce_prefix ^ t1_id ^ "__" ^ t2_id in 
+  let params = [(var_prefix ^ t1_id, T_app (T_ident t1_id $@ anytype', []))] in 
   let return_type = T_app (T_ident t2_id $@ anytype', []) in
   let func clauses = DefinitionD (func_name, params, return_type, clauses) $ at in
   let coercion = CoercionD (func_name, t1_id, t2_id) $ at in 
   let clauses_defs_pair = match deftyp, deftyp' with
     | T_inductive cases, T_inductive cases' -> 
       List.map (fun (case_id, bs) ->
-        let var_list = List.mapi (fun i (_, typ) -> T_ident (Translate.var_prefix ^ string_of_int i) $@ typ) bs in
+        let var_list = List.mapi (fun i (_, typ) -> T_ident (var_prefix ^ string_of_int i) $@ typ) bs in
         let opt = find_same_typing at env case_id bs cases' in
         (match opt with
           | Some (case_id', defs) -> 

@@ -1,7 +1,8 @@
 open Il.Ast
 open Il.Print
 open Il.Free
-open Ast
+open Mil.Ast
+open Mil.Utils
 open Util
 open Source
 
@@ -11,6 +12,7 @@ type exp_type =
   | MATCH
   | RELATION
   | NORMAL
+  
 let error at msg = Error.error at "MIL Transformation" msg
 
 let coerce_prefix = "coec_"
@@ -20,7 +22,7 @@ let reserved_prefix = "res_"
 let wf_prefix = "wf_"
 let make_prefix = "mk_"
 
-let reserved_ids_set = ref Env.StringSet.empty
+let reserved_ids_set = ref StringSet.empty
 let env_ref = ref Il.Env.empty
 
 let rec list_split (f : 'a -> bool) = function 
@@ -33,7 +35,7 @@ let rec list_split (f : 'a -> bool) = function
 let transform_id' (prefix : text) (s : text) = 
   let s' = String.to_seq s |> Seq.take_while (fun c -> c != '*' && c != '?' && c != '^' ) |> String.of_seq in 
   match s' with
-  | s when Env.StringSet.mem s !reserved_ids_set -> prefix ^ s
+  | s when StringSet.mem s !reserved_ids_set -> prefix ^ s
   | s -> String.map (function
      | '.' -> '_'
      | '-' -> '_'
@@ -78,8 +80,6 @@ let transform_mixop (typ_id : string) (m : mixop) =
   match str with
     | "" -> make_prefix ^ typ_id
     | _ -> str
-
-let string_combine id typ_name = id ^ "__" ^ typ_name
 
 let atom_string_combine a typ_name = string_combine (transform_atom a) typ_name
 
@@ -238,8 +238,8 @@ and transform_exp exp_type (exp : exp) =
       | (List | List1 | ListN _ | Opt), [(v, e1)], _ -> 
         let typ1 = transform_type' exp_type e1.note in
         let res_typ_iter = (transform_type' exp_type exp.note) in
-        let res_type = Print.remove_iter_from_type res_typ_iter in
-        let vartyp1 = Print.remove_iter_from_type typ1 in
+        let res_type = remove_iter_from_type res_typ_iter in
+        let vartyp1 = remove_iter_from_type typ1 in
         let lambda_typ = T_arrowtype [vartyp1; res_type] in
         let map_typ = T_arrowtype [lambda_typ; typ1; res_typ_iter] in
         T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [T_lambda ([(transform_var_id v, vartyp1)], exp1') $@ lambda_typ; T_ident (transform_var_id v) $@ typ1])
@@ -247,9 +247,9 @@ and transform_exp exp_type (exp : exp) =
         let typ1 = transform_type' exp_type e1.note in
         let typ2 = transform_type' exp_type e2.note in
         let res_typ_iter = (transform_type' exp_type exp.note) in
-        let res_type = Print.remove_iter_from_type res_typ_iter in
-        let vartyp1 = Print.remove_iter_from_type typ1 in
-        let vartyp2 = Print.remove_iter_from_type typ2 in
+        let res_type = remove_iter_from_type res_typ_iter in
+        let vartyp1 = remove_iter_from_type typ1 in
+        let vartyp2 = remove_iter_from_type typ2 in
         let lambda_typ = T_arrowtype [vartyp1; vartyp2; res_type] in
         let zipwith_typ = T_arrowtype [lambda_typ; typ1; typ2; res_typ_iter] in
         T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], exp1') $@ lambda_typ; T_ident (transform_var_id v) $@ typ1; T_ident (transform_var_id s) $@ typ2])
@@ -363,7 +363,7 @@ and transform_path' (paths : path list) typ at n name is_extend end_term =
     | None -> T_ident (var_prefix ^ string_of_int num) $@ typ
   ) in
 
-  let new_name_typ = Print.remove_iter_from_type (list_name n).typ in
+  let new_name_typ = remove_iter_from_type (list_name n).typ in
   let new_name = var_prefix ^ string_of_int (n + 1) in 
   (* TODO fix typing of newly created terms *)
   match paths with
@@ -686,7 +686,7 @@ let is_not_hintdef (d : def) : bool =
     | HintD _ -> false
     | _ -> true 
 
-let transform (reserved_ids : Env.StringSet.t) (il : script) =
+let transform (reserved_ids : StringSet.t) (il : script) =
   reserved_ids_set := reserved_ids; 
   let preprocessed_il = Preprocess.preprocess il in
   let partial_map = ref StringMap.empty in 

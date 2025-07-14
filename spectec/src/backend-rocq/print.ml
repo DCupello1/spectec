@@ -41,7 +41,7 @@ let comment_desc_def (def: mil_def): string =
     | GlobalDeclarationD _ -> "Global Declaration Definition"
     | UnsupportedD _ -> ""
 
-let rec string_of_type term = string_of_term false (term $@ anytype')
+let rec string_of_type term = string_of_term false (term $@ Utils.anytype')
 and string_of_term is_match (term : term) =
   match term.it with
     | T_exp_basic (T_bool b) -> string_of_bool b
@@ -110,7 +110,7 @@ and string_of_term is_match (term : term) =
     | T_caseapp (case_id, args) when is_match -> 
       parens (case_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
     | T_caseapp (case_id, args) ->
-      let typ_id = Print.get_id term.typ in 
+      let typ_id = Utils.get_id term.typ in 
       let num_new_args = Env.count_case_binders !env_ref typ_id in 
       let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in  
       parens (case_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) new_args)
@@ -193,12 +193,12 @@ let rec string_of_premise (prem : premise) =
     | P_neg p -> parens ("~" ^ string_of_premise p)
     | P_else -> "otherwise" (* Will be removed by an else pass *)
     | P_list_forall (iterator, p, (id, t)) -> 
-      let binder = string_of_binder (id, Mil.Print.remove_iter_from_type t) in
+      let binder = string_of_binder (id, Utils.remove_iter_from_type t) in
       let option_conversion = if iterator = I_option then "option_to_list " else "" in
       "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id)
     | P_list_forall2 (iterator, p, (id, t), (id2, t2)) -> 
-      let binder = string_of_binder (id, Mil.Print.remove_iter_from_type t) in
-      let binder2 = string_of_binder (id2, Mil.Print.remove_iter_from_type t2) in
+      let binder = string_of_binder (id, Utils.remove_iter_from_type t) in
+      let binder2 = string_of_binder (id2, Utils.remove_iter_from_type t2) in
       let option_conversion = if iterator = I_option then "option_to_list " else "" in
       "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id) ^ " " ^ parens (option_conversion ^ id2)
     | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
@@ -246,8 +246,8 @@ let string_of_record (id: ident) (entries : record_entry list) =
 
 let string_of_inductive_def (id : ident) (args : binder list) (entries : inductive_type_entry list) = 
   let cant_do_equality = 
-    (List.exists (fun (_, t) -> t = anytype') args) ||
-    (List.exists (fun (_, binds) -> List.exists (fun (_, t) -> Print.is_dependent_type t) binds) entries)
+    (List.exists (fun (_, t) -> t = Utils.anytype') args) ||
+    (List.exists (fun (_, binds) -> List.exists (fun (_, t) -> Utils.has_parameters t) binds) entries)
   in 
   
   "Inductive " ^ id ^ string_of_binders args ^ " : Type :=\n\t" ^

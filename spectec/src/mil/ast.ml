@@ -141,12 +141,3 @@ and mil_def' =
 type mil_script = mil_def list
 
 let ($@) it typ = {it; typ}
-
-let anytype' = T_type_basic T_anytype
-let anytype = anytype' $@ anytype'
-
-let typ_to_term t = t $@ anytype'
-
-let num_typ nt = T_arrowtype [nt; nt; nt]
-let bool_binop_typ = T_arrowtype [T_type_basic T_bool; T_type_basic T_bool; T_type_basic T_bool]
-let prop_binop_typ = T_arrowtype [T_type_basic T_prop; T_type_basic T_prop; T_type_basic T_prop]

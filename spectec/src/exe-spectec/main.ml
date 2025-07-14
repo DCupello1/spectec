@@ -266,7 +266,7 @@ let () =
           | Rocq -> Backend_rocq.Utils.reserved_ids
           | _ -> Mil.Env.StringSet.empty
         ) in
-        let prefix_map, mil = Mil.Translate.transform reserved_ids il in
+        let prefix_map, mil = Il2mil.Translate.transform reserved_ids il in
         if !print_mil_f || !print_all_mil then 
           print_mil mil;
         let transformed_mil = List.fold_left (fun mil' pass ->
