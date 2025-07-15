@@ -1,6 +1,6 @@
 open Util.Source
-open Ast
-open Utils
+open Mil.Ast
+open Mil.Utils
 
 let error at msg = Util.Error.error at "MIL Naming Pass" msg
 
@@ -42,53 +42,53 @@ let rec transform_term prefix_map t =
   let t_func' = transform_type prefix_map in
   (match t.it with
   (* Specific case and record fields handling *)
-  | T_caseapp (id, terms) -> 
+  | T_caseapp ((prefixes, id), terms) -> 
     let id' = get_id t.typ in
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
-      | Some prefix -> prefix
-      | None -> ""
+      | Some prefix -> [prefix]
+      | None -> []
     ) in 
     let combined_id = string_combine id id' in
     (match (StringMap.find_opt combined_id prefix_map) with 
-      | Some prefix -> T_caseapp (extra_prefix ^ prefix ^ id, List.map t_func terms) 
-      | None -> T_caseapp (extra_prefix ^ id, List.map t_func terms)
+      | Some prefix -> T_caseapp ((extra_prefix @ [prefix] @ prefixes,  id), List.map t_func terms) 
+      | None -> T_caseapp ((extra_prefix @ prefixes, id), List.map t_func terms)
     )
-  | T_dotapp (id, term) -> 
+  | T_dotapp ((prefixes, id), term) -> 
     let id' = get_id term.typ in
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
-      | Some prefix -> prefix
-      | None -> ""
+      | Some prefix -> [prefix]
+      | None -> []
     ) in 
     let combined_id = string_combine id id' in
     (match (StringMap.find_opt combined_id prefix_map) with 
-      | Some prefix -> T_dotapp (extra_prefix ^ prefix ^ id, t_func term) 
-      | None -> T_dotapp (extra_prefix ^ id, t_func term)
+      | Some prefix -> T_dotapp ((extra_prefix @ [prefix] @ prefixes,  id), t_func term) 
+      | None -> T_dotapp ((extra_prefix @ prefixes, id), t_func term)
     )
   | T_record_fields fields -> 
     let id' = get_id t.typ in 
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
-        | Some prefix -> prefix
-        | None -> ""
+        | Some prefix -> [prefix]
+        | None -> []
     ) in 
     T_record_fields ( 
-    List.map (fun (id, t) -> 
+    List.map (fun ((prefixes, id), t) -> 
       let combined_id = string_combine id id' in
       let new_id = (match (StringMap.find_opt combined_id prefix_map) with
-        | Some prefix -> extra_prefix ^ prefix ^ id
-        | None -> extra_prefix ^ id
+        | Some prefix -> extra_prefix @ [prefix] @ prefixes, id
+        | None -> extra_prefix @ prefixes, id
       ) in  
       (new_id, t_func t)
     ) fields)
-  | T_record_update (t1, id, t3) -> 
+  | T_record_update (t1, (prefixes, id), t3) -> 
     let id' = get_id t1.typ in 
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
-        | Some prefix -> prefix
-        | None -> ""
+        | Some prefix -> [prefix]
+        | None -> []
     ) in 
     let combined_id = string_combine id id' in
     let new_id = (match (StringMap.find_opt combined_id prefix_map) with
-      | Some prefix -> extra_prefix ^ prefix ^ id
-      | None -> extra_prefix ^ id
+      | Some prefix -> extra_prefix @ [prefix] @ prefixes, id
+      | None -> extra_prefix @ prefixes, id
     ) in  
     T_record_update (t_func t1, new_id, t_func t3)
   (* Descend *)
@@ -128,35 +128,33 @@ let rec transform_fb prefix_map f =
   | F_let (t1, t2, fb) -> F_let (transform_term prefix_map t1, transform_term prefix_map t2, transform_fb prefix_map fb)
   | F_match t -> F_match (transform_term prefix_map t)
   | F_default -> F_default
-
-
   
 let rec transform_def prefix_map (d : mil_def) =
   (match d.it with
   | TypeAliasD (id, bs, t) -> TypeAliasD (id, transform_binders prefix_map bs, transform_term prefix_map t) 
   | RecordD (id, record_entries) -> 
     let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
-        | Some prefix -> prefix
-        | None -> ""
+        | Some prefix -> [prefix]
+        | None -> []
     ) in 
-    RecordD (id, List.map (fun (id', t) -> 
+    RecordD (id, List.map (fun ((prefixes, id'), t) -> 
       let combined_id = string_combine id' id in
       let new_id = (match (StringMap.find_opt combined_id prefix_map) with
-        | Some prefix -> extra_prefix ^ prefix ^ id'
-        | None -> extra_prefix ^ id'
+        | Some prefix -> extra_prefix @ [prefix] @ prefixes,id'
+        | None -> extra_prefix @ prefixes, id'
       ) in 
-      (new_id, transform_term prefix_map t)) record_entries)
+      (new_id, transform_type prefix_map t)) record_entries)
   | InductiveD (id, bs, entries) -> 
     let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
-        | Some prefix -> prefix
-        | None -> ""
+        | Some prefix -> [prefix]
+        | None -> []
     ) in 
     InductiveD (id, transform_binders prefix_map bs,
-    List.map (fun (id', bs) -> 
+    List.map (fun ((prefixes, id'), bs) -> 
       let combined_id = string_combine id' id in
       let new_id = (match (StringMap.find_opt combined_id prefix_map) with
-        | Some prefix -> extra_prefix ^ prefix ^ id'
-        | None -> extra_prefix ^ id'
+        | Some prefix -> extra_prefix @ [prefix] @ prefixes, id'
+        | None -> extra_prefix @ prefixes, id'
       ) in 
       (new_id, transform_binders prefix_map bs)
     ) entries)

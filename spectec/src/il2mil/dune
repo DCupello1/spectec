@@ -1,5 +1,5 @@
 (library
   (name il2mil)
   (libraries util mil xl il)
-  (modules translate tfamily preprocess)
+  (modules translate tfamily preprocess naming)
 )

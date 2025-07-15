@@ -7,6 +7,9 @@ type ident = string
 type name = ident
 type func_name = ident
 
+(* Prefixed name is as follows: list of prefixes that are prepended to the original name *)
+type prefixed_ident = ident list * ident
+
 type basic_type = 
   | T_unit
   | T_bool
@@ -73,11 +76,11 @@ and term' =
   | T_type_basic of basic_type
   | T_ident of ident
   | T_list of (term list)
-  | T_record_update of (term * ident * term)
-  | T_record_fields of (ident * term) list
+  | T_record_update of (term * prefixed_ident * term)
+  | T_record_fields of (prefixed_ident * term) list
   | T_lambda of (binder list * term)
-  | T_caseapp of (ident * term list)
-  | T_dotapp of (ident * term) 
+  | T_caseapp of (prefixed_ident * term list)
+  | T_dotapp of (prefixed_ident * term) 
   | T_app of (term * term list)
   | T_app_infix of (term * term * term) (* Same as above but first term is placed in the middle *)
   | T_tuple of (term list)
@@ -106,11 +109,11 @@ and function_body =
 
 and binder = (ident * mil_typ)
 
-and record_entry = (ident * term)
+and record_entry = (prefixed_ident * mil_typ)
 
-and inductive_type_entry = (ident * binder list)
+and inductive_type_entry = (prefixed_ident * binder list)
 
-and relation_type_entry = inductive_type_entry * premise list * term list
+and relation_type_entry = (ident * binder list) * premise list * term list
 
 and relation_args = term list
 
