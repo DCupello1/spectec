@@ -266,7 +266,7 @@ let () =
           | Rocq -> Backend_rocq.Utils.reserved_ids
           | _ -> Mil.Env.StringSet.empty
         ) in
-        let prefix_map, mil = Il2mil.Translate.transform reserved_ids il in
+        let mil = Il2mil.Translate.transform reserved_ids il in
         if !print_mil_f || !print_all_mil then 
           print_mil mil;
         let transformed_mil = List.fold_left (fun mil' pass ->
@@ -276,13 +276,9 @@ let () =
             print_mil mil'';
           mil''
         ) mil all_mil_passes in
-        let final_mil = Mil.Naming.transform prefix_map transformed_mil in
-        log ("Running pass Naming...");
-        if !print_all_mil then 
-          print_mil final_mil;
         log ("Checking names are unique...");
-        Mil.Env.check_uniqueness final_mil;
-        final_mil
+        Mil.Env.check_uniqueness transformed_mil;
+        transformed_mil
       )
       else []
     in

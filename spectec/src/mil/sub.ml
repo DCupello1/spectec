@@ -94,16 +94,16 @@ and is_same_type' at env (t1 : mil_typ) (t2 : mil_typ) =
 
 (* Assumes that tuple variables will be in same order, can be modified if necessary *)
 (* TODO must also check if some types inside the type are subtyppable and as such it should also be allowed *)
-and find_same_typing at env (case_id: ident) (binds: binder list) (cases : inductive_type_entry list) =
-  List.find_map (fun (case_id', binds') -> 
+and find_same_typing at env ((_prefixes, case_id): prefixed_ident) (binds: binder list) (cases : inductive_type_entry list) =
+  List.find_map (fun ((prefixes', case_id'), binds') -> 
     let case_found = case_id = case_id' && List.length binds = List.length binds' in
     if not case_found then None else 
     List.fold_left2 (fun acc t1 t2 -> 
       match acc with
         | None -> None
-        | Some (id, a) -> let opt = is_same_type' at env t1 t2 in 
-          Option.map (fun b -> (id, a @ b)) opt
-    ) (Some (case_id', [])) (List.map snd binds) (List.map snd binds')
+        | Some (p_id, a) -> let opt = is_same_type' at env t1 t2 in 
+          Option.map (fun b -> (p_id, a @ b)) opt
+    ) (Some ((prefixes', case_id'), [])) (List.map snd binds) (List.map snd binds')
   ) cases
 
 and transform_sub_types (at : region) (env : Env.t) (t1_id : ident) (t1_typ : term') (t2_id : ident) (t2_typ : term') =

@@ -81,6 +81,22 @@ let rebind_typ env id rhs = {env with typs = rebind "type" env.typs id rhs}
 let rebind_def env id rhs = {env with defs = rebind "definition" env.defs id rhs}
 let rebind_rel env id rhs = {env with rels = rebind "relation" env.rels id rhs}
 
+let is_record_typ env id = match (find_opt_typ env id) with 
+  | Some (_, T_record _) -> true 
+  | _ -> false 
+
+let is_family_typ env id = match (find_opt_typ env id) with 
+  | Some (_, T_tfamily _) -> true 
+  | _ -> false 
+
+let is_inductive_typ env id = match (find_opt_typ env id) with 
+  | Some (_, T_inductive _) -> true 
+  | _ -> false 
+
+let is_alias_typ env id = match (find_opt_typ env id) with 
+  | Some (_, T_alias _) -> true 
+  | _ -> false 
+
 let count_case_binders env typ_id = 
   match (find_opt_typ env typ_id) with
   | Some (dep_bs, T_inductive _) -> List.length dep_bs 
@@ -119,12 +135,12 @@ let rec check_uniqueness_def map d =
     map := check_map !map id d.at
   | RecordD (id, records) -> 
     List.iter (fun (r_id, _t) -> 
-      map := check_map !map r_id d.at 
+      map := check_map !map (Print.string_of_prefixed_ident r_id) d.at 
     ) records;
     map := check_map !map id d.at
   | InductiveD (id, _bs', cases) -> 
     List.iter (fun (case_id, _bs') -> 
-      map := check_map !map case_id d.at 
+      map := check_map !map (Print.string_of_prefixed_ident case_id)  d.at 
     ) cases;
     map := check_map !map id d.at
   | InductiveRelationD (id, _r_args, rules) -> 
