@@ -172,6 +172,7 @@ and free_sym g =
 and free_prem prem =
   match prem.it with
   | RulePr (id, _op, e) -> free_relid id + free_exp e
+  | NegPr prem' -> free_prem prem'
   | IfPr e -> free_exp e
   | LetPr (e1, e2, _) -> free_exp e1 + free_exp e2
   | ElsePr -> empty

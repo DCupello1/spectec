@@ -200,6 +200,7 @@ and string_of_prem prem =
   match prem.it with
   | RulePr (id, mixop, e) ->
     string_of_id id ^ ": " ^ string_of_mixop mixop ^ string_of_exp_args e
+  | NegPr prem' -> "~ " ^ string_of_prem prem'
   | IfPr e -> "if " ^ string_of_exp e
   | LetPr (e1, e2, ids) ->
     let ids' = List.map (fun x -> x $ no_region) ids in

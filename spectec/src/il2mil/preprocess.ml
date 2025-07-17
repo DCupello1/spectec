@@ -185,6 +185,7 @@ and preprocess_param p_env p =
 let rec preprocess_prem p_env prem = 
   (match prem.it with
     | RulePr (id, m, e) -> RulePr (id, m, preprocess_exp p_env e)
+    | NegPr prem1 -> NegPr (preprocess_prem p_env prem1)
     | IfPr e -> IfPr (preprocess_exp p_env e)
     | LetPr (e1, e2, ids) -> LetPr (preprocess_exp p_env e1, preprocess_exp p_env e2, ids)
     | ElsePr -> ElsePr

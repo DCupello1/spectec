@@ -581,6 +581,7 @@ and valid_prem env prem =
     let mixop', t, _rules = Env.find_rel env id in
     assert (Mixop.eq mixop mixop');
     valid_expmix env mixop e (mixop, t) e.at
+  | NegPr prem' -> valid_prem env prem'
   | IfPr e ->
     valid_exp env e (BoolT $ e.at)
   | LetPr (e1, e2, ids) ->

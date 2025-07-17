@@ -432,14 +432,15 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
     | LetPr (exp1, exp2, _) -> 
       let eqtyp = T_arrowtype [transform_type' NORMAL exp1.note; transform_type' NORMAL exp2.note; T_type_basic T_bool] in
       P_if (T_app_infix (T_exp_basic T_eq $@ eqtyp, transform_exp NORMAL exp1, transform_exp NORMAL exp2) $@ T_type_basic T_bool)
-    | IterPr (p, (iter, [(id, e)])) ->
-      P_list_forall (transform_iter iter, transform_premise is_rel_prem p, (transform_var_id id, transform_type' NORMAL e.note))
-    | IterPr (p, (iter, [(id, e); (id2, e2)])) ->
+    | IterPr (p', (iter, [(id, e)])) ->
+      P_list_forall (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id id, transform_type' NORMAL e.note))
+    | IterPr (p', (iter, [(id, e); (id2, e2)])) ->
       let id_typ = transform_type' NORMAL e.note in
       let id_typ2 = transform_type' NORMAL e2.note in 
-      P_list_forall2 (transform_iter iter, transform_premise is_rel_prem p, (transform_var_id id, id_typ), (transform_var_id id2, id_typ2))
+      P_list_forall2 (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id id, id_typ), (transform_var_id id2, id_typ2))
     | IterPr _ -> P_unsupported (string_of_prem p) (* TODO could potentially extend this further if necessary *)
     | RulePr (id, _mixop, exp) -> P_rule (transform_user_def_id id, transform_tuple_exp (transform_exp NORMAL) exp)
+    | NegPr p' -> P_neg (transform_premise is_rel_prem p')
 
 let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
   match deftyp.it with

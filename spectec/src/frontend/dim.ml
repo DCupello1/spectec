@@ -543,6 +543,9 @@ and annot_prem env prem : Il.Ast.prem * occur =
     | RulePr (id, op, e) ->
       let e', occur = annot_exp env e in
       RulePr (id, op, e'), occur
+    | NegPr prem1 ->
+      let prem1', occur = annot_prem env prem1 in
+      NegPr prem1', occur
     | IfPr e ->
       let e', occur = annot_exp env e in
       IfPr e', occur

@@ -198,6 +198,9 @@ and t_prem' n prem : eqns * prem' =
   match prem with
   | RulePr (a, b, exp) ->
     unary t_exp n exp (fun exp' -> RulePr (a, b, exp'))
+  | NegPr prem1 -> 
+    let eqns, prem1' = t_prem n prem1 in
+    eqns, NegPr prem1'
   | IfPr e -> unary t_exp n e (fun e' -> IfPr e')
   | LetPr (e1, e2, ids) -> binary t_exp t_exp n (e1, e2) (fun (e1', e2') -> LetPr (e1', e2', ids))
   | ElsePr -> [], prem

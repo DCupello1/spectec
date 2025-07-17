@@ -262,6 +262,7 @@ and transform_param env p =
 let rec transform_prem env prem = 
   (match prem.it with
     | RulePr (id, m, e) -> RulePr (id, m, transform_exp env e)
+    | NegPr prem' -> NegPr (transform_prem env prem')
     | IfPr e -> IfPr (transform_exp env e)
     | LetPr (e1, e2, ids) -> LetPr (transform_exp env e1, transform_exp env e2, ids)
     | ElsePr -> ElsePr
@@ -278,12 +279,14 @@ let collect_sub_matches env: (id * exp) list list ref * (module Iter.Arg) =
       let visited = ref ExpSet.empty
       let visit_exp (exp : exp) = 
         match exp.it with
-          | SubE ({it = VarE var_id; _} as e, t1, _t2) when not (ExpSet.mem e !visited) ->
+          | SubE ({it = VarE var_id; _} as e, t1, t2) when not (ExpSet.mem e !visited) ->
             visited := ExpSet.add e !visited; 
             let case_instances = (try get_all_case_instances_from_typ env t1 with
             | UnboundedArg msg -> 
-              print_endline ("WARNING: " ^ msg);
+              print_endline ("WARNING: UNBOUNDED Argument: " ^ msg);
+              print_endline ("At: " ^ string_of_region exp.at);
               print_endline ("For type: " ^ Il.Print.string_of_typ t1);
+              print_endline ("Coercing to: " ^ Il.Print.string_of_typ t2);
               []
             ) in
             acc := List.map (fun e' -> (var_id, e' $$ t1.at % t1)) case_instances :: !acc
