@@ -165,7 +165,7 @@ syntax binop_(Inn) =
 syntax binop_(Fnn) =
   | ADD | SUB | MUL | DIV | MIN | MAX | COPYSIGN
 
-syntax testop_(valtype) hint(partialtype)
+syntax testop_(valtype) hint(partial)
 syntax testop_(Inn) = EQZ
 ;; syntax testop_(Fnn) = |      ;; uninhabited
 
@@ -187,7 +187,7 @@ syntax memarg hint(desc "memory argument") = {ALIGN u32, OFFSET u32}
 
 var ao : memarg
 
-syntax loadop_(valtype) hint(partialtype)
+syntax loadop_(valtype) hint(partial)
 syntax loadop_(Inn) = sz _ sx hint(show %0#_#%2) hint(prefix "op_") -- if sz < $size(Inn)
 
 

@@ -278,8 +278,8 @@ let collect_sub_matches env: (id * exp) list list ref * (module Iter.Arg) =
       let visited = ref ExpSet.empty
       let visit_exp (exp : exp) = 
         match exp.it with
-          | SubE ({it = VarE var_id; _}, t1, _t2) when not (ExpSet.mem exp !visited) ->
-            visited := ExpSet.add exp !visited; 
+          | SubE ({it = VarE var_id; _} as e, t1, _t2) when not (ExpSet.mem e !visited) ->
+            visited := ExpSet.add e !visited; 
             let case_instances = (try get_all_case_instances_from_typ env t1 with
             | UnboundedArg msg -> 
               print_endline ("WARNING: " ^ msg);
@@ -352,6 +352,9 @@ let transform_clause _id env clause =
       let acc_cases, (module Arg: Iter.Arg) = collect_sub_matches env in
       let module Acc = Iter.Make(Arg) in
       Acc.args args;
+      Acc.binds binds;
+      Acc.exp exp;
+      Acc.prems prems;
       let cases_list = product_of_lists !acc_cases in
       let subst_list = List.map (List.fold_left (fun acc (id, exp) -> 
         Il.Subst.add_varid acc id exp) Il.Subst.empty
@@ -378,7 +381,7 @@ let transform_prod env prod =
 
 let transform_deftyp env deftyp = 
   (match deftyp.it with
-    | AliasT typ -> AliasT (Il.Eval.reduce_typ env (transform_typ env typ))
+    | AliasT typ -> AliasT (transform_typ env typ)
     | StructT typfields -> StructT (List.map (fun (a, (bs, t, prems), hints) -> (a, (List.map (transform_bind env) bs, transform_typ env t, List.map (transform_prem env) prems), hints)) typfields)
     | VariantT typcases -> VariantT (List.map (fun (m, (bs, t, prems), hints) -> (m, (List.map (transform_bind env) bs, transform_typ env t, List.map (transform_prem env) prems), hints)) typcases)
   ) $ deftyp.at
@@ -401,12 +404,23 @@ let transform_inst env inst =
         let new_deftyp = Il.Subst.subst_deftyp subst deftyp in
         InstD (List.map (transform_bind env) new_binds, List.map (transform_arg env) new_args, transform_deftyp env new_deftyp) $ inst.at
       ) subst_list
-  ) 
+  )
+
+let remove_overlapping_cases env insts = 
+  Lib.List.nub (fun inst inst' -> match inst.it, inst'.it with
+    | InstD (_, args, _), InstD (_, args', _) -> 
+      (* Reduction is done here to remove subtyping expressions *)
+      let reduced_args = List.map (Eval.reduce_arg env) args in
+      let reduced_args' = List.map (Eval.reduce_arg env) args' in
+      Eq.eq_list Eq.eq_arg reduced_args reduced_args'
+  ) insts
 
 let rec transform_def env def = 
   (match def.it with
     | TypD (id, params, [inst]) when check_normal_type_creation inst -> TypD (id, params, transform_inst env inst)
-    | TypD (id, params, insts) -> TypD (id, List.map (transform_param env) params, List.concat_map (transform_inst env) insts)
+    | TypD (id, params, insts) -> 
+      let new_insts = List.concat_map (transform_inst env) insts in
+      TypD (id, List.map (transform_param env) params, remove_overlapping_cases env new_insts)
     | RecD defs -> RecD (List.map (transform_def env) defs)
     | RelD (id, m, typ, rules) -> RelD (id, m, transform_typ env typ, List.concat_map (transform_rule env) rules)
     | DecD (id, params, typ, clauses) -> DecD (id, List.map (transform_param env) params, transform_typ env typ, List.concat_map (transform_clause id env) clauses)

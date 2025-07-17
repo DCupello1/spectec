@@ -109,7 +109,7 @@ and preprocess_exp p_env e =
       let args = (match typ.it with 
         | VarT (_, args) -> args
         | _ -> assert false (* TODO appropriate error for this *)
-      ) in CallE (proj_prefix ^ typ_name ^ "_" ^ Int.to_string n $ no_region, args @ [ExpA e $ e.at])
+      ) in CallE (proj_prefix ^ typ_name ^ "_" ^ Int.to_string n $ no_region, List.map (preprocess_arg p_env) (args @ [ExpA e $ e.at]))
     | CaseE (m, e1) -> CaseE (m, p_func e1)
     | StrE fields -> StrE (List.map (fun (a, e1) -> (a, p_func e1)) fields)
     | UnE (unop, optyp, e1) -> UnE (unop, optyp, p_func e1)
