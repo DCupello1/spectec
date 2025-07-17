@@ -673,7 +673,7 @@ let create_prefix_map (il : script) =
 let register_partial_type (map : string StringMap.t ref) (id :id) =
   map := StringMap.add id.it id.it !map
 
-let has_partialtype_hint (hint : hint) = hint.hintid.it = "partialtype"
+let has_partialtype_hint (hint : hint) = hint.hintid.it = "partial"
 
 let register_partial_type_hint_def (map : string StringMap.t ref) (d : def) = 
   match d.it with

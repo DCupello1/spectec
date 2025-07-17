@@ -35,7 +35,7 @@ let improve_ids_binders at binders =
   in
   improve_ids_helper [] binders
 
-(* Can only be used for user defined types*)
+(* Can only be used for user defined types *)
 
 let rec transform_term prefix_map t =
   let t_func = transform_term prefix_map in
