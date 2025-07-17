@@ -131,6 +131,7 @@ and t_arg env arg = match arg.it with
 let rec t_prem env prem =
   (match prem.it with
   | RulePr (_, _, exp) -> t_exp env exp
+  | NegPr prem' -> t_prem env prem'
   | IfPr e -> t_exp env e
   | LetPr (e1, e2, _) -> t_exp env e1 @ t_exp env e2
   | ElsePr -> []

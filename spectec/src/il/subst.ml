@@ -211,6 +211,7 @@ and subst_sym s g =
 and subst_prem s prem =
   (match prem.it with
   | RulePr (id, op, e) -> RulePr (id, op, subst_exp s e)
+  | NegPr prem' -> NegPr (subst_prem s prem')
   | IfPr e -> IfPr (subst_exp s e)
   | ElsePr -> ElsePr
   | IterPr (prem1, iterexp) ->

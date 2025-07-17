@@ -162,6 +162,7 @@ and t_params env = List.map (t_param env)
 
 and t_prem' env = function
   | RulePr (id, mixop, exp) -> RulePr (id, mixop, t_exp env exp)
+  | NegPr prem -> NegPr (t_prem env prem)
   | IfPr e -> IfPr (t_exp env e)
   | LetPr (e1, e2, ids) -> LetPr (t_exp env e1, t_exp env e2, ids)
   | ElsePr -> ElsePr

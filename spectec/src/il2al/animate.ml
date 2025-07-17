@@ -73,6 +73,7 @@ let rec rewrite_iterexp' iterexp pr =
   let new_ = Il_walk.transform_exp transformer in
   match pr with
   | RulePr (id, mixop, e) -> RulePr (id, mixop, new_ e)
+  | NegPr pr' -> NegPr (rewrite_iterexp iterexp pr')
   | IfPr e -> IfPr (new_ e)
   | LetPr (e1, e2, ids) ->
     let new_ids = List.map (rewrite_id iterexp) ids in
@@ -103,6 +104,7 @@ let rec recover_iterexp' iterexp pr =
   let new_ = Il_walk.transform_exp transformer in
   match pr with
   | RulePr (id, mixop, e) -> RulePr (id, mixop, new_ e)
+  | NegPr prem -> NegPr (recover_iterexp iterexp prem)
   | IfPr e -> IfPr (new_ e)
   | LetPr (e1, e2, ids) ->
     let new_ids = List.map (recover_id iterexp) ids in

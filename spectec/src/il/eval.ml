@@ -490,6 +490,7 @@ and reduce_prems env = function
 and reduce_prem env prem : bool option =
   match prem.it with
   | RulePr _ -> None
+  | NegPr prem' -> reduce_prem env prem'
   | IfPr e ->
     (match (reduce_exp env e).it with
     | BoolE b -> Some b

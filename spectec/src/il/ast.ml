@@ -160,6 +160,7 @@ and prod' =
 and prem = prem' phrase
 and prem' =
   | RulePr of id * mixop * exp                        (* premise *)
+  | NegPr of prem                                     (* negated premise *)
   | IfPr of exp                                       (* side condition *)
   | LetPr of exp * exp * string list                  (* binding *)
   | ElsePr                                            (* otherwise *)

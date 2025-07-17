@@ -16,6 +16,7 @@ type target =
  | Rocq
 
 type pass =
+  | Else
   | Sub
   | Totalize
   | Unthe
@@ -28,7 +29,7 @@ passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
 let _skip_passes = [ Sub; Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ Totalize; Sideconditions ]
+let all_passes = [ Else; Totalize; Sideconditions ]
 
 type mil_pass =
   | MIL_Sub
@@ -70,7 +71,6 @@ module PS = Set.Make(struct type t = pass let compare = compare; end)
 let selected_passes = ref (PS.empty)
 let enable_pass pass = selected_passes := PS.add pass !selected_passes
 
-
 let print_il il =
   Printf.printf "%s\n%!" (Il.Print.string_of_script ~suppress_pos:(!print_no_pos) il)
 
@@ -80,22 +80,32 @@ let print_mil mil =
 (* Il pass metadata *)
 
 let pass_flag = function
+  | Else -> "else"
   | Sub -> "sub"
   | Totalize -> "totalize"
   | Unthe -> "the-elimination"
   | Sideconditions -> "sideconditions"
 
 let pass_desc = function
+  | Else -> "Eliminate the otherwise premise in relations"
   | Sub -> "Synthesize explicit subtype coercions"
   | Totalize -> "Run function totalization"
   | Unthe -> "Eliminate the ! operator in relations"
   | Sideconditions -> "Infer side conditions"
 
 let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
+  | Else -> Middlend.Else.transform
   | Sub -> Middlend.Sub.transform
   | Totalize -> Middlend.Totalize.transform
   | Unthe -> Middlend.Unthe.transform
   | Sideconditions -> Middlend.Sideconditions.transform
+
+(* MIL passes *)
+module PSMIL = Set.Make(struct type t = mil_pass let compare = compare; end)
+let selected_mil_passes = ref (PSMIL.empty)
+let enable_mil_pass pass = selected_mil_passes := PSMIL.add pass !selected_mil_passes
+
+(* MIL pass metadata *)
 
 let pass_mil_flag = function 
   | MIL_Sub -> "sub"
@@ -207,7 +217,8 @@ let () =
     | Prose _ | Splice _ | Interpreter _ ->
       enable_pass Sideconditions;
     | Rocq ->
-      enable_pass Sideconditions; enable_pass Totalize
+      enable_pass Sideconditions; enable_pass Totalize; enable_pass Else;
+      enable_mil_pass MIL_Sub
     | _ when !print_al || !print_al_o <> "" ->
       enable_pass Sideconditions;
     | _ -> ()
@@ -277,11 +288,14 @@ let () =
         if !print_mil_f || !print_all_mil then 
           print_mil mil;
         let transformed_mil = List.fold_left (fun mil' pass ->
-          log ("Running pass " ^ pass_mil_flag pass ^ "...");
-          let mil'' = run_pass_mil pass mil' in
-          if !print_all_mil then 
-            print_mil mil'';
-          mil''
+          if not (PSMIL.mem pass !selected_mil_passes) then mil' else
+          (
+            log ("Running pass " ^ pass_mil_flag pass ^ "...");
+            let mil'' = run_pass_mil pass mil' in
+            if !print_all_mil then 
+              print_mil mil'';
+            mil''
+          )
         ) mil all_mil_passes in
         log ("Checking names are unique...");
         Mil.Env.check_uniqueness transformed_mil;

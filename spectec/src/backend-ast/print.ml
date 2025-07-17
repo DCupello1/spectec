@@ -164,6 +164,7 @@ and sym g =
 and prem pr =
   match pr.it with
   | RulePr (x, op, e) -> Node ("rule", [id x; mixop op; exp e])
+  | NegPr pr1 -> Node ("neg", [prem pr1])
   | IfPr e -> Node ("if", [exp e])
   | LetPr (e1, e2, _xs) -> Node ("let", [exp e1; exp e2])
   | ElsePr -> Atom "else"
