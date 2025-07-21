@@ -626,8 +626,8 @@ let string_of_prefix = function
   | {it = El.Ast.TextE s; _} -> s
   | {at; _} -> error at "malformed prefix hint"
 
-let register_prefix (map : string StringMap.t ref) (id :id) (exp : El.Ast.exp) =
-  map := StringMap.add id.it (string_of_prefix exp) !map
+let register_prefix (map : string StringMap.t ref) (id : id) (exp : El.Ast.exp) =
+  map := StringMap.add (transform_user_def_id id) (string_of_prefix exp) !map
 
 let has_prefix_hint (hint : hint) = hint.hintid.it = "prefix"
 

@@ -6,11 +6,13 @@ It only supports binary relations.
 
 1. It figures out which rules are meant by “otherwise”:
 
-   * All previous rules
-   * Excluding those that definitely can’t apply when the present rule applies
-     (decided by a simple and conservative comparision of the LHS).
+  * All previous rules
+  * Excluding those that definitely can’t apply when the present rule applies
+    (decided by a simple and conservative comparision of the LHS).
 
 2. It creates an auxillary inductive unary predicate with these rules (LHS only).
+  * Note that these rules will be applied a simple naming scheme (just adding a number in front of it)
+    For now to resolve naming 
 
 3. It replaces the `ElsePr` with the negation of that rule.
 
@@ -19,6 +21,9 @@ It only supports binary relations.
 open Util
 open Source
 open Il.Ast
+
+module StringMap = Map.Make(String)
+module StringSet = Set.Make(String)
 
 (* Brought from Apart.ml *)
 
@@ -42,10 +47,7 @@ open Il.Ast
   no guarantees are made. *)
 let rec apart (e1 : exp) (e2: exp) : bool =
   if Il.Eq.eq_exp e1 e2 then false else
-  (*
-  (fun b -> if not b then Printf.eprintf "apart\n  %s\n  %s\n  %b\n" (Print.string_of_exp e1) (Print.string_of_exp e2) b; b)
-  *)
-  (match e1.it, e2.it with
+  match e1.it, e2.it with
   (* A literal is never a literal of other type *)
   | NumE n1, NumE n2 -> not (n1 = n2)
   | BoolE b1, BoolE b2 -> not (b1 = b2)
@@ -59,7 +61,7 @@ let rec apart (e1 : exp) (e2: exp) : bool =
   | SubE (e1, _, _), SubE (e2, _, _) -> apart e1 e2
   (* We do not know anything about variables and functions *)
   | _ , _ -> false (* conservative *)
- )
+  
 
 (* Two list expressions are apart if either their manifest tail elements are apart *)
 and list_exp_apart e1 e2 = snoc_list_apart (to_snoc_list e1) (to_snoc_list e2)
@@ -81,7 +83,26 @@ let error at msg = Error.error at "else removal" msg
 let empty_info: region * Xl.Atom.info = (no_region, {def = ""; case = ""})
 let unary_mixfix : mixop = [[Xl.Atom.Atom "" $$ empty_info]; [Xl.Atom.Atom "" $$ empty_info]]
 
+(* Generates a fresh name if necessary, and goes up to a maximum which then it will return an error*)
+let generate_next_rule_name ids rule =
+  let start = 0 in
+  let max = 100 in
+  let rec go id c =
+    if max <= c then error rule.at "Reached max variable generation" else
+    let name = id ^ "_" ^ Int.to_string c in 
+    if (StringSet.mem name ids) 
+      then go id (c + 1) 
+      else name
+  in
+  (match rule.it with
+    | RuleD (id, binds, mixop, exp, prems) -> RuleD (go id.it start $ id.at, binds, mixop, exp, prems) 
+  ) $ rule.at
+
 let is_else prem = prem.it = ElsePr
+
+let get_rule_id rule = 
+  match rule.it with
+    | RuleD (id, _, _, _, _) -> id.it
 
 let replace_else aux_name lhs prem = match prem.it with
   | ElsePr -> NegPr (RulePr (aux_name, unary_mixfix, lhs) $ prem.at) $ prem.at
@@ -96,9 +117,12 @@ let unarize rule = match rule.it with
       { rule with it = RuleD (rid, binds, unary_mixfix, lhs, prems) }
 
 let not_apart lhs rule = match rule.it with
-    | RuleD (_, _, _, lhs2, _) -> not (apart lhs lhs2)
+    | RuleD (_, _, _, lhs2, _) -> 
+      (* HACK - I deactivated apart for now since it was giving some lhs that were actually not apart *)
+      let _a = apart lhs lhs2 in
+      Il.Eq.eq_exp lhs lhs2
 
-let rec go at id mixop typ typ1 prev_rules : rule list -> def list = function
+let rec go hint_map used_names at id mixop typ typ1 prev_rules : rule list -> def list = function
   | [] -> [ RelD (id, mixop, typ, List.rev prev_rules) $ at ]
   | r :: rules -> match r.it with
     | RuleD (rid, binds, rmixop, exp, prems) ->
@@ -110,24 +134,48 @@ let rec go at id mixop typ typ1 prev_rules : rule list -> def list = function
         in
         let aux_name = id.it ^ "_before_" ^ rid.it $ rid.at in
         let applicable_prev_rules = prev_rules
-              |> List.map unarize
-              |> List.filter (not_apart lhs)
-              |> List.rev in
-        [ RelD (aux_name, unary_mixfix, typ1, List.rev applicable_prev_rules) $ r.at ] @
+          |> List.map unarize
+          |> List.filter (not_apart lhs)
+          |> List.map (generate_next_rule_name used_names)
+        in
+        let ids_used = applicable_prev_rules 
+          |> List.map get_rule_id 
+          |> StringSet.of_list 
+        in 
+        [ RelD (aux_name, unary_mixfix, typ1, applicable_prev_rules) $ r.at ] @
+        let extra_hintdef = match (StringMap.find_opt id.it hint_map) with
+          | Some hints -> [ HintD (RelH (aux_name, hints) $ at) $ at ]
+          | _ -> []
+        in
         let prems' = List.map (replace_else aux_name lhs) prems in
         let rule' = { r with it = RuleD (rid, binds, rmixop, exp, prems') } in
-        go at id mixop typ typ1 (rule' :: prev_rules) rules
+        extra_hintdef @
+        go hint_map (StringSet.union ids_used used_names) at id mixop typ typ1 (rule' :: prev_rules) rules
       else
-        go at id mixop typ typ1 (r :: prev_rules) rules
+        go hint_map used_names at id mixop typ typ1 (r :: prev_rules) rules
 
-let rec t_def (def : def) : def list = match def.it with
-  | RecD defs -> [ { def with it = RecD (List.concat_map t_def defs) } ]
+let rec t_def (hint_map : (hint list) StringMap.t) (def : def) : def list = match def.it with
+  | RecD defs -> [ { def with it = RecD (List.concat_map (t_def hint_map) defs) } ]
   | RelD (id, mixop, typ, rules) -> begin match typ.it with
     | TupT [(_exp1, typ1); (_exp2, _typ2)] ->
-      go def.at id mixop typ typ1 [] rules
-    | _ -> [def]
+      go hint_map StringSet.empty def.at id mixop typ typ1 [] rules
+    | _ -> [ def ]
     end
   | _ -> [ def ]
 
+(* Put more valid hints if needed *)
+let valid_hint (hint : hint) : bool = 
+  hint.hintid.it = "prefix"
+
+let collect_hints (hint_map : (hint list) StringMap.t ref) (def : def) : unit = 
+  match def.it with
+  | HintD {it = RelH (id, hints); _} -> 
+    let applicable_hints = List.filter valid_hint hints in
+    if applicable_hints = [] then () else 
+    hint_map := StringMap.add id.it applicable_hints !hint_map
+  | _ -> ()
+
 let transform (defs : script) =
-  List.concat_map t_def defs
+  let hint_map = ref StringMap.empty in
+  List.iter (collect_hints hint_map) defs;
+  List.concat_map (t_def !hint_map) defs
