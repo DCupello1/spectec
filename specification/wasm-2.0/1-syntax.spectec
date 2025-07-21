@@ -152,7 +152,7 @@ syntax lanetype hint(desc "lane type") hint(prefix "LANETYPE_") = numtype | pack
 
 syntax Pnn hint(show I#n) hint(prefix "PNN_") = packtype
 syntax Jnn hint(show I#n) hint(prefix "JNN_") = Inn | Pnn
-syntax Lnn hint(show I#n) hint(prefix "LNN_") = Inn | Fnn | Pnn
+syntax Lnn hint(show I#n) hint(prefix "LNN_") = lanetype
 
 
 ;; External types

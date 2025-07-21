@@ -118,6 +118,7 @@ and typcase (op, (bs, t, prs), hs) = mixop op; binds bs; typ t; prems prs; hints
 
 and exp e =
   visit_exp e;
+  typ e.note; 
   match e.it with
   | VarE x -> varid x
   | BoolE b -> bool b

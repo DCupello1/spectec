@@ -306,11 +306,6 @@ let collect_types_families env: TypSet.t ref * (module Iter.Arg) =
               | _ -> () 
             )
           | _ -> ()
-
-      let visit_exp (exp : exp) = 
-        match exp.it with
-          | CaseE _ | CallE _ -> visit_typ exp.note 
-          | _ -> ()
     end
   in Arg.acc, (module Arg)
 

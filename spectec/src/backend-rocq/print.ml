@@ -1,5 +1,6 @@
 open Mil.Ast
 open Mil
+open Util.Source
 
 let square_parens s = "[" ^ s ^ "]"
 let parens s = "(" ^ s ^ ")"
@@ -106,14 +107,14 @@ and string_of_term is_match (term : term) =
     | T_list [] -> "[]"
     | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (prefixed_id, term) -> Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term is_match term) fields)) ^ " |}"
     | T_list entries -> square_parens (String.concat "; " (List.map (string_of_term is_match) entries))
-    | T_caseapp (prefixed_id, []) -> Print.string_of_prefixed_ident prefixed_id
     | T_caseapp (prefixed_id, args) when is_match -> 
       parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
     | T_caseapp (prefixed_id, args) ->
       let typ_id = Utils.get_id term.typ in 
       let num_new_args = Env.count_case_binders !env_ref typ_id in 
-      let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in  
-      parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) new_args)
+      let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in
+      let put_parens s = if new_args = [] then s else parens s in  
+      put_parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) new_args)
     | T_dotapp (prefixed_id, arg) -> parens (Print.string_of_prefixed_ident prefixed_id ^ " " ^ string_of_term is_match arg)  
     | T_app (base_term, []) -> (string_of_term is_match base_term)
     | T_app (base_term, args) -> parens ((string_of_term is_match base_term) ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
@@ -185,7 +186,7 @@ let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder 
 
 let string_of_relation_args (args : relation_args) = 
   Mil.Print.string_of_list_prefix " " " -> " (string_of_term false) args
-
+    
 let rec string_of_premise (prem : premise) =
   match prem with
     | P_if term -> string_of_term false term
@@ -230,6 +231,7 @@ let string_of_record (id: ident) (entries : record_entry list) =
   "{default_val := {|\n\t" ^
       String.concat ";\n\t" (List.map (fun (record_id, _) -> 
         Print.string_of_prefixed_ident record_id ^ " := default_val") entries) ^ "|} }.\n\n" ^
+
   (* Record Append proof (TODO might need information on type to improve this) *)
   "Definition _append_" ^ id ^ " (arg1 arg2 : " ^ id ^ ") :=\n" ^ 
   "{|\n\t" ^ String.concat "\t" ((List.map (fun (prefixed_id, typ) -> 
@@ -423,7 +425,6 @@ let exported_string =
   "Import ListNotations.\n" ^
   "Import RecordSetNotations.\n\n"
   
-
 let string_of_script (mil : mil_script) =
   env_ref := Env.env_of_script mil;
   exported_string ^ 
