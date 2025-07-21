@@ -279,7 +279,7 @@ let string_of_definition (prefix : string) (id : ident) (binders : binder list) 
 let string_of_inductive_relation (prefix : string) (id : ident) (args : relation_args) (relations : relation_type_entry list) = 
   prefix ^ id ^ ":" ^ string_of_relation_args args ^ " -> Prop :=\n\t" ^
   String.concat "\n\t" (List.map (fun ((case_id, binds), premises, end_terms) ->
-    let string_prems = Mil.Print.string_of_list_suffix " -> " " -> " string_of_premise premises in
+    let string_prems = Mil.Print.string_of_list "\n\t\t" " ->\n\t\t" " ->\n\t\t" string_of_premise premises in
     let forall_quantifiers = Mil.Print.string_of_list "forall " ", " " " string_of_binder binds in
     "| " ^ case_id ^ " : " ^ forall_quantifiers ^ string_prems ^ id ^ " " ^ String.concat " " (List.map (string_of_term false) end_terms)
   ) relations)

@@ -158,7 +158,6 @@ let string_of_family_type_entries _id entries =
 let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
   let region = ";; " ^ Util.Source.string_of_region d.at ^ "\n" in 
   let endnewline = "\n\n" in
-
   (match d.it with
     | TypeAliasD (id, binds, term) -> region ^ "type " ^ id ^ string_of_list_prefix " " " " string_of_binder binds ^ " = " ^ string_of_term term ^ endnewline
     | RecordD (id, record_entry) -> region ^ "record " ^ id ^ " = " ^ curly_parens ("\n\t" ^ String.concat ",\n\t" (List.map (fun (prefixed_id, term) -> 
@@ -178,7 +177,7 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
       region ^ "relation " ^ id ^ " : " ^ string_of_list_suffix " -> bool" " -> " string_of_term rel_args ^ " := \n\t| " ^ 
       String.concat "\n\t| " (List.map (fun ((case_id, binds), premises, terms) -> 
           empty_name (case_id) ^ " : " ^ string_of_list "forall " ", " " " string_of_binder binds ^
-          string_of_list_suffix " -> " " -> " string_of_premise premises ^ id ^ 
+          string_of_list "\n\t\t" " ->\n\t\t" " ->\n\t\t" string_of_premise premises ^ id ^ 
           string_of_list_prefix " " " " string_of_term terms
       
       ) relation_type_entries) ^ endnewline
