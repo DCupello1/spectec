@@ -13,7 +13,8 @@ let env_ref = ref Env.empty
 
 let check_trivial_append env typ = 
   match typ with
-    | T_app ({it = T_type_basic T_list; _}, _) -> true
+    | T_app ({it = T_type_basic T_list; _}, _)
+    | T_app ({it = T_type_basic T_opt; _}, _) -> true
     | T_app ({it = T_ident id; _}, _) -> Env.is_record_typ env id
     | _ -> false
 
