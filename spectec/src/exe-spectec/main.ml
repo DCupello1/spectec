@@ -28,7 +28,7 @@ passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
 let _skip_passes = [ Sub; Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ Totalize; Sideconditions; Monomorphization ]
+let all_passes = [ Monomorphization; Totalize; Sideconditions ]
 
 type file_kind =
   | Spec
