@@ -3,6 +3,7 @@
   (libraries util il)
   (modules
     mono_nat_subset
+    mono_type_params
     monomorphization
     sub
     totalize
