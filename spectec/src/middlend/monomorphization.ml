@@ -35,7 +35,6 @@ type monoenv =
   mutable calls: (ExpSet.t ref) StringMap.t;
   mutable concrete_dependent_types: (TypSet.t ref) StringMap.t;
   mutable il_env: env;
-  mutable mono_list: def list;
   mutable nat_subs_set: (Num.nat list) StringMap.t
 }
 
@@ -44,7 +43,6 @@ let new_env =
   calls = StringMap.empty;
   concrete_dependent_types = StringMap.empty;
   il_env = Il.Env.empty;
-  mono_list = [];
   nat_subs_set = StringMap.empty
 }
 
@@ -60,7 +58,7 @@ let msg_prefix = "Encountered an unbounded type: "
 let _unbounded_error at msg = error at mono (msg_prefix ^ msg)
 
 let print_env (m_env : monoenv) = 
-  print_endline "Printing the Env: ";
+  print_endline "Printing the Dependent Types Env: ";
   print_endline " ";
 
   print_endline "Function calls:";
@@ -76,10 +74,7 @@ let print_env (m_env : monoenv) =
     print_endline "}") m_env.concrete_dependent_types;
   
   print_endline "Mono nat subsets:";
-  StringMap.iter (fun id nat_list -> print_endline (id ^ " : [" ^ String.concat ", " (List.map Z.to_string nat_list) ^ "]")) m_env.nat_subs_set;
-
-  print_endline "Mono funcs/deps:";
-  List.iter (fun def -> print_endline (Il.Print.string_of_def def)) m_env.mono_list
+  StringMap.iter (fun id nat_list -> print_endline (id ^ " : [" ^ String.concat ", " (List.map Z.to_string nat_list) ^ "]")) m_env.nat_subs_set
 
 let bind_typ m_env' id t =
   if id = "_" then m_env' else
@@ -93,9 +88,6 @@ let bind_exp m_env' id t =
       | None -> StringMap.add id (ref (ExpSet.singleton t)) m_env'
       | Some set -> set := ExpSet.add t !set; m_env'
 
-let add_to_mono_list (m_env : monoenv) (def : def): unit =
-  m_env.mono_list <- def :: m_env.mono_list 
-      
 let concrete_dep_types_bind m_env id t =
   m_env.concrete_dependent_types <- bind_typ m_env.concrete_dependent_types id t
 
@@ -300,24 +292,11 @@ let get_tuple_from_type (typ : typ): ((exp * typ) list) option =
     | TupT e_t -> Some e_t
     | _ -> None (* We don't need to worry about the case of it being single typed *)
   
-let get_user_defined_type_arguments (args : arg list): string list =
-  let rec get_func_typ typ = 
-    match typ.it with 
-      | VarT (id, args) -> id.it :: List.concat_map get_func_arg args 
-      | IterT (typ, _) -> get_func_typ typ
-      | TupT exp_typ_pairs -> List.concat_map (fun (_, t) -> get_func_typ t) exp_typ_pairs
-      | _ -> []
-  and get_func_arg arg = 
-    match arg.it with
-      | TypA typ -> get_func_typ typ
-      | _ -> [] (* TODO extend this later to exps *)
-  in 
-  List.filter_map (fun a ->
-    match a.it with
-      | TypA typ -> (* Has to start with type argument *) Some (get_func_typ typ)
-      | _ -> None
-  ) args |> List.concat
-
+let is_type_arg (a : arg) = 
+  match a.it with
+    | TypA _ -> true
+    | _ -> false
+  
 (* Simple AST traversal that collects all dependent types *)
 let rec get_all_dep_types_in_typ (t : typ): (id * arg list) list = 
   match t.it with
@@ -452,29 +431,27 @@ let split_used_dependent_types_relation_binds (binds : bind list) (exp : exp) (p
       
 let split_used_types_in_params (params : param list) (return_type : typ): param list * param list = 
   partition_map_using_tail (fun p ps -> 
-    let is_type_param, id_p = match p.it with
-        | ExpP (id, _) -> false, id.it
-        | TypP id -> true, id.it
-        | _ -> false, ""
+    let id_p = match p.it with
+        | ExpP (id, _) -> id.it
+        | _ -> ""
     in
     let free_vars_params = (Free.free_list Free.free_param (List.filter check_dep_typ_in_params ps)).varid in
     let free_vars_rt = (Free.free_typ return_type).varid in
-    map_bool_to_either p (is_type_param || Free.Set.mem id_p (Free.Set.union free_vars_params free_vars_rt))
+    map_bool_to_either p (Free.Set.mem id_p (Free.Set.union free_vars_params free_vars_rt))
   ) params
 
 let split_used_types_in_params_index (params : param list) (return_type : typ option): int list = 
   filter_map_using_taili (fun p ps i ->
-    let is_type_param, id_p = match p.it with
-      | ExpP (id, _) -> false, id.it
-      | TypP id -> true, id.it
-      | _ -> false, ""
+    let id_p = match p.it with
+      | ExpP (id, _) -> id.it
+      | _ -> ""
     in
     let return_typ_ids = match return_type with
       | None -> Free.Set.empty
       | Some typ -> (Free.free_typ typ).varid
     in
     let free_vars_params = (Free.free_list Free.free_param (List.filter check_dep_typ_in_params ps)).varid in
-    map_bool_to_option i (is_type_param || Free.Set.mem id_p (Free.Set.union free_vars_params return_typ_ids))
+    map_bool_to_option i (Free.Set.mem id_p (Free.Set.union free_vars_params return_typ_ids))
   ) params
 
 let split_used_types_in_type_creation (m_env : monoenv) (mixop : mixop) (insts: inst list) (exps : exp list) (at: Util.Source.region): exp list * exp list =
@@ -683,6 +660,9 @@ let rec transform_exp (m_env : monoenv) (subst : subst) (exp : exp): exp =
     | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)
     | UpdE (e1, path, e2) -> UpdE (t_func e1, transform_path m_env subst path, t_func e2)
     | ExtE (e1, path, e2) -> ExtE (t_func e1, transform_path m_env subst path, t_func e2)
+    | CallE (id, args) when not (Il.Env.mem_def m_env.il_env id) -> 
+      (* Function parameter, leave it for now *)
+      CallE (id, List.map (transform_arg m_env subst) args)
     | CallE (id, args) ->
       let (params, return_type, _) = Il.Env.find_def m_env.il_env id in
       let used = split_used_types_in_params_index params (Some return_type) in
@@ -721,11 +701,11 @@ and transform_path (m_env : monoenv) (subst : subst) (path : path): path =
 and transform_type (m_env : monoenv) (subst: subst) (typ : typ): typ = 
   (match typ.it with
     | VarT (id, []) when not (Il.Env.mem_typ m_env.il_env id) -> 
-      (* It is a type parameter, subst it *)
-      (Il.Subst.subst_typ subst typ).it
+      (* Type parameter, don't do anything to it *)
+      VarT (id, [])
     | VarT (id, args) when args <> [] ->
-      let subst_args = List.map (transform_arg m_env subst) args in 
-      if check_reducible_args subst_args 
+      let subst_args = List.filter (fun a -> not (is_type_arg a)) (List.map (transform_arg m_env subst) args) in 
+      if subst_args <> [] && check_reducible_args subst_args 
         then (
           let reduced_args = List.map (fun arg -> reduce_arg m_env.il_env arg) subst_args in 
           concrete_dep_types_bind m_env id.it (VarT(id, reduced_args) $ typ.at);
@@ -804,6 +784,7 @@ and subst_deftyp (m_env : monoenv) (subst : subst) (deftyp : deftyp): deftyp =
       (m, (bs, transform_type m_env subst t, List.map (transform_prem m_env subst) prems), hints)) typcases)
   ) $ deftyp.at
 
+(* TODO deal with potential of type params *)
 and transform_family_type_instances (m_env : monoenv) (id : id) (insts : inst list): def' list =
   match StringMap.find_opt id.it m_env.concrete_dependent_types with
     | None -> print_endline ("WARNING: type family " ^ id.it ^ " is not being used, removing it."); []
@@ -822,25 +803,25 @@ and transform_family_type_instances (m_env : monoenv) (id : id) (insts : inst li
             Some (TypD (new_id, [], [new_inst]))
       ) (TypSet.elements !set_ref)
 
-let transform_type_creation (m_env : monoenv) (id : id) (inst : inst) : def' list =
+let transform_type_creation (m_env : monoenv) (id : id) (params : param list) (inst : inst) : def' list =
   match inst.it with 
-    | InstD (_, args, deftyp) -> 
+    | InstD (binds, args, deftyp) -> 
+      let non_type_args = List.filter (fun a -> not (is_type_arg a)) args in
       let transform_deftyp func = match args, StringMap.find_opt id.it m_env.concrete_dependent_types with
         | [], None -> (* Means its a normal type *) 
           [TypD (id, [], [InstD ([], [], func Il.Subst.empty) $ inst.at])]
+        | _, None when (List.for_all is_type_arg args) -> 
+          (* If it only has type parameters, leave it for now *)
+          [TypD (id, params, [InstD (binds, args, func Il.Subst.empty) $ inst.at])]
         | _, None -> 
           print_endline ("WARNING: dependent type " ^ id.it ^ " is not being used, removing it.");
           [] (* Remove the dependent type as not used *)
         | _, Some set_ref ->
           List.filter_map ( fun t -> 
             let dep_args = get_dependent_type_args t in 
-            let type_params = get_user_defined_type_arguments dep_args in 
-            let subst = Option.value (try Il.Eval.match_list match_arg m_env.il_env Il.Subst.empty dep_args args with Irred -> None) ~default:Il.Subst.empty in
+            let subst = Option.value (try Il.Eval.match_list match_arg m_env.il_env Il.Subst.empty dep_args non_type_args with Irred -> None) ~default:Il.Subst.empty in
             let def' = TypD (transform_id_from_args id dep_args, [], [InstD ([], [], func subst) $ inst.at]) in
-            (match type_params with
-              | [] -> Some def'
-              | _ -> add_to_mono_list m_env (def' $ inst.at); None
-            )
+            Some def'
           ) (TypSet.elements !set_ref)
       in
       (match deftyp.it with 
@@ -896,21 +877,18 @@ let transform_function_definitions (m_env : monoenv) (id : id) (params: param li
       let subst = Il.Subst.empty in
       [apply_recursive (DecD (id, params, transform_type m_env subst return_type, List.concat_map (transform_clause m_env subst [] [] id) clauses))]
     | None, _ -> (* function is not used *) 
-    print_endline ("WARNING: function " ^ id.it ^ " is not being used, removing it.");
-    []
+      print_endline ("WARNING: function " ^ id.it ^ " is not being used, removing it.");
+      []
     | Some set_ref, _ -> 
       List.filter_map (fun e -> 
         let (new_id, used_call_args) = get_function_call e in 
-        let type_params = get_user_defined_type_arguments used_call_args in
         let used_param_ids = List.map get_variable_id_from_param used in 
         let subst = create_args_pairings used_param_ids used_call_args in
         let def' = DecD (new_id.it $ id.at, List.map (transform_param m_env subst) unused, 
           transform_type m_env subst return_type, 
           List.concat_map (transform_clause m_env subst used_indices used_call_args id) clauses) in 
-        match type_params with
-          | [] -> Some (apply_recursive def')
-          | _ -> add_to_mono_list m_env ((apply_recursive def') $ at); None
-        ) (ExpSet.elements !set_ref)
+        Some (apply_recursive def')
+      ) (ExpSet.elements !set_ref)
 
 let transform_rule (m_env : monoenv) (rule : rule) : rule list =
   match rule.it with
@@ -935,7 +913,7 @@ let transform_rule (m_env : monoenv) (rule : rule) : rule list =
 
 let rec transform_def (m_env : monoenv) (def : def) : def list =
   (match def.it with
-    | TypD (id, _, [inst]) when Mono_nat_subset.check_normal_type_creation inst -> transform_type_creation m_env id inst
+    | TypD (id, params, [inst]) when Mono_nat_subset.check_normal_type_creation inst -> transform_type_creation m_env id params inst
     | TypD (id, _params, insts) -> transform_family_type_instances m_env id insts
     | RelD (id, mixop, typ, rules) -> 
       [RelD (id, mixop, typ, List.concat_map (transform_rule m_env) rules)]
@@ -948,40 +926,14 @@ let rec transform_def (m_env : monoenv) (def : def) : def list =
       )
     | _ -> [def.it]) |> List.map (fun new_def -> new_def $ def.at) 
 
-let reorder_monomorphized_functions (m_env : monoenv) (def : def): def list =
-  let rec get_ids d = (match d.it with
-      | TypD (id, _, _) -> [id.it]
-      | RelD (id, _, _, _) -> [id.it]
-      | DecD (id, _, _, _) -> [id.it]
-      | RecD defs -> List.concat_map get_ids defs
-      | _ -> []
-    ) in
-  
-  let partition_list mono_list def = 
-    let free_def_vars = Free.free_def def in
-    List.partition (fun d -> 
-      let ids = Free.Set.of_list (get_ids d) in
-      let typs = Free.Set.is_empty (Free.Set.inter ids free_def_vars.typid) in
-      let funcs = Free.Set.is_empty (Free.Set.inter ids free_def_vars.defid) in
-      typs && funcs
-    ) mono_list in
-
-  let (rest, filtered_mono_list) = partition_list m_env.mono_list def in
-  m_env.mono_list <- rest;
-  filtered_mono_list @ [def]
-
-let rec repeat_reordering (m_env : monoenv) (defs : def list) : def list =
-  match (m_env.mono_list) with
-    | [] -> defs
-    | _ -> repeat_reordering m_env (List.concat_map (reorder_monomorphized_functions m_env) defs)
-
 (* Main transformation function *)
 let transform (script: Il.Ast.script) =
   let m_env = new_env in 
   let mono_sub_pass, pass_env = Mono_nat_subset.transform script in
   m_env.il_env <- Il.Env.env_of_script mono_sub_pass;
   m_env.nat_subs_set <- pass_env.nat_subs_set;
+  print_endline "Monomorphizing Dependent types...";
   (* Reverse the script in order to monomorphize nested ones correctly *)
   let transformed_script = List.rev (List.concat_map (transform_def m_env) (List.rev mono_sub_pass)) in
   print_env m_env;
-  repeat_reordering m_env transformed_script
+  Mono_type_params.transform transformed_script
