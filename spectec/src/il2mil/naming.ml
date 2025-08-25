@@ -18,20 +18,20 @@ let generate_var at ids i =
       else name
   in
   match i with
-    | "" | "_" -> go fresh_prefix start
-    | s when (s = var_prefix ^ "_") -> go fresh_prefix start
-    | s when List.mem s ids -> go i start
-    | _ -> i
+  | "" | "_" -> go fresh_prefix start
+  | s when (s = var_prefix ^ "_") -> go fresh_prefix start
+  | s when List.mem s ids -> go i start
+  | _ -> i
 
 (* NOTE - This only works for function defs binders since the variables are not used later.
   Would need to make a subst for MIL to make this work for all binders *)
 let improve_ids_binders at binders = 
   let rec improve_ids_helper ids bs = 
     match bs with
-      | [] -> []
-      | (b_id, t) :: bs' -> 
-        let new_name = generate_var at ids b_id in 
-        (new_name, t) :: improve_ids_helper (new_name :: ids) bs'
+    | [] -> []
+    | (b_id, t) :: bs' -> 
+      let new_name = generate_var at ids b_id in 
+      (new_name, t) :: improve_ids_helper (new_name :: ids) bs'
   in
   improve_ids_helper [] binders
 
@@ -82,8 +82,8 @@ let rec transform_term prefix_map t =
   | T_record_update (t1, (prefixes, id), t3) -> 
     let id' = get_id t1.typ in 
     let extra_prefix = (match (StringMap.find_opt id' prefix_map) with 
-        | Some prefix -> [prefix]
-        | None -> []
+      | Some prefix -> [prefix]
+      | None -> []
     ) in 
     let combined_id = string_combine id id' in
     let new_id = (match (StringMap.find_opt combined_id prefix_map) with
@@ -134,8 +134,8 @@ let rec transform_def prefix_map (d : mil_def) =
   | TypeAliasD (id, bs, t) -> TypeAliasD (id, transform_binders prefix_map bs, transform_term prefix_map t) 
   | RecordD (id, record_entries) -> 
     let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
-        | Some prefix -> [prefix]
-        | None -> []
+      | Some prefix -> [prefix]
+      | None -> []
     ) in 
     RecordD (id, List.map (fun ((prefixes, id'), t) -> 
       let combined_id = string_combine id' id in
@@ -146,8 +146,8 @@ let rec transform_def prefix_map (d : mil_def) =
       (new_id, transform_type prefix_map t)) record_entries)
   | InductiveD (id, bs, entries) -> 
     let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
-        | Some prefix -> [prefix]
-        | None -> []
+      | Some prefix -> [prefix]
+      | None -> []
     ) in 
     InductiveD (id, transform_binders prefix_map bs,
     List.map (fun ((prefixes, id'), bs) -> 
@@ -164,8 +164,8 @@ let rec transform_def prefix_map (d : mil_def) =
   | GlobalDeclarationD (id, rt, (ts, fb)) -> GlobalDeclarationD (id, transform_type prefix_map rt, (List.map (transform_term prefix_map) ts, transform_fb prefix_map fb))
   | InductiveRelationD (id, types, entries) -> 
     let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
-        | Some prefix -> prefix
-        | None -> ""
+      | Some prefix -> prefix
+      | None -> ""
     ) in 
     InductiveRelationD (id, List.map (transform_term prefix_map) types, 
     List.map (fun ((id', bs), prems, terms) -> 

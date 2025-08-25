@@ -13,122 +13,122 @@ let env_ref = ref Env.empty
 
 let check_trivial_append env typ = 
   match typ with
-    | T_app ({it = T_type_basic T_list; _}, _)
-    | T_app ({it = T_type_basic T_opt; _}, _) -> true
-    | T_app ({it = T_ident id; _}, _) -> Env.is_record_typ env id
-    | _ -> false
+  | T_app ({it = T_type_basic T_list; _}, _)
+  | T_app ({it = T_type_basic T_opt; _}, _) -> true
+  | T_app ({it = T_ident id; _}, _) -> Env.is_record_typ env id
+  | _ -> false
 
 let is_inductive (d : mil_def) = 
   match d.it with
-    | (InductiveRelationD _ | InductiveD _) -> true
-    | _ -> false
+  | (InductiveRelationD _ | InductiveD _) -> true
+  | _ -> false
     
 let is_prop (t: mil_typ) = 
   match t with
-    | T_arrowtype [_; _; T_type_basic T_prop] | T_type_basic T_prop -> true
-    | _ -> false 
+  | T_arrowtype [_; _; T_type_basic T_prop] | T_type_basic T_prop -> true
+  | _ -> false 
 
 let comment_desc_def (def: mil_def): string = 
   match def.it with
-    | TypeAliasD _ -> "Type Alias Definition"
-    | RecordD _ -> "Record Creation Definition"
-    | InductiveD _ -> "Inductive Type Definition"
-    (* | NotationD _ -> "Notation Definition" *)
-    | MutualRecD _ -> "Mutual Recursion"
-    | DefinitionD _ -> "Auxiliary Definition"
-    | InductiveRelationD _ -> "Inductive Relations Definition"
-    | AxiomD _ -> "Axiom Definition"
-    | InductiveFamilyD _ -> "Family Type Definition"
-    | CoercionD _ -> "Type Coercion Definition"
-    | GlobalDeclarationD _ -> "Global Declaration Definition"
-    | UnsupportedD _ -> ""
+  | TypeAliasD _ -> "Type Alias Definition"
+  | RecordD _ -> "Record Creation Definition"
+  | InductiveD _ -> "Inductive Type Definition"
+  (* | NotationD _ -> "Notation Definition" *)
+  | MutualRecD _ -> "Mutual Recursion"
+  | DefinitionD _ -> "Auxiliary Definition"
+  | InductiveRelationD _ -> "Inductive Relations Definition"
+  | AxiomD _ -> "Axiom Definition"
+  | InductiveFamilyD _ -> "Family Type Definition"
+  | CoercionD _ -> "Type Coercion Definition"
+  | GlobalDeclarationD _ -> "Global Declaration Definition"
+  | UnsupportedD _ -> ""
 
 let rec string_of_type term = string_of_term false (term $@ Utils.anytype')
 and string_of_term is_match (term : term) =
   match term.it with
-    | T_exp_basic (T_bool b) -> string_of_bool b
-    | T_exp_basic (T_nat n) -> Z.to_string n
-    | T_exp_basic (T_int _i) -> "" (* TODO Manage ints well *)
-    | T_exp_basic (T_rat _r) -> "" (* TODO Manage rats well *)
-    | T_exp_basic (T_real _r) -> "" (* TODO Manage reals well *)
-    | T_exp_basic (T_string s) -> "\"" ^ String.escaped s ^ "\""
-    | T_exp_basic T_exp_unit -> "tt"
-    | T_exp_basic T_not when is_prop term.typ -> "~"
-    | T_exp_basic T_not -> "negb"
-    | T_exp_basic T_and when is_prop term.typ -> " /\\ "
-    | T_exp_basic T_and -> " && "
-    | T_exp_basic T_or when is_prop term.typ -> " \\/ "
-    | T_exp_basic T_or -> " || "
-    | T_exp_basic T_impl -> " -> "
-    | T_exp_basic T_equiv -> " <-> "
-    | T_exp_basic T_add -> " + "
-    | T_exp_basic T_sub -> " - "
-    | T_exp_basic T_mul -> " * "
-    | T_exp_basic T_div -> " / "
-    | T_exp_basic T_exp -> " ^ "
-    | T_exp_basic T_mod -> " mod "
-    | T_exp_basic T_eq when is_prop term.typ -> " = "
-    | T_exp_basic T_eq -> " == "
-    | T_exp_basic T_neq when is_prop term.typ -> " <> "
-    | T_exp_basic T_neq -> " != "
-    | T_exp_basic T_lt -> " < "
-    | T_exp_basic T_gt -> " > "
-    | T_exp_basic T_le -> " <= "
-    | T_exp_basic T_ge -> " >= "
-    | T_exp_basic T_some -> "Some"
-    | T_exp_basic T_none -> "None"
-    | T_exp_basic T_recordconcat -> " @@ "
-    | T_exp_basic T_listconcat -> " ++ "
-    | T_exp_basic T_listcons -> " :: "
-    | T_exp_basic T_listlength -> "List.length"
-    | T_exp_basic T_slicelookup -> "list_slice"
-    | T_exp_basic T_listlookup -> "lookup_total"
-    | T_exp_basic T_invopt -> "the"
-    | T_exp_basic T_succ -> "S"
-    | T_exp_basic (T_map I_list) -> "List.map"
-    | T_exp_basic (T_map I_option) -> "option_map"
-    | T_exp_basic (T_zipwith I_list) -> "list_zipwith"
-    | T_exp_basic (T_zipwith I_option) -> "option_zipwith" 
-    | T_exp_basic T_listmember -> "List.In"
-    | T_exp_basic T_listupdate -> "list_update_func"
-    | T_exp_basic T_opttolist -> "option_to_list"
-    | T_exp_basic T_sliceupdate -> "list_slice_update"
-    | T_type_basic T_unit -> "unit"
-    | T_type_basic T_bool -> "bool"
-    | T_type_basic T_nat -> "nat"
-    | T_type_basic T_int -> "nat"
-    | T_type_basic T_rat -> "nat" (* TODO change later to Q*)
-    | T_type_basic T_real -> "nat"
-    | T_type_basic T_string -> "string"
-    | T_type_basic T_list -> "list"
-    | T_type_basic T_opt -> "option"
-    | T_type_basic T_anytype -> "Type"
-    | T_type_basic T_prop -> "Prop"
-    | T_ident id -> id
-    | T_list [] -> "[]"
-    | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (prefixed_id, term) -> Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term is_match term) fields)) ^ " |}"
-    | T_list entries -> square_parens (String.concat "; " (List.map (string_of_term is_match) entries))
-    | T_caseapp (prefixed_id, args) when is_match -> 
-      parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
-    | T_caseapp (prefixed_id, args) ->
-      let typ_id = Utils.get_id term.typ in 
-      let num_new_args = Env.count_case_binders !env_ref typ_id in 
-      let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in
-      let put_parens s = if new_args = [] then s else parens s in  
-      put_parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) new_args)
-    | T_dotapp (prefixed_id, arg) -> parens (Print.string_of_prefixed_ident prefixed_id ^ " " ^ string_of_term is_match arg)  
-    | T_app (base_term, []) -> (string_of_term is_match base_term)
-    | T_app (base_term, args) -> parens ((string_of_term is_match base_term) ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
-    | T_app_infix (infix_op, term1, term2) -> parens (string_of_term is_match term1 ^ string_of_term is_match infix_op ^ string_of_term is_match term2)
-    | T_tuple types -> parens (String.concat ", " (List.map (string_of_term is_match) types))
-    | T_record_update (t1, prefixed_id, t3) -> parens (string_of_term is_match t1 ^ " <| " ^ Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term is_match t3 ^ " |>")
-    | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
-    | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term is_match term)
-    | T_cast (term, _, typ) -> parens (string_of_term is_match term ^ " : " ^ string_of_type typ)
-    | T_tupletype [] -> "unit"
-    | T_tupletype (t :: ts) -> List.fold_left (fun acc tup_typ -> parens ("prod " ^ acc ^ " " ^ (string_of_type tup_typ))) (string_of_type t) ts 
-    | T_default -> "default_val"
-    | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
+  | T_exp_basic (T_bool b) -> string_of_bool b
+  | T_exp_basic (T_nat n) -> Z.to_string n
+  | T_exp_basic (T_int _i) -> "" (* TODO Manage ints well *)
+  | T_exp_basic (T_rat _r) -> "" (* TODO Manage rats well *)
+  | T_exp_basic (T_real _r) -> "" (* TODO Manage reals well *)
+  | T_exp_basic (T_string s) -> "\"" ^ String.escaped s ^ "\""
+  | T_exp_basic T_exp_unit -> "tt"
+  | T_exp_basic T_not when is_prop term.typ -> "~"
+  | T_exp_basic T_not -> "negb"
+  | T_exp_basic T_and when is_prop term.typ -> " /\\ "
+  | T_exp_basic T_and -> " && "
+  | T_exp_basic T_or when is_prop term.typ -> " \\/ "
+  | T_exp_basic T_or -> " || "
+  | T_exp_basic T_impl -> " -> "
+  | T_exp_basic T_equiv -> " <-> "
+  | T_exp_basic T_add -> " + "
+  | T_exp_basic T_sub -> " - "
+  | T_exp_basic T_mul -> " * "
+  | T_exp_basic T_div -> " / "
+  | T_exp_basic T_exp -> " ^ "
+  | T_exp_basic T_mod -> " mod "
+  | T_exp_basic T_eq when is_prop term.typ -> " = "
+  | T_exp_basic T_eq -> " == "
+  | T_exp_basic T_neq when is_prop term.typ -> " <> "
+  | T_exp_basic T_neq -> " != "
+  | T_exp_basic T_lt -> " < "
+  | T_exp_basic T_gt -> " > "
+  | T_exp_basic T_le -> " <= "
+  | T_exp_basic T_ge -> " >= "
+  | T_exp_basic T_some -> "Some"
+  | T_exp_basic T_none -> "None"
+  | T_exp_basic T_recordconcat -> " @@ "
+  | T_exp_basic T_listconcat -> " ++ "
+  | T_exp_basic T_listcons -> " :: "
+  | T_exp_basic T_listlength -> "List.length"
+  | T_exp_basic T_slicelookup -> "list_slice"
+  | T_exp_basic T_listlookup -> "lookup_total"
+  | T_exp_basic T_invopt -> "the"
+  | T_exp_basic T_succ -> "S"
+  | T_exp_basic (T_map I_list) -> "List.map"
+  | T_exp_basic (T_map I_option) -> "option_map"
+  | T_exp_basic (T_zipwith I_list) -> "list_zipwith"
+  | T_exp_basic (T_zipwith I_option) -> "option_zipwith" 
+  | T_exp_basic T_listmember -> "List.In"
+  | T_exp_basic T_listupdate -> "list_update_func"
+  | T_exp_basic T_opttolist -> "option_to_list"
+  | T_exp_basic T_sliceupdate -> "list_slice_update"
+  | T_type_basic T_unit -> "unit"
+  | T_type_basic T_bool -> "bool"
+  | T_type_basic T_nat -> "nat"
+  | T_type_basic T_int -> "nat"
+  | T_type_basic T_rat -> "nat" (* TODO change later to Q*)
+  | T_type_basic T_real -> "nat"
+  | T_type_basic T_string -> "string"
+  | T_type_basic T_list -> "list"
+  | T_type_basic T_opt -> "option"
+  | T_type_basic T_anytype -> "Type"
+  | T_type_basic T_prop -> "Prop"
+  | T_ident id -> id
+  | T_list [] -> "[]"
+  | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (prefixed_id, term) -> Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term is_match term) fields)) ^ " |}"
+  | T_list entries -> square_parens (String.concat "; " (List.map (string_of_term is_match) entries))
+  | T_caseapp (prefixed_id, args) when is_match -> 
+    parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
+  | T_caseapp (prefixed_id, args) ->
+    let typ_id = Utils.get_id term.typ in 
+    let num_new_args = Env.count_case_binders !env_ref typ_id in 
+    let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in
+    let put_parens s = if new_args = [] then s else parens s in  
+    put_parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) new_args)
+  | T_dotapp (prefixed_id, arg) -> parens (Print.string_of_prefixed_ident prefixed_id ^ " " ^ string_of_term is_match arg)  
+  | T_app (base_term, []) -> (string_of_term is_match base_term)
+  | T_app (base_term, args) -> parens ((string_of_term is_match base_term) ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
+  | T_app_infix (infix_op, term1, term2) -> parens (string_of_term is_match term1 ^ string_of_term is_match infix_op ^ string_of_term is_match term2)
+  | T_tuple types -> parens (String.concat ", " (List.map (string_of_term is_match) types))
+  | T_record_update (t1, prefixed_id, t3) -> parens (string_of_term is_match t1 ^ " <| " ^ Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term is_match t3 ^ " |>")
+  | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
+  | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term is_match term)
+  | T_cast (term, _, typ) -> parens (string_of_term is_match term ^ " : " ^ string_of_type typ)
+  | T_tupletype [] -> "unit"
+  | T_tupletype (t :: ts) -> List.fold_left (fun acc tup_typ -> parens ("prod " ^ acc ^ " " ^ (string_of_type tup_typ))) (string_of_type t) ts 
+  | T_default -> "default_val"
+  | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 
 and string_of_binder (id, term) = 
   parens (id ^ " : " ^ string_of_type term)
@@ -190,30 +190,30 @@ let string_of_relation_args (args : relation_args) =
     
 let rec string_of_premise (prem : premise) =
   match prem with
-    | P_if term -> string_of_term false term
-    | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term false) terms)
-    | P_neg p -> parens ("~" ^ string_of_premise p)
-    | P_else -> "otherwise" (* Will be removed by an else pass *)
-    | P_list_forall (iterator, p, (id, t)) -> 
-      let binder = string_of_binder (id, Utils.remove_iter_from_type t) in
-      let option_conversion = if iterator = I_option then "option_to_list " else "" in
-      "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id)
-    | P_list_forall2 (iterator, p, (id, t), (id2, t2)) -> 
-      let binder = string_of_binder (id, Utils.remove_iter_from_type t) in
-      let binder2 = string_of_binder (id2, Utils.remove_iter_from_type t2) in
-      let option_conversion = if iterator = I_option then "option_to_list " else "" in
-      "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id) ^ " " ^ parens (option_conversion ^ id2)
-    | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
+  | P_if term -> string_of_term false term
+  | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term false) terms)
+  | P_neg p -> parens ("~" ^ string_of_premise p)
+  | P_else -> "otherwise" (* Will be removed by an else pass *)
+  | P_list_forall (iterator, p, (id, t)) -> 
+    let binder = string_of_binder (id, Utils.remove_iter_from_type t) in
+    let option_conversion = if iterator = I_option then "option_to_list " else "" in
+    "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id)
+  | P_list_forall2 (iterator, p, (id, t), (id2, t2)) -> 
+    let binder = string_of_binder (id, Utils.remove_iter_from_type t) in
+    let binder2 = string_of_binder (id2, Utils.remove_iter_from_type t2) in
+    let option_conversion = if iterator = I_option then "option_to_list " else "" in
+    "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id) ^ " " ^ parens (option_conversion ^ id2)
+  | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body f =
   match f with 
-    | F_term term -> string_of_term false term
-    | F_premises (_ ,[]) -> "True"
-    | F_premises (bs, prems) -> Mil.Print.string_of_list "forall " ", " " " string_of_binder bs ^ String.concat "/\\" (List.map string_of_premise prems)
-    | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term false bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
-    | F_let (var_term, term, fb) -> "let " ^ string_of_term false var_term ^ " := " ^ string_of_term false term ^ " in\n\t\t\t" ^ string_of_function_body fb
-    | F_match term -> string_of_term false term (* Todo extend this *)
-    | F_default -> "default_val" 
+  | F_term term -> string_of_term false term
+  | F_premises (_ ,[]) -> "True"
+  | F_premises (bs, prems) -> Mil.Print.string_of_list "forall " ", " " " string_of_binder bs ^ String.concat "/\\" (List.map string_of_premise prems)
+  | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term false bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
+  | F_let (var_term, term, fb) -> "let " ^ string_of_term false var_term ^ " := " ^ string_of_term false term ^ " in\n\t\t\t" ^ string_of_function_body fb
+  | F_match term -> string_of_term false term (* Todo extend this *)
+  | F_default -> "default_val" 
 
 let string_of_typealias (id : ident) (binds : binder list) (typ : term) = 
   "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term false typ
@@ -304,29 +304,29 @@ let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) =
   let end_newline = if has_endline then ".\n\n" else "" in 
   let start = comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region (def.at)) ^ "\n" in
   match def.it with
-    | TypeAliasD (id, binds, typ) -> start ^ string_of_typealias id binds typ ^ end_newline
-    | RecordD (id, entries) -> start ^ string_of_record id entries ^ end_newline
-    | InductiveD (id, args, entries) -> start ^ string_of_inductive_def id args entries ^ end_newline
-    | MutualRecD defs -> start ^ (match defs with
-      | [] -> ""
-      | [d] -> string_of_def true (not (is_inductive d)) d
-      | d :: defs when (List.for_all is_inductive defs) -> let prefix = "\n\nwith\n\n" in
-        string_of_def false false d ^ prefix ^ String.concat prefix (List.map (string_of_def false true) defs) ^ end_newline
-      | _ -> String.concat "" (List.map (string_of_def true true) defs)
-      )
-    | DefinitionD (id, binds, typ, clauses) -> let prefix = if recursive then "Fixpoint " else "Definition " in
-      start ^ string_of_definition prefix id binds typ clauses ^ end_newline
-    | GlobalDeclarationD (id, rt, (_, f_b)) -> 
-      start ^ "Definition " ^ id ^ " : " ^ string_of_type rt ^ " := " ^ string_of_function_body f_b ^ end_newline
-    | InductiveRelationD (id, args, relations) -> let prefix = if recursive then "" else "Inductive " in
-      start ^ string_of_inductive_relation prefix id args relations ^ end_newline
-    | AxiomD (id, binds, r_type) -> 
-      start ^ string_of_axiom id binds r_type ^ end_newline
-    | InductiveFamilyD (id, bs, entries) -> 
-      start ^ string_of_family_types id bs entries  ^ end_newline
-    | CoercionD (func_name, typ1, typ2) -> 
-      start ^ string_of_coercion func_name typ1 typ2 ^ end_newline
-    | UnsupportedD _str -> "" (* TODO maybe introduce later if people want it. need to escape "\(*\)" *)
+  | TypeAliasD (id, binds, typ) -> start ^ string_of_typealias id binds typ ^ end_newline
+  | RecordD (id, entries) -> start ^ string_of_record id entries ^ end_newline
+  | InductiveD (id, args, entries) -> start ^ string_of_inductive_def id args entries ^ end_newline
+  | MutualRecD defs -> start ^ (match defs with
+    | [] -> ""
+    | [d] -> string_of_def true (not (is_inductive d)) d
+    | d :: defs when (List.for_all is_inductive defs) -> let prefix = "\n\nwith\n\n" in
+      string_of_def false false d ^ prefix ^ String.concat prefix (List.map (string_of_def false true) defs) ^ end_newline
+    | _ -> String.concat "" (List.map (string_of_def true true) defs)
+    )
+  | DefinitionD (id, binds, typ, clauses) -> let prefix = if recursive then "Fixpoint " else "Definition " in
+    start ^ string_of_definition prefix id binds typ clauses ^ end_newline
+  | GlobalDeclarationD (id, rt, (_, f_b)) -> 
+    start ^ "Definition " ^ id ^ " : " ^ string_of_type rt ^ " := " ^ string_of_function_body f_b ^ end_newline
+  | InductiveRelationD (id, args, relations) -> let prefix = if recursive then "" else "Inductive " in
+    start ^ string_of_inductive_relation prefix id args relations ^ end_newline
+  | AxiomD (id, binds, r_type) -> 
+    start ^ string_of_axiom id binds r_type ^ end_newline
+  | InductiveFamilyD (id, bs, entries) -> 
+    start ^ string_of_family_types id bs entries  ^ end_newline
+  | CoercionD (func_name, typ1, typ2) -> 
+    start ^ string_of_coercion func_name typ1 typ2 ^ end_newline
+  | UnsupportedD _str -> "" (* TODO maybe introduce later if people want it. need to escape "\(*\)" *)
 
 let exported_string = 
   "(* Imported Code *)\n" ^

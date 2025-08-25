@@ -21,16 +21,16 @@ let prop_binop_typ = T_arrowtype [T_type_basic T_prop; T_type_basic T_prop; T_ty
 
 let remove_iter_from_type t =
   match t with
-    | T_app ({it = T_type_basic T_list; _}, [t']) -> t'.it
-    | T_app ({it = T_type_basic T_opt; _}, [t']) -> t'.it
-    | t' -> t'
+  | T_app ({it = T_type_basic T_list; _}, [t']) -> t'.it
+  | T_app ({it = T_type_basic T_opt; _}, [t']) -> t'.it
+  | t' -> t'
 
 let get_id t = 
   match t with
-    | T_app ({it = T_ident id; _}, _) -> id
-    | _ -> assert false
+  | T_app ({it = T_ident id; _}, _) -> id
+  | _ -> assert false
 
 let has_parameters t =
   match t with
-    | T_app ({it = T_ident _; _}, args) -> args <> []
-    | _ -> false 
+  | T_app ({it = T_ident _; _}, args) -> args <> []
+  | _ -> false 
