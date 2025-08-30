@@ -91,6 +91,7 @@ and string_of_term is_match (term : term) =
   | T_exp_basic (T_zipwith I_option) -> "option_zipwith" 
   | T_exp_basic T_listmember -> "List.In"
   | T_exp_basic T_listupdate -> "list_update_func"
+  | T_exp_basic T_listrepeat -> "List.repeat"
   | T_exp_basic T_opttolist -> "option_to_list"
   | T_exp_basic T_sliceupdate -> "list_slice_update"
   | T_type_basic T_unit -> "unit"

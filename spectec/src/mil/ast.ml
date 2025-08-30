@@ -55,6 +55,7 @@ type basic_term =
   | T_listcons
   | T_listlength
   | T_listmember
+  | T_listrepeat
   | T_slicelookup
   | T_listlookup
   | T_listupdate

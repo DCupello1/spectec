@@ -221,21 +221,26 @@ and transform_exp exp_type (exp : exp) =
     let fun_type = T_arrowtype ((List.map (get_typ_from_arg exp_type) args) @ [exp_typ]) in
     T_app (T_ident (transform_fun_id id) $@ fun_type, List.map (transform_arg exp_type) args) $@ exp_typ
   | IterE (exp1, (iter, ids)) ->  
-    let exp1' = transform_exp exp_type exp1 in
+    let term1 = transform_exp exp_type exp1 in
+    let term1_typ = transform_type' exp_type exp1.note in
     (match iter, ids, exp1.it with
+    | ListN (n, None), [], _ -> 
+      let n_typ = transform_type' exp_type n.note in
+      let sometyp = T_arrowtype [term1_typ; n_typ; exp_typ] in
+      T_app(T_exp_basic T_listrepeat $@ sometyp, [term1; (transform_exp exp_type n)])
+    (* Look into implementing a special case for when there is an id*)
     | (List | List1 | ListN _), [], _ -> 
-      T_list [exp1'] 
+      T_list [term1] 
     | Opt, [], _ ->
-      let typ' = transform_type' exp_type exp1.note in
-      let sometyp = T_arrowtype [typ'; transform_type' exp_type exp1.note] in
+      let sometyp = T_arrowtype [term1_typ; exp_typ] in
       T_app (T_exp_basic T_some $@ sometyp, [transform_exp exp_type exp1])
     | Opt, [_], OptE (Some e) -> 
       let typ' = transform_type' exp_type e.note in
-      let sometyp = T_arrowtype [typ'; transform_type' exp_type exp1.note] in
+      let sometyp = T_arrowtype [typ'; exp_typ] in
       T_app (T_exp_basic T_some $@ sometyp, [transform_exp exp_type e])
     | (List | List1 | ListN _ | Opt), _, (VarE _ | IterE _) ->
       (* Still considered a list type so no need to modify type *) 
-      exp1'.it
+      term1.it
     | (List | List1 | ListN _ | Opt), [(v, e1)], _ -> 
       let typ1 = transform_type' exp_type e1.note in
       let res_typ_iter = (transform_type' exp_type exp.note) in
@@ -243,7 +248,7 @@ and transform_exp exp_type (exp : exp) =
       let vartyp1 = remove_iter_from_type typ1 in
       let lambda_typ = T_arrowtype [vartyp1; res_type] in
       let map_typ = T_arrowtype [lambda_typ; typ1; res_typ_iter] in
-      T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [T_lambda ([(transform_var_id v, vartyp1)], exp1') $@ lambda_typ; T_ident (transform_var_id v) $@ typ1])
+      T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [T_lambda ([(transform_var_id v, vartyp1)], term1) $@ lambda_typ; T_ident (transform_var_id v) $@ typ1])
     | (List | List1 | ListN _ | Opt), [(v, e1); (s, e2)], _ -> 
       let typ1 = transform_type' exp_type e1.note in
       let typ2 = transform_type' exp_type e2.note in
@@ -253,8 +258,8 @@ and transform_exp exp_type (exp : exp) =
       let vartyp2 = remove_iter_from_type typ2 in
       let lambda_typ = T_arrowtype [vartyp1; vartyp2; res_type] in
       let zipwith_typ = T_arrowtype [lambda_typ; typ1; typ2; res_typ_iter] in
-      T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], exp1') $@ lambda_typ; T_ident (transform_var_id v) $@ typ1; T_ident (transform_var_id s) $@ typ2])
-    | _ -> exp1'.it) $@ exp_typ
+      T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], term1) $@ lambda_typ; T_ident (transform_var_id v) $@ typ1; T_ident (transform_var_id s) $@ typ2])
+    | _ -> term1.it) $@ exp_typ
   | SubE (e, typ1, typ2) -> T_cast (transform_exp exp_type e, transform_type' exp_type typ1, transform_type' exp_type typ2) $@ exp_typ
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp exp_type e, transform_numtyp numtyp1, transform_numtyp numtyp2) $@ exp_typ
   | LiftE exp ->

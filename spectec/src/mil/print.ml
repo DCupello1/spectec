@@ -61,6 +61,7 @@ let string_of_basic_exp_term t =
   | T_listlookup -> "List.lookup"
   | T_listmember -> "List.member"
   | T_listupdate -> "List.update"
+  | T_listrepeat -> "List.repeat"
   | T_sliceupdate -> "List.sliceupdate"
   | T_succ -> "S"
   | T_invopt -> "Option.Inv"
