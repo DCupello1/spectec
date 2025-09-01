@@ -107,7 +107,7 @@ let count_case_binders env typ_id =
 let rec env_of_def env d =
   match d.it with
   | TypeAliasD (id, bs, term) -> bind_typ env id (bs, T_alias term)
-  | RecordD (id, records) -> bind_typ env id ([], T_record records)
+  | RecordD (id, bs, records) -> bind_typ env id (bs, T_record records)
   | InductiveD (id, bs, cases) -> bind_typ env id (bs, T_inductive cases)
   | DefinitionD (id, bs, rt, clauses) -> bind_def env id (bs, rt, clauses)
   | GlobalDeclarationD (id, rt, clause) -> bind_def env id ([], rt, [clause])
@@ -133,7 +133,7 @@ let rec check_uniqueness_def map d =
   | GlobalDeclarationD (id, _, _) | AxiomD (id, _, _) 
   | InductiveFamilyD (id, _, _) -> 
     map := check_map !map id d.at
-  | RecordD (id, records) -> 
+  | RecordD (id, _, records) -> 
     List.iter (fun (r_id, _t) -> 
       map := check_map !map (Print.string_of_prefixed_ident r_id) d.at 
     ) records;

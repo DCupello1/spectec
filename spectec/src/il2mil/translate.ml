@@ -452,7 +452,7 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
 let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
   match deftyp.it with
   | AliasT typ -> TypeAliasD (transform_user_def_id id, List.map transform_bind binds, transform_type NORMAL typ)
-  | StructT typfields -> RecordD (transform_user_def_id id, List.map (fun (a, (_, t, _), _) -> 
+  | StructT typfields -> RecordD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (a, (_, t, _), _) -> 
     (([], transform_atom a), transform_type' NORMAL t)) typfields)
   | VariantT typcases -> InductiveD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (m, (_, t, _), _) ->
       (([], transform_mixop id.it m), transform_typ_args NORMAL t)) typcases)
@@ -544,7 +544,7 @@ let _transform_clauses (clauses : clause list) : clause_entry list =
   ) clauses 
   |> rearrange_clauses
 
-let create_well_formed_function id params inst =
+let create_well_formed_function id params inst at =
   let get_typ_from_arg_args_ids (typ : typ) = 
     match typ.it with
     | TupT tups -> List.map fst tups 
@@ -578,28 +578,32 @@ let create_well_formed_function id params inst =
       then [(new_arg, F_term (T_exp_basic (T_bool true) $@ T_type_basic T_bool))] 
       else [] 
     in
-    Some (DefinitionD (wf_prefix ^ id.it, List.map transform_param new_params, T_type_basic T_prop, clauses @ extra_clause))
+    Some (DefinitionD (wf_prefix ^ id.it, List.map transform_param new_params, T_type_basic T_prop, clauses @ extra_clause) $ at)
   | _ -> None
 
-let rec transform_def (map : string StringMap.t ref) (def : def) : mil_def list =
-  let _has_prems clause = 
-    match clause.it with
-    | DefD (_, _, _, prems) -> prems <> []
-  in
+let _has_prems clause = 
+  match clause.it with
+  | DefD (_, _, _, prems) -> prems <> []
+  
+
+let rec transform_def (partial_map : string StringMap.t ref) (wf_map : mil_def StringMap.t ref) (def : def) : mil_def list =
   (match def.it with
   | TypD (id, params, [({it = InstD (binds, _, deftyp);_} as inst)]) 
-    when Tfamily.check_normal_type_creation inst -> 
-    let wf_func = Option.to_list (create_well_formed_function id params inst) in 
-    transform_deftyp id binds deftyp :: wf_func 
+      when Tfamily.check_normal_type_creation inst -> 
+    let wf_func = create_well_formed_function id params inst def.at in
+    if Option.is_some wf_func then 
+      wf_map := StringMap.add id.it (Option.get wf_func) !wf_map;
+    [transform_deftyp id binds deftyp]
   | TypD (id, params, insts) -> 
     let bs = List.map transform_param params in 
-    let extra_clause = if (StringMap.mem id.it !map) 
+    let extra_clause = if (StringMap.mem id.it !partial_map) 
       then [(List.map (fun (_, t) -> T_ident "_" $@ t) bs, T_default $@ anytype')]
       else []
     in
     [InductiveFamilyD (transform_user_def_id id, bs, 
     List.map (transform_inst id) insts @ extra_clause)]
-  | RelD (id, _, typ, rules) -> [InductiveRelationD (transform_user_def_id id, transform_tuple_to_relation_args NORMAL typ, List.map (transform_rule id) rules)]
+  | RelD (id, _, typ, rules) -> 
+    [InductiveRelationD (transform_user_def_id id, transform_tuple_to_relation_args NORMAL typ, List.map (transform_rule id) rules)]
   | DecD (id, params, typ, clauses) ->
     (match params, clauses with
       | _, [] -> 
@@ -617,7 +621,7 @@ let rec transform_def (map : string StringMap.t ref) (def : def) : mil_def list 
         let bs = List.map transform_param params in
         let rt = transform_type' NORMAL typ in
         let has_partial_typ_fam = List.exists (fun p -> match p.it with
-          | ExpP (id, _) | TypP id | DefP (id, _, _) | GramP (id, _) -> StringMap.mem id.it !map
+          | ExpP (id, _) | TypP id | DefP (id, _, _) | GramP (id, _) -> StringMap.mem id.it !partial_map
         ) params in 
         let extra_clause = if has_partial_typ_fam 
           then [(List.map (fun (_, t) -> T_ident "_" $@ t) bs, F_term (T_default $@ rt))]
@@ -625,7 +629,7 @@ let rec transform_def (map : string StringMap.t ref) (def : def) : mil_def list 
         in
         [DefinitionD (transform_fun_id id, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)]
     )
-  | RecD defs -> [MutualRecD (List.concat_map (transform_def map) defs)]
+  | RecD defs -> [MutualRecD (List.concat_map (transform_def partial_map wf_map) defs)]
   | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]
   ) |> List.map (fun d -> d $ def.at)
 
@@ -702,12 +706,16 @@ let is_not_hintdef (d : def) : bool =
   | _ -> true 
 
 let transform (reserved_ids : StringSet.t) (il : script) =
-  reserved_ids_set := reserved_ids; 
   let preprocessed_il = Preprocess.preprocess il in
   let partial_map = ref StringMap.empty in 
-  List.iter (register_partial_type_hint_def partial_map) preprocessed_il;
-  env_ref := Il.Env.env_of_script preprocessed_il;
   let prefix_map = create_prefix_map preprocessed_il in 
+  let wf_map = ref StringMap.empty in 
+
+  reserved_ids_set := reserved_ids; 
+  env_ref := Il.Env.env_of_script preprocessed_il;
+
+  List.iter (register_partial_type_hint_def partial_map) preprocessed_il;
   List.filter is_not_hintdef preprocessed_il |> 
-  List.concat_map (transform_def partial_map) |>
+  List.concat_map (transform_def partial_map wf_map) |>
+  Wf.transform wf_map |> 
   Naming.transform prefix_map

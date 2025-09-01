@@ -131,7 +131,7 @@ and family_type_entry = term list * term
 and mil_def = mil_def' phrase
 and mil_def' =
   | TypeAliasD of (ident * binder list * term)
-  | RecordD of (ident * record_entry list)
+  | RecordD of (ident * binder list * record_entry list)
   | InductiveD of (ident * binder list * inductive_type_entry list)
   | MutualRecD of mil_def list
   | DefinitionD of (ident * binder list * return_type * clause_entry list)
@@ -140,6 +140,7 @@ and mil_def' =
   | AxiomD of (ident * binder list * return_type)
   | InductiveFamilyD of (ident * binder list * family_type_entry list)
   | CoercionD of (func_name * ident * ident)
+  | LemmaD of (ident * binder list * premise list)
   | UnsupportedD of string
   
 type mil_script = mil_def list

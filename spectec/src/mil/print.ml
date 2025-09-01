@@ -161,7 +161,7 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
   let endnewline = "\n\n" in
   (match d.it with
   | TypeAliasD (id, binds, term) -> region ^ "type " ^ id ^ string_of_list_prefix " " " " string_of_binder binds ^ " = " ^ string_of_term term ^ endnewline
-  | RecordD (id, record_entry) -> region ^ "record " ^ id ^ " = " ^ curly_parens ("\n\t" ^ String.concat ",\n\t" (List.map (fun (prefixed_id, term) -> 
+  | RecordD (id, binds, record_entry) -> region ^ "record " ^ id ^ string_of_list_prefix " " " " string_of_binder binds ^ " = " ^ curly_parens ("\n\t" ^ String.concat ",\n\t" (List.map (fun (prefixed_id, term) -> 
       string_of_prefixed_ident prefixed_id ^ " : " ^ string_of_term' term
     ) record_entry) ^ "\n") ^ endnewline
   | InductiveD (id, bs, inductive_type_entries) -> region ^ "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t| " ^
@@ -170,10 +170,6 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
     "match " ^ String.concat ", " (grab_id_of_binders bs) ^ " with\n\t\t|" ^
     String.concat "\n\t\t|" (List.map (fun (match_terms, f_b) -> string_of_list_prefix " " ", " string_of_term match_terms ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
   | GlobalDeclarationD (id, rt, (_, f_b)) -> region ^ "definition " ^ id ^ " : " ^ string_of_term' rt ^ " := " ^ string_of_function_body f_b ^ endnewline
-  | MutualRecD defs -> region ^ String.concat "" (List.map (string_of_def ~suppress_unsup) defs)
-  | AxiomD (id, bs, rt) -> region ^ "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term' rt ^ endnewline
-  | CoercionD (fn_name, typ1, typ2) -> region ^ "coercion " ^ fn_name ^ " : " ^ typ1 ^ " <: " ^ typ2 ^ endnewline
-  | UnsupportedD str when not suppress_unsup -> "Unsupported definition: " ^ str
   | InductiveRelationD (id, rel_args, relation_type_entries) -> 
     region ^ "relation " ^ id ^ " : " ^ string_of_list_suffix " -> bool" " -> " string_of_term rel_args ^ " := \n\t| " ^ 
     String.concat "\n\t| " (List.map (fun ((case_id, binds), premises, terms) -> 
@@ -182,9 +178,15 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
         string_of_list_prefix " " " " string_of_term terms
     
     ) relation_type_entries) ^ endnewline
+  | MutualRecD defs -> region ^ String.concat "" (List.map (string_of_def ~suppress_unsup) defs)
+  | AxiomD (id, bs, rt) -> region ^ "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term' rt ^ endnewline
   | InductiveFamilyD (id, bs, family_type_entries) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t" ^
     "match " ^ String.concat ", " (grab_id_of_binders bs) ^ " with\n\t\t|" ^
     String.concat "\n\t\t|" (string_of_family_type_entries id family_type_entries) ^ endnewline
+  | CoercionD (fn_name, typ1, typ2) -> region ^ "coercion " ^ fn_name ^ " : " ^ typ1 ^ " <: " ^ typ2 ^ endnewline
+  | LemmaD (id, binders, prems) -> 
+    "lemma " ^ id ^ ":" ^ string_of_list " forall " ", " " " string_of_binder binders ^ string_of_list_prefix "\n\t\t" " ->\n\t\t" string_of_premise prems
+  | UnsupportedD str when not suppress_unsup -> "Unsupported definition: " ^ str
   | _ -> ""
   )
 

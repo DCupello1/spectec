@@ -132,12 +132,12 @@ let rec transform_fb prefix_map f =
 let rec transform_def prefix_map (d : mil_def) =
   (match d.it with
   | TypeAliasD (id, bs, t) -> TypeAliasD (id, transform_binders prefix_map bs, transform_term prefix_map t) 
-  | RecordD (id, record_entries) -> 
+  | RecordD (id, bs, record_entries) -> 
     let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
       | Some prefix -> [prefix]
       | None -> []
     ) in 
-    RecordD (id, List.map (fun ((prefixes, id'), t) -> 
+    RecordD (id, transform_binders prefix_map bs, List.map (fun ((prefixes, id'), t) -> 
       let combined_id = string_combine id' id in
       let new_id = (match (StringMap.find_opt combined_id prefix_map) with
         | Some prefix -> extra_prefix @ [prefix] @ prefixes,id'
@@ -177,6 +177,7 @@ let rec transform_def prefix_map (d : mil_def) =
   | InductiveFamilyD (id, bs, entries) -> InductiveFamilyD (id, transform_binders prefix_map bs, 
     List.map (fun (terms, t) -> (List.map (transform_term prefix_map) terms, transform_term prefix_map t)) entries)
   | CoercionD (id1, id2, id3) -> CoercionD (id1, id2, id3)
+  | LemmaD (id, binders, prems) -> LemmaD (id, transform_binders prefix_map binders, List.map (transform_premise prefix_map) prems)
   | UnsupportedD str -> UnsupportedD str
   ) $ d.at
 let transform prefix_map mil = 

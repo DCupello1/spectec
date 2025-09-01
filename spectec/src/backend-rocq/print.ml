@@ -41,6 +41,7 @@ let comment_desc_def (def: mil_def): string =
   | InductiveFamilyD _ -> "Family Type Definition"
   | CoercionD _ -> "Type Coercion Definition"
   | GlobalDeclarationD _ -> "Global Declaration Definition"
+  | LemmaD _ -> "Lemma Definition"
   | UnsupportedD _ -> ""
 
 let rec string_of_type term = string_of_term false (term $@ Utils.anytype')
@@ -220,22 +221,25 @@ let string_of_typealias (id : ident) (binds : binder list) (typ : term) =
   "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term false typ
   ^ ".\n\n" ^ string_of_eqtype_proof false id binds 
 
-let string_of_record (id: ident) (entries : record_entry list) = 
+(* TODO improve rendering for dependent records *)
+let string_of_record (id: ident) (binds : binder list) (entries : record_entry list) = 
   let constructor_name = "MK" ^ id in
+  let inhabitance_binders = string_of_binders binds in 
+  let binders = string_of_binders_ids binds in 
 
   (* Standard Record definition *)
-  "Record " ^ id ^ " := " ^ constructor_name ^ "\n{\t" ^ 
+  "Record " ^ id ^ inhabitance_binders ^ " := " ^ constructor_name ^ "\n{\t" ^ 
   String.concat "\n;\t" (List.map (fun (record_id, typ) -> 
     Print.string_of_prefixed_ident record_id ^ " : " ^ string_of_type typ) entries) ^ "\n}.\n\n" ^
 
   (* Inhabitance proof for default values *)
-  "Global Instance Inhabited_" ^ id ^ " : Inhabited " ^ id ^ " := \n" ^
+  "Global Instance Inhabited_" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^ " := \n" ^
   "{default_val := {|\n\t" ^
       String.concat ";\n\t" (List.map (fun (record_id, _) -> 
         Print.string_of_prefixed_ident record_id ^ " := default_val") entries) ^ "|} }.\n\n" ^
 
-  (* Record Append proof (TODO might need information on type to improve this) *)
-  "Definition _append_" ^ id ^ " (arg1 arg2 : " ^ id ^ ") :=\n" ^ 
+  (* Append instance *)
+  "Definition _append_" ^ id ^ inhabitance_binders ^ " (arg1 arg2 : " ^ parens (id ^ binders) ^ ") :=\n" ^ 
   "{|\n\t" ^ String.concat "\t" ((List.map (fun (prefixed_id, typ) -> 
     let record_id' = Print.string_of_prefixed_ident prefixed_id in    
     if (check_trivial_append !env_ref typ) 
@@ -301,12 +305,17 @@ let string_of_family_types (id : ident) (bs: binder list) (entries : family_type
 let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
   "Coercion " ^ func_name ^ " : " ^ typ1 ^ " >-> " ^ typ2
 
+let string_of_lemma (id : ident) (binders : binder list) (premises : premise list) = 
+  "Lemma " ^ id ^ ":" ^ Print.string_of_list " forall " ", " " " string_of_binder binders ^
+  Print.string_of_list_prefix "\n\t\t" " ->\n\t\t" string_of_premise premises ^ ".\n" ^
+  "Proof. Admitted"
+
 let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) = 
   let end_newline = if has_endline then ".\n\n" else "" in 
   let start = comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region (def.at)) ^ "\n" in
   match def.it with
   | TypeAliasD (id, binds, typ) -> start ^ string_of_typealias id binds typ ^ end_newline
-  | RecordD (id, entries) -> start ^ string_of_record id entries ^ end_newline
+  | RecordD (id, bs, entries) -> start ^ string_of_record id bs entries ^ end_newline
   | InductiveD (id, args, entries) -> start ^ string_of_inductive_def id args entries ^ end_newline
   | MutualRecD defs -> start ^ (match defs with
     | [] -> ""
@@ -327,6 +336,8 @@ let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) =
     start ^ string_of_family_types id bs entries  ^ end_newline
   | CoercionD (func_name, typ1, typ2) -> 
     start ^ string_of_coercion func_name typ1 typ2 ^ end_newline
+  | LemmaD (id, binders, prems) ->
+    start ^ string_of_lemma id binders prems ^ end_newline
   | UnsupportedD _str -> "" (* TODO maybe introduce later if people want it. need to escape "\(*\)" *)
 
 let exported_string = 
