@@ -171,7 +171,7 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
     String.concat "\n\t\t|" (List.map (fun (match_terms, f_b) -> string_of_list_prefix " " ", " string_of_term match_terms ^ " => " ^ string_of_function_body f_b) clauses) ^ endnewline
   | GlobalDeclarationD (id, rt, (_, f_b)) -> region ^ "definition " ^ id ^ " : " ^ string_of_term' rt ^ " := " ^ string_of_function_body f_b ^ endnewline
   | InductiveRelationD (id, rel_args, relation_type_entries) -> 
-    region ^ "relation " ^ id ^ " : " ^ string_of_list_suffix " -> bool" " -> " string_of_term rel_args ^ " := \n\t| " ^ 
+    region ^ "relation " ^ id ^ " : " ^ string_of_list_suffix " -> bool" " -> " string_of_term' rel_args ^ " := \n\t| " ^ 
     String.concat "\n\t| " (List.map (fun ((case_id, binds), premises, terms) -> 
         empty_name (case_id) ^ " : " ^ string_of_list "forall " ", " " " string_of_binder binds ^
         string_of_list "\n\t\t" " ->\n\t\t" " ->\n\t\t" string_of_premise premises ^ id ^ 

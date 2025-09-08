@@ -116,7 +116,7 @@ and inductive_type_entry = (prefixed_ident * binder list)
 
 and relation_type_entry = (ident * binder list) * premise list * term list
 
-and relation_args = term list
+and relation_args = mil_typ list
 
 and inferred_types = term list 
 

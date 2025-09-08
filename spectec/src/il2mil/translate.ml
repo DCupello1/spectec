@@ -138,8 +138,8 @@ and transform_typ_args exp_type (typ : typ) =
 
 and transform_tuple_to_relation_args exp_type (t : typ) =
   match t.it with
-  | TupT typs -> List.map (fun (_, t) -> transform_type exp_type t) typs
-  | _ -> [transform_type exp_type t]
+  | TupT typs -> List.map (fun (_, t) -> transform_type' exp_type t) typs
+  | _ -> [transform_type' exp_type t]
 
 (* Expression functions *)
 and transform_exp exp_type (exp : exp) =
@@ -584,15 +584,20 @@ let create_well_formed_function id params inst at =
 let _has_prems clause = 
   match clause.it with
   | DefD (_, _, _, prems) -> prems <> []
-  
 
-let rec transform_def (partial_map : string StringMap.t ref) (wf_map : mil_def StringMap.t ref) (def : def) : mil_def list =
+let get_inductive_case_prems_and_binds deftyp = 
+  match deftyp.it with
+    | VariantT typcases -> List.map (fun (_, (binds, _, prems), _) -> List.map transform_bind binds, List.map (transform_premise true) prems) typcases 
+    | StructT typfields -> List.map (fun (_, (binds, _, prems), _) -> List.map transform_bind binds, List.map (transform_premise true) prems) typfields
+    | _ -> []
+
+let rec transform_def (partial_map : string StringMap.t ref) (wf_map : ((binder list * premise list) list) StringMap.t ref) (def : def) : mil_def list =
   (match def.it with
   | TypD (id, params, [({it = InstD (binds, _, deftyp);_} as inst)]) 
       when Tfamily.check_normal_type_creation inst -> 
     let wf_func = create_well_formed_function id params inst def.at in
     if Option.is_some wf_func then 
-      wf_map := StringMap.add id.it (Option.get wf_func) !wf_map;
+      wf_map := StringMap.add id.it (get_inductive_case_prems_and_binds deftyp) !wf_map;
     [transform_deftyp id binds deftyp]
   | TypD (id, params, insts) -> 
     let bs = List.map transform_param params in 
@@ -717,5 +722,6 @@ let transform (reserved_ids : StringSet.t) (il : script) =
   List.iter (register_partial_type_hint_def partial_map) preprocessed_il;
   List.filter is_not_hintdef preprocessed_il |> 
   List.concat_map (transform_def partial_map wf_map) |>
-  Wf.transform wf_map |> 
-  Naming.transform prefix_map
+  
+  Naming.transform prefix_map |>
+  Wf.transform wf_map 

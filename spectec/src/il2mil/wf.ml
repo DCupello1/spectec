@@ -7,12 +7,14 @@ module StringMap = Map.Make(String)
 
 type wf_env = {
   mil_env : Mil.Env.t;
-  mutable wf_map : mil_def StringMap.t
+  mutable wf_map : (binder list * premise list) list StringMap.t
 }
 
 let error at msg = Error.error at "MIL Transformation" msg
 
-let wf_prefix = "good_"
+let wf_pred_prefix = "wf_"
+
+let wf_pred_suffix = "_wf"
 
 let new_env wf_map script = 
 {
@@ -71,43 +73,52 @@ let get_wf_id (wf_pred : mil_def) =
   | DefinitionD (id, _, _, _) -> id
   | _ -> error wf_pred.at "Well formed predicate should be a function definition"
 
-let create_well_formed_type type_id binders wf_predicate at =
-  let wf_id = get_wf_id wf_predicate in
-  let wf_type_id = wf_prefix ^ type_id in
-  let field_type_id = ([], wf_type_id ^ "_KEY") in 
-  let field_pred_id = ([], wf_type_id ^ "_PRED") in
-  let typ = T_app (T_ident type_id $@ anytype', List.map (fun b -> typ_to_term (snd b)) binders) in
-  let pred_field = T_app (T_ident wf_id $@ anytype', List.map (fun b -> typ_to_term (snd b)) binders @ [T_ident (snd field_type_id) $@ anytype']) in
-  RecordD (wf_type_id, binders, [(field_type_id, typ); (field_pred_id, pred_field)]) $ at
+let create_well_formed_predicate env id dep_binders (entries : inductive_type_entry list) case_list at =
+  let user_typ = T_app (T_ident id $@ anytype', List.map (fun (typ_id, typ) -> T_ident typ_id $@ typ) dep_binders) in 
+  let new_binder = ("x", user_typ) in
+  let new_binders = dep_binders @ [new_binder] in 
+  let cases = List.map (fun ((case_id, case_binders), (case_free_vars, prems)) -> 
+    let prefixes, base_id = case_id in
+    let new_var_typs = List.map (fun (typ_id, typ) -> T_ident typ_id $@ typ) case_binders in 
+    let new_case_term = T_caseapp (case_id, new_var_typs) $@ user_typ in
+    let dep_vars_terms = List.map (fun (id', typ) -> T_ident id' $@ typ) dep_binders in
+    ((String.concat "" prefixes ^ base_id ^ wf_pred_suffix, transform_binders env case_free_vars), List.map (transform_premise env) prems, dep_vars_terms @ [new_case_term])
+  ) (List.combine entries case_list) in
+  InductiveRelationD (wf_pred_prefix ^ id, List.map snd (transform_binders env new_binders), cases) $ at
   
 let rec transform_def env (d : mil_def) =
   match d.it with
-  | TypeAliasD (id, bs, t) -> [TypeAliasD (id, transform_binders env bs, transform_term env t) $ d.at]
-  | RecordD (id, bs, record_entries) -> [RecordD (id, transform_binders env bs, List.map (fun (id', t) -> (id', transform_term' env t)) record_entries) $ d.at]
+  | TypeAliasD (id, bs, t) -> (TypeAliasD (id, transform_binders env bs, transform_term env t) $ d.at, [])
+  | RecordD (id, bs, record_entries) -> (RecordD (id, transform_binders env bs, List.map (fun (id', t) -> (id', transform_term' env t)) record_entries) $ d.at, [])
   | InductiveD (id, bs, entries) -> 
     let inductive_def = InductiveD (id, transform_binders env bs, List.map (fun (id', bs) -> (id', transform_binders env bs)) entries) in 
     (match (StringMap.find_opt id env.wf_map) with
-    | None -> [inductive_def $ d.at]
-    | Some wf_pred -> [inductive_def $ d.at; wf_pred]
+    | None -> (inductive_def $ d.at, [])
+    | Some (case_list) -> (inductive_def $ d.at, [create_well_formed_predicate env id bs entries case_list d.at])
     )
-  | MutualRecD defs -> [MutualRecD (List.concat_map (transform_def env) defs) $ d.at]
-  | DefinitionD (id, bs, rt, clauses) -> [DefinitionD (id, transform_binders env bs, transform_term' env rt,
-    List.map (fun (ts, fb) -> (List.map (transform_term env) ts, transform_fb env fb)) clauses) $ d.at]
-  | GlobalDeclarationD (id, rt, (ts, fb)) -> [GlobalDeclarationD (id, transform_term' env rt, (List.map (transform_term env) ts, transform_fb env fb)) $ d.at]
-  | InductiveRelationD (id, types, entries) -> [InductiveRelationD (id, List.map (transform_term env) types, 
+  | MutualRecD defs -> 
+    let (defs', wf_defs) = List.split (List.map (transform_def env) defs) in 
+    (MutualRecD defs' $ d.at, List.concat wf_defs)
+  | DefinitionD (id, bs, rt, clauses) -> (DefinitionD (id, transform_binders env bs, transform_term' env rt,
+    List.map (fun (ts, fb) -> (List.map (transform_term env) ts, transform_fb env fb)) clauses) $ d.at, [])
+  | GlobalDeclarationD (id, rt, (ts, fb)) -> (GlobalDeclarationD (id, transform_term' env rt, (List.map (transform_term env) ts, transform_fb env fb)) $ d.at, [])
+  | InductiveRelationD (id, types, entries) -> (InductiveRelationD (id, List.map (transform_term' env) types, 
     List.map (fun ((id, bs), prems, terms) -> 
       ((id, transform_binders env bs), 
         List.map (transform_premise env) prems, 
         List.map (transform_term env) terms)
-    ) entries) $ d.at]
-  | AxiomD (id, bs, rt) -> [AxiomD (id, transform_binders env bs, transform_term' env rt) $ d.at]
-  | InductiveFamilyD (id, bs, entries) -> [InductiveFamilyD (id, transform_binders env bs, 
-    List.map (fun (match_terms, term) -> (List.map (transform_term env) match_terms, transform_term env term)) entries) $ d.at]
-  | CoercionD (id1, id2, id3) -> [CoercionD (id1, id2, id3) $ d.at]
-  | LemmaD (id, binders, prems) -> [LemmaD (id, transform_binders env binders, List.map (transform_premise env) prems) $ d.at]
-  | UnsupportedD str -> [UnsupportedD str $ d.at]
+    ) entries) $ d.at, [])
+  | AxiomD (id, bs, rt) -> (AxiomD (id, transform_binders env bs, transform_term' env rt) $ d.at, [])
+  | InductiveFamilyD (id, bs, entries) -> (InductiveFamilyD (id, transform_binders env bs, 
+    List.map (fun (match_terms, term) -> (List.map (transform_term env) match_terms, transform_term env term)) entries) $ d.at, [])
+  | CoercionD (id1, id2, id3) -> (CoercionD (id1, id2, id3) $ d.at, [])
+  | LemmaD (id, binders, prems) -> (LemmaD (id, transform_binders env binders, List.map (transform_premise env) prems) $ d.at, [])
+  | UnsupportedD str -> (UnsupportedD str $ d.at, [])
   
   
 let transform wf_map mil = 
   let env = new_env !wf_map mil in
-  List.concat_map (transform_def env) mil
+  List.concat_map (fun d -> 
+    let (d', wf_defs) = transform_def env d in
+    d' :: wf_defs
+  ) mil

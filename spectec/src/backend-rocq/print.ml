@@ -188,7 +188,7 @@ let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder 
   "Hint Resolve " ^ id ^ "_eq_dec : eq_dec_db" 
 
 let string_of_relation_args (args : relation_args) = 
-  Mil.Print.string_of_list_prefix " " " -> " (string_of_term false) args
+  Mil.Print.string_of_list_prefix " " " -> " string_of_type args
     
 let rec string_of_premise (prem : premise) =
   match prem with

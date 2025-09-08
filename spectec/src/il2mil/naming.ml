@@ -167,7 +167,7 @@ let rec transform_def prefix_map (d : mil_def) =
       | Some prefix -> prefix
       | None -> ""
     ) in 
-    InductiveRelationD (id, List.map (transform_term prefix_map) types, 
+    InductiveRelationD (id, List.map (transform_type prefix_map) types, 
     List.map (fun ((id', bs), prems, terms) -> 
       ((extra_prefix ^ id', transform_binders prefix_map bs), 
         List.map (transform_premise prefix_map) prems, 
