@@ -482,11 +482,11 @@ let transform_clause (fb : function_body option) (c : clause) =
   | DefD (_binds, args, exp, _prems), None -> (List.map (transform_arg MATCH) args, F_term (transform_exp NORMAL exp))
   | DefD (_binds, args, _, _prems), Some fb -> (List.map (transform_arg MATCH) args, fb)
 
-let transform_inst (_id : id) (i : inst) =
+let transform_tf_inst (id : id) (i : inst) =
   match i.it with
-  | InstD (_binds, args, deftyp) -> 
+  | InstD (binds, _, deftyp) -> 
     match deftyp.it with
-    | AliasT typ -> (List.map (transform_arg MATCH) args, transform_type NORMAL typ)
+    | AliasT typ -> (make_prefix ^ id.it ^ Tfamily.sub_type_name_binds binds, ("_", transform_type' NORMAL typ))
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
 
 (* Inactive for now - need to understand well function defs with pattern guards *)
@@ -615,12 +615,8 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : ((premise
     [transform_deftyp id binds deftyp]
   | TypD (id, params, insts) -> 
     let bs = List.map transform_param params in 
-    let extra_clause = if (StringMap.mem id.it !partial_map) 
-      then [(List.map (fun (_, t) -> T_ident "_" $@ t) bs, T_default $@ anytype')]
-      else []
-    in
     [InductiveFamilyD (transform_user_def_id id, bs, 
-    List.map (transform_inst id) insts @ extra_clause)]
+    List.map (transform_tf_inst id) insts)]
   | RelD (id, _, typ, rules) -> 
     [InductiveRelationD (transform_user_def_id id, transform_tuple_to_relation_args NORMAL typ, List.map (transform_rule id) rules)]
   | DecD (id, params, typ, clauses) ->

@@ -153,8 +153,8 @@ let rec transform_sub_def (env : Env.t) (d : mil_def) =
     (transform_subE d.at env sub_expressions, d)
   | InductiveFamilyD (_, binders, type_family_entries) -> 
     let sub_expressions = List.concat_map (fun (_, t) -> get_subE_term' t) binders @ 
-      List.concat_map (fun (terms, t) -> 
-        List.concat_map get_subE_term terms @ get_subE_term t
+      List.concat_map (fun (_, (_, t)) -> 
+        get_subE_term' t
       ) type_family_entries in
     (transform_subE d.at env sub_expressions, d)
   | DefinitionD (_, _, _, clauses) ->

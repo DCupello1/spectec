@@ -126,7 +126,7 @@ and return_type = mil_typ
 
 and clause_entry = term list * function_body 
 
-and family_type_entry = term list * term
+and family_type_entry = ident * binder
 
 and mil_def = mil_def' phrase
 and mil_def' =

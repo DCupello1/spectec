@@ -138,7 +138,7 @@ and bound_record_entry (p_id, _typ) = bound_varid (Print.string_of_prefixed_iden
 and free_inductive_type_entry (_, bs) = free_binders bs
 and free_clause_entry (ts, fb) = free_functionbody fb - bound_list bound_term ts
 and free_relation_type_entry ((_, bs), prems, ts) = free_binders bs + (free_list free_premise prems + free_list free_term ts - bound_binders bs) 
-and free_family_type_entry (ts, t) = free_term t - bound_list bound_term ts
+and free_family_type_entry (_id, b) = free_binder b
 
 and free_def (d : mil_def) = 
   match d.it with

@@ -154,7 +154,7 @@ let string_of_inductive_type_entries entries =
   List.map (fun (prefixed_id, bs') -> string_of_prefixed_ident prefixed_id ^ string_of_list_prefix " " " " string_of_binder bs') entries
 
 let string_of_family_type_entries _id entries =
-  List.map (fun (match_terms, term) -> string_of_list_prefix " " ", " string_of_term match_terms ^ " => " ^ string_of_term term) entries
+  List.map (fun (id, b) -> id ^ " " ^ string_of_binder b) entries
   
 let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
   let region = ";; " ^ Util.Source.string_of_region d.at ^ "\n" in 
@@ -180,9 +180,8 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
     ) relation_type_entries) ^ endnewline
   | MutualRecD defs -> region ^ String.concat "" (List.map (string_of_def ~suppress_unsup) defs)
   | AxiomD (id, bs, rt) -> region ^ "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term' rt ^ endnewline
-  | InductiveFamilyD (id, bs, family_type_entries) -> region ^ "definition " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t" ^
-    "match " ^ String.concat ", " (grab_id_of_binders bs) ^ " with\n\t\t|" ^
-    String.concat "\n\t\t|" (string_of_family_type_entries id family_type_entries) ^ endnewline
+  | InductiveFamilyD (id, bs, family_type_entries) -> region ^ "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t| " ^
+    String.concat "\n\t| " (string_of_family_type_entries id family_type_entries) ^ endnewline
   | CoercionD (fn_name, typ1, typ2) -> region ^ "coercion " ^ fn_name ^ " : " ^ typ1 ^ " <: " ^ typ2 ^ endnewline
   | LemmaD (id, binders, prems) -> 
     "lemma " ^ id ^ ":" ^ string_of_list " forall " ", " " " string_of_binder binders ^ string_of_list_prefix "\n\t\t" " ->\n\t\t" string_of_premise prems

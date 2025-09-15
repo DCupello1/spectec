@@ -296,10 +296,9 @@ let string_of_axiom (id : ident) (binds : binder list) (r_type: return_type) =
   "Axiom " ^ id ^ " : forall" ^ string_of_binders binds ^ ", " ^ string_of_type r_type
 
 let string_of_family_types (id : ident) (bs: binder list) (entries : family_type_entry list) = 
-  "Definition " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ ": Type :=\n" ^
-  "\tmatch " ^ string_of_match_binders bs ^ " with\n\t\t| " ^
-  String.concat "\n\t\t| " (List.map (fun (match_terms, t) -> 
-    Print.string_of_list_prefix "" ", " (string_of_term true) match_terms ^ " => " ^ string_of_term false t) 
+  "Inductive " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ ": Type :=\n\t| " ^
+  String.concat "\n\t| " (List.map (fun (id', b) -> 
+    id' ^ " " ^ string_of_binder b ^ " : " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs) 
   entries) ^ "\n\tend"
 
 let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
