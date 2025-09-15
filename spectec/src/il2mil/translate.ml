@@ -64,10 +64,13 @@ let transform_iter (iter : iter) =
 
 (* Identifier generation *)  
 let gen_exp_name (e : exp) =
-  match e.it with
-  | VarE id -> transform_var_id id
-  | IterE ({it = VarE id; _}, (iter, _)) -> transform_var_id (id.it ^ string_of_iter iter $ id.at)
-  | _ -> "_" 
+  let rec go iter_lst e' = 
+    match e'.it with
+    | VarE id -> transform_var_id (id.it ^ String.concat "" (List.map string_of_iter iter_lst) $ id.at) 
+    | IterE (e1, (iter, _)) -> go (iter :: iter_lst) e1
+    | _ -> "_" 
+  in
+  go [] e
   
 (* Atom functions *)
 let transform_atom (a : atom) = 
@@ -160,7 +163,8 @@ and transform_exp exp_type (exp : exp) =
       transform_type' exp_type exp2.note; 
       exp_typ] in
     T_app_infix (T_exp_basic T_listcons $@ listcons_typ, transform_exp exp_type exp1, transform_exp exp_type exp2) $@ exp_typ
-  | IterE (exp', _) when exp_type = MATCH  -> (transform_exp exp_type exp').it $@ exp_typ
+  | IterE _ when exp_type = MATCH -> 
+    T_ident (gen_exp_name exp) $@ exp_typ
   | BinE (`AddOp, _, exp1, {it = NumE (`Nat n) ;_}) when exp_type = MATCH  -> 
     let rec get_succ n = (match n with
     | 0 -> (transform_exp exp_type exp1)
