@@ -217,8 +217,8 @@ let rec string_of_function_body f =
   | F_match term -> string_of_term false term (* Todo extend this *)
   | F_default -> "default_val" 
 
-let string_of_typealias (id : ident) (binds : binder list) (typ : term) = 
-  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_term false typ
+let string_of_typealias (id : ident) (binds : binder list) (typ : mil_typ) = 
+  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_type typ
   ^ ".\n\n" ^ string_of_eqtype_proof false id binds 
 
 (* TODO improve rendering for dependent records *)

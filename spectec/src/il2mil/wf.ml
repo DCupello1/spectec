@@ -24,11 +24,11 @@ let new_env wf_map script =
 }
 
 let rec transform_term env t =
-  (transform_term' env t.it) $@ transform_term' env t.typ
+  (transform_type env t.it) $@ transform_type env t.typ
 
-and transform_term' env t = 
+and transform_type env t = 
   let t_func = transform_term env in
-  let t_func' = transform_term' env in
+  let t_func' = transform_type env in
   match t with
   | T_list terms -> T_list (List.map t_func terms)
   | T_record_update (t1, p_id, t2) -> T_record_update (t_func t1, p_id, t_func t2)
@@ -45,7 +45,7 @@ and transform_term' env t =
   | t' -> t'
 
 and transform_binders env bs =
-  List.map (fun (id, t) -> (id, transform_term' env t)) bs
+  List.map (fun (id, t) -> (id, transform_type env t)) bs
 
 let rec transform_premise env p = 
   match p with
@@ -53,16 +53,16 @@ let rec transform_premise env p =
   | P_neg p' -> P_neg (transform_premise env p')
   | P_rule (id, terms) -> P_rule (id, List.map (transform_term env) terms)
   | P_else -> P_else
-  | P_list_forall (iter, p', (id, t)) -> P_list_forall (iter, transform_premise env p', (id, transform_term' env t))
+  | P_list_forall (iter, p', (id, t)) -> P_list_forall (iter, transform_premise env p', (id, transform_type env t))
   | P_list_forall2 (iter, p', (id1, t1), (id2, t2)) ->
-    P_list_forall2 (iter, transform_premise env p', (id1, transform_term' env t1), (id2, transform_term' env t2))
+    P_list_forall2 (iter, transform_premise env p', (id1, transform_type env t1), (id2, transform_type env t2))
   | p' -> p'
 
 let rec transform_fb env f =
   match f with
   | F_term t -> F_term (transform_term env t)
   | F_premises (bs, ps) -> 
-    F_premises (List.map (fun (id, t) -> (id, transform_term' env t)) bs, 
+    F_premises (List.map (fun (id, t) -> (id, transform_type env t)) bs, 
     List.map (transform_premise env) ps)
   | F_if_else (t, f1, f2) -> F_if_else (transform_term env t, transform_fb env f1, transform_fb env f2)
   | F_let (t1, t2, fb) -> F_let (transform_term env t1, transform_term env t2, transform_fb env fb)
@@ -70,7 +70,8 @@ let rec transform_fb env f =
   | F_default -> F_default
 
 let create_well_formed_predicate env id dep_binders (entries : inductive_type_entry list) prems at =
-  let user_typ = T_app (T_ident id $@ anytype', List.map (fun (typ_id, typ) -> T_ident typ_id $@ typ) dep_binders) in 
+  let dep_type = T_arrowtype ((List.map (fun (_, t) -> t) dep_binders) @ [anytype']) in 
+  let user_typ = T_app (T_ident id $@ dep_type, List.map (fun (typ_id, typ) -> T_ident typ_id $@ typ) dep_binders) in 
   let new_binder = ("x", user_typ) in
   let new_binders = dep_binders @ [new_binder] in 
   let cases = List.map (fun ((case_id, case_binders), (prems)) -> 
@@ -85,8 +86,8 @@ let create_well_formed_predicate env id dep_binders (entries : inductive_type_en
   
 let rec transform_def env (d : mil_def) =
   match d.it with
-  | TypeAliasD (id, bs, t) -> (TypeAliasD (id, transform_binders env bs, transform_term env t) $ d.at, [])
-  | RecordD (id, bs, record_entries) -> (RecordD (id, transform_binders env bs, List.map (fun (id', t) -> (id', transform_term' env t)) record_entries) $ d.at, [])
+  | TypeAliasD (id, bs, t) -> (TypeAliasD (id, transform_binders env bs, transform_type env t) $ d.at, [])
+  | RecordD (id, bs, record_entries) -> (RecordD (id, transform_binders env bs, List.map (fun (id', t) -> (id', transform_type env t)) record_entries) $ d.at, [])
   | InductiveD (id, bs, entries) -> 
     let inductive_def = InductiveD (id, transform_binders env bs, List.map (fun (id', bs) -> (id', transform_binders env bs)) entries) in 
     (match (StringMap.find_opt id env.wf_map) with
@@ -96,16 +97,16 @@ let rec transform_def env (d : mil_def) =
   | MutualRecD defs -> 
     let (defs', wf_defs) = List.split (List.map (transform_def env) defs) in 
     (MutualRecD defs' $ d.at, List.concat wf_defs)
-  | DefinitionD (id, bs, rt, clauses) -> (DefinitionD (id, transform_binders env bs, transform_term' env rt,
+  | DefinitionD (id, bs, rt, clauses) -> (DefinitionD (id, transform_binders env bs, transform_type env rt,
     List.map (fun (ts, fb) -> (List.map (transform_term env) ts, transform_fb env fb)) clauses) $ d.at, [])
-  | GlobalDeclarationD (id, rt, (ts, fb)) -> (GlobalDeclarationD (id, transform_term' env rt, (List.map (transform_term env) ts, transform_fb env fb)) $ d.at, [])
-  | InductiveRelationD (id, types, entries) -> (InductiveRelationD (id, List.map (transform_term' env) types, 
+  | GlobalDeclarationD (id, rt, (ts, fb)) -> (GlobalDeclarationD (id, transform_type env rt, (List.map (transform_term env) ts, transform_fb env fb)) $ d.at, [])
+  | InductiveRelationD (id, types, entries) -> (InductiveRelationD (id, List.map (transform_type env) types, 
     List.map (fun ((id, bs), prems, terms) -> 
       ((id, transform_binders env bs), 
         List.map (transform_premise env) prems, 
         List.map (transform_term env) terms)
     ) entries) $ d.at, [])
-  | AxiomD (id, bs, rt) -> (AxiomD (id, transform_binders env bs, transform_term' env rt) $ d.at, [])
+  | AxiomD (id, bs, rt) -> (AxiomD (id, transform_binders env bs, transform_type env rt) $ d.at, [])
   | InductiveFamilyD (id, bs, entries) -> (InductiveFamilyD (id, transform_binders env bs, 
     List.map (fun (match_terms, term) -> (List.map (transform_term env) match_terms, transform_term env term)) entries) $ d.at, [])
   | CoercionD (id1, id2, id3) -> (CoercionD (id1, id2, id3) $ d.at, [])

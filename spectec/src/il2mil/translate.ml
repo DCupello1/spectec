@@ -465,7 +465,7 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
 
 let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
   match deftyp.it with
-  | AliasT typ -> TypeAliasD (transform_user_def_id id, List.map transform_bind binds, transform_type NORMAL typ)
+  | AliasT typ -> TypeAliasD (transform_user_def_id id, List.map transform_bind binds, transform_type' NORMAL typ)
   | StructT typfields -> RecordD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (a, (_, t, _), _) -> 
     (([], transform_atom a), transform_type' NORMAL t)) typfields)
   | VariantT typcases -> InductiveD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (m, (_, t, _), _) ->
@@ -738,4 +738,5 @@ let transform (reserved_ids : StringSet.t) (il : script) =
   List.concat_map (transform_def partial_map wf_map) |>
   
   Naming.transform prefix_map |>
-  Wf.transform wf_map 
+  Wf.transform wf_map |>
+  Mil.Dep.transform

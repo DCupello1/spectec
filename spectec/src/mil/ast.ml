@@ -130,7 +130,7 @@ and family_type_entry = term list * term
 
 and mil_def = mil_def' phrase
 and mil_def' =
-  | TypeAliasD of (ident * binder list * term)
+  | TypeAliasD of (ident * binder list * mil_typ)
   | RecordD of (ident * binder list * record_entry list)
   | InductiveD of (ident * binder list * inductive_type_entry list)
   | MutualRecD of mil_def list

@@ -15,7 +15,7 @@ module StringSet = Set.Make(String)
 module StringMap = Map.Make(String)
 
 type mil_deftyp =
-  | T_alias of term
+  | T_alias of term'
   | T_record of record_entry list
   | T_inductive of inductive_type_entry list
   | T_tfamily of family_type_entry list
@@ -41,7 +41,7 @@ let empty =
     rels = StringMap.empty;
   }
 
-let mem map id = StringMap.mem id.it map
+let mem map id = StringMap.mem id map
 
 let find_opt map id =
   StringMap.find_opt id map

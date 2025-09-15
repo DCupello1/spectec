@@ -28,6 +28,7 @@ let remove_iter_from_type t =
 let get_id t = 
   match t with
   | T_app ({it = T_ident id; _}, _) -> id
+  | T_ident id -> id
   | _ -> assert false
 
 let has_parameters t =

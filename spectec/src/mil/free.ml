@@ -142,7 +142,7 @@ and free_family_type_entry (ts, t) = free_term t - bound_list bound_term ts
 
 and free_def (d : mil_def) = 
   match d.it with
-  | TypeAliasD (_, bs, t) -> free_binders bs + (free_term t - bound_binders bs)
+  | TypeAliasD (_, bs, t) -> free_binders bs + (free_type t - bound_binders bs)
   | RecordD (_, bs, entries) -> free_binders bs + (free_list_dep free_record_entry bound_record_entry entries - bound_binders bs)
   | InductiveD (_, bs, entries) -> free_binders bs + (free_list free_inductive_type_entry entries - bound_binders bs)
   | MutualRecD defs -> free_list free_def defs

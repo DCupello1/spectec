@@ -160,7 +160,7 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
   let region = ";; " ^ Util.Source.string_of_region d.at ^ "\n" in 
   let endnewline = "\n\n" in
   (match d.it with
-  | TypeAliasD (id, binds, term) -> region ^ "type " ^ id ^ string_of_list_prefix " " " " string_of_binder binds ^ " = " ^ string_of_term term ^ endnewline
+  | TypeAliasD (id, binds, term) -> region ^ "type " ^ id ^ string_of_list_prefix " " " " string_of_binder binds ^ " = " ^ string_of_term' term ^ endnewline
   | RecordD (id, binds, record_entry) -> region ^ "record " ^ id ^ string_of_list_prefix " " " " string_of_binder binds ^ " = " ^ curly_parens ("\n\t" ^ String.concat ",\n\t" (List.map (fun (prefixed_id, term) -> 
       string_of_prefixed_ident prefixed_id ^ " : " ^ string_of_term' term
     ) record_entry) ^ "\n") ^ endnewline

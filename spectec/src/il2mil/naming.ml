@@ -131,7 +131,7 @@ let rec transform_fb prefix_map f =
   
 let rec transform_def prefix_map (d : mil_def) =
   (match d.it with
-  | TypeAliasD (id, bs, t) -> TypeAliasD (id, transform_binders prefix_map bs, transform_term prefix_map t) 
+  | TypeAliasD (id, bs, t) -> TypeAliasD (id, transform_binders prefix_map bs, transform_type prefix_map t) 
   | RecordD (id, bs, record_entries) -> 
     let extra_prefix = (match (StringMap.find_opt id prefix_map) with 
       | Some prefix -> [prefix]

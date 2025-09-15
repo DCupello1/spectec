@@ -146,7 +146,7 @@ and transform_subE at env sub_expressions =
 let rec transform_sub_def (env : Env.t) (d : mil_def) =
   match d.it with
   | TypeAliasD (_, _, term) -> 
-    let sub_expressions = get_subE_term term in
+    let sub_expressions = get_subE_term' term in
     (transform_subE d.at env sub_expressions, d)
   | InductiveRelationD (_, _, rules) -> 
     let sub_expressions = List.concat_map (fun (_, prems, terms) -> List.concat_map get_subE_term terms @ List.concat_map get_subE_prem prems) rules in
