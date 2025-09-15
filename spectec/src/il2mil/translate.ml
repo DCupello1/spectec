@@ -33,14 +33,23 @@ let rec list_split (f : 'a -> bool) = function
 
 (* Id transformation *)
 let transform_id' (prefix : text) (s : text) = 
-  let s' = String.to_seq s |> Seq.take_while (fun c -> c != '*' && c != '?' && c != '^' ) |> String.of_seq in 
-  match s' with
-  | s when StringSet.mem s !reserved_ids_set -> prefix ^ s
-  | s -> String.map (function
+  let change_id s' = 
+    String.map (function
      | '.' -> '_'
      | '-' -> '_'
      | c -> c
-     ) s
+    ) s'
+    (* This suffixes any '*' or '^' with '_lst' and '?' with '_opt' for clarity *)
+    |> Str.global_replace (Str.regexp {|\([*|^]\)|}) "_lst"
+    |> Lib.String.replace "?" "_opt"
+    (* This matches any string that has a name with an apostrophe and ensures that the added suffixes are placed before it 
+    * i.e. "val'*" will turn into "val_lst'" 
+    *)
+    |> Str.global_replace (Str.regexp {|\([a-zA-Z]+\)\('*\)\(.+\)|}) "\\1\\3\\2"
+  in
+  match s with
+  | s when StringSet.mem s !reserved_ids_set -> prefix ^ change_id s
+  | s -> change_id s
 
 let transform_var_id (id : id) = var_prefix ^ transform_id' "" id.it
 let transform_fun_id (id : id) = fun_prefix ^ transform_id' "" id.it
@@ -57,6 +66,7 @@ let transform_iter (iter : iter) =
 let gen_exp_name (e : exp) =
   match e.it with
   | VarE id -> transform_var_id id
+  | IterE ({it = VarE id; _}, (iter, _)) -> transform_var_id (id.it ^ string_of_iter iter $ id.at)
   | _ -> "_" 
   
 (* Atom functions *)
@@ -228,7 +238,7 @@ and transform_exp exp_type (exp : exp) =
       let n_typ = transform_type' exp_type n.note in
       let sometyp = T_arrowtype [term1_typ; n_typ; exp_typ] in
       T_app(T_exp_basic T_listrepeat $@ sometyp, [term1; (transform_exp exp_type n)])
-    (* Look into implementing a special case for when there is an id*)
+    (* Look into implementing a special case for when there is an id *)
     | (List | List1 | ListN _), [], _ -> 
       T_list [term1] 
     | Opt, [], _ ->
@@ -238,27 +248,27 @@ and transform_exp exp_type (exp : exp) =
       let typ' = transform_type' exp_type e.note in
       let sometyp = T_arrowtype [typ'; exp_typ] in
       T_app (T_exp_basic T_some $@ sometyp, [transform_exp exp_type e])
-    | (List | List1 | ListN _ | Opt), _, (VarE _ | IterE _) ->
+    | (List | List1 | ListN _ | Opt), _, (VarE var_id) ->
       (* Still considered a list type so no need to modify type *) 
-      term1.it
-    | (List | List1 | ListN _ | Opt), [(v, e1)], _ -> 
-      let typ1 = transform_type' exp_type e1.note in
+      T_ident (transform_var_id (var_id.it ^ string_of_iter iter $ var_id.at))
+    | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_list_id; note = v_typ; _})], _ -> 
+      let typ1 = transform_type' exp_type v_typ in
       let res_typ_iter = (transform_type' exp_type exp.note) in
       let res_type = remove_iter_from_type res_typ_iter in
       let vartyp1 = remove_iter_from_type typ1 in
       let lambda_typ = T_arrowtype [vartyp1; res_type] in
       let map_typ = T_arrowtype [lambda_typ; typ1; res_typ_iter] in
-      T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [T_lambda ([(transform_var_id v, vartyp1)], term1) $@ lambda_typ; T_ident (transform_var_id v) $@ typ1])
-    | (List | List1 | ListN _ | Opt), [(v, e1); (s, e2)], _ -> 
-      let typ1 = transform_type' exp_type e1.note in
-      let typ2 = transform_type' exp_type e2.note in
+      T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [T_lambda ([(transform_var_id v, vartyp1)], term1) $@ lambda_typ; T_ident (transform_var_id v_list_id) $@ typ1])
+    | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_list_id; note = v_typ; _}); (s, {it = VarE s_list_id; note = s_typ; _})], _ -> 
+      let typ1 = transform_type' exp_type v_typ in
+      let typ2 = transform_type' exp_type s_typ in
       let res_typ_iter = (transform_type' exp_type exp.note) in
       let res_type = remove_iter_from_type res_typ_iter in
       let vartyp1 = remove_iter_from_type typ1 in
       let vartyp2 = remove_iter_from_type typ2 in
       let lambda_typ = T_arrowtype [vartyp1; vartyp2; res_type] in
       let zipwith_typ = T_arrowtype [lambda_typ; typ1; typ2; res_typ_iter] in
-      T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], term1) $@ lambda_typ; T_ident (transform_var_id v) $@ typ1; T_ident (transform_var_id s) $@ typ2])
+      T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], term1) $@ lambda_typ; T_ident (transform_var_id v_list_id) $@ typ1; T_ident (transform_var_id s_list_id) $@ typ2])
     | _ -> term1.it) $@ exp_typ
   | SubE (e, typ1, typ2) -> T_cast (transform_exp exp_type e, transform_type' exp_type typ1, transform_type' exp_type typ2) $@ exp_typ
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp exp_type e, transform_numtyp numtyp1, transform_numtyp numtyp2) $@ exp_typ
@@ -585,19 +595,19 @@ let _has_prems clause =
   match clause.it with
   | DefD (_, _, _, prems) -> prems <> []
 
-let get_inductive_case_prems_and_binds deftyp = 
+let get_inductive_case_prems deftyp = 
   match deftyp.it with
-    | VariantT typcases -> List.map (fun (_, (binds, _, prems), _) -> List.map transform_bind binds, List.map (transform_premise true) prems) typcases 
-    | StructT typfields -> List.map (fun (_, (binds, _, prems), _) -> List.map transform_bind binds, List.map (transform_premise true) prems) typfields
+    | VariantT typcases -> List.map (fun (_, (_, _, prems), _) -> List.map (transform_premise true) prems) typcases 
+    | StructT typfields -> List.map (fun (_, (_, _, prems), _) -> List.map (transform_premise true) prems) typfields
     | _ -> []
 
-let rec transform_def (partial_map : string StringMap.t ref) (wf_map : ((binder list * premise list) list) StringMap.t ref) (def : def) : mil_def list =
+let rec transform_def (partial_map : string StringMap.t ref) (wf_map : ((premise list) list) StringMap.t ref) (def : def) : mil_def list =
   (match def.it with
   | TypD (id, params, [({it = InstD (binds, _, deftyp);_} as inst)]) 
       when Tfamily.check_normal_type_creation inst -> 
     let wf_func = create_well_formed_function id params inst def.at in
     if Option.is_some wf_func then 
-      wf_map := StringMap.add id.it (get_inductive_case_prems_and_binds deftyp) !wf_map;
+      wf_map := StringMap.add id.it (get_inductive_case_prems deftyp) !wf_map;
     [transform_deftyp id binds deftyp]
   | TypD (id, params, insts) -> 
     let bs = List.map transform_param params in 
