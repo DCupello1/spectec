@@ -5,6 +5,7 @@ open Mil.Ast
 open Mil.Utils
 open Util
 open Source
+open Wf
 
 module StringMap = Map.Make(String)
 
@@ -255,15 +256,15 @@ and transform_exp exp_type (exp : exp) =
     | (List | List1 | ListN _ | Opt), _, (VarE var_id) ->
       (* Still considered a list type so no need to modify type *) 
       T_ident (transform_var_id (var_id.it ^ string_of_iter iter $ var_id.at))
-    | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_list_id; note = v_typ; _})], _ -> 
+    | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_iter_id; note = v_typ; _})], _ -> 
       let typ1 = transform_type' exp_type v_typ in
       let res_typ_iter = (transform_type' exp_type exp.note) in
       let res_type = remove_iter_from_type res_typ_iter in
       let vartyp1 = remove_iter_from_type typ1 in
       let lambda_typ = T_arrowtype [vartyp1; res_type] in
       let map_typ = T_arrowtype [lambda_typ; typ1; res_typ_iter] in
-      T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [T_lambda ([(transform_var_id v, vartyp1)], term1) $@ lambda_typ; T_ident (transform_var_id v_list_id) $@ typ1])
-    | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_list_id; note = v_typ; _}); (s, {it = VarE s_list_id; note = s_typ; _})], _ -> 
+      T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [T_lambda ([(transform_var_id v, vartyp1)], term1) $@ lambda_typ; T_ident (transform_var_id v_iter_id) $@ typ1])
+    | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_iter_id; note = v_typ; _}); (s, {it = VarE s_list_id; note = s_typ; _})], _ -> 
       let typ1 = transform_type' exp_type v_typ in
       let typ2 = transform_type' exp_type s_typ in
       let res_typ_iter = (transform_type' exp_type exp.note) in
@@ -272,7 +273,7 @@ and transform_exp exp_type (exp : exp) =
       let vartyp2 = remove_iter_from_type typ2 in
       let lambda_typ = T_arrowtype [vartyp1; vartyp2; res_type] in
       let zipwith_typ = T_arrowtype [lambda_typ; typ1; typ2; res_typ_iter] in
-      T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], term1) $@ lambda_typ; T_ident (transform_var_id v_list_id) $@ typ1; T_ident (transform_var_id s_list_id) $@ typ2])
+      T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], term1) $@ lambda_typ; T_ident (transform_var_id v_iter_id) $@ typ1; T_ident (transform_var_id s_list_id) $@ typ2])
     | _ -> term1.it) $@ exp_typ
   | SubE (e, typ1, typ2) -> T_cast (transform_exp exp_type e, transform_type' exp_type typ1, transform_type' exp_type typ2) $@ exp_typ
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp exp_type e, transform_numtyp numtyp1, transform_numtyp numtyp2) $@ exp_typ
@@ -453,12 +454,15 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
   | LetPr (exp1, exp2, _) -> 
     let eqtyp = T_arrowtype [transform_type' NORMAL exp1.note; transform_type' NORMAL exp2.note; T_type_basic T_bool] in
     P_if (T_app_infix (T_exp_basic T_eq $@ eqtyp, transform_exp NORMAL exp1, transform_exp NORMAL exp2) $@ T_type_basic T_bool)
-  | IterPr (p', (iter, [(id, e)])) ->
-    P_list_forall (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id id, transform_type' NORMAL e.note))
-  | IterPr (p', (iter, [(id, e); (id2, e2)])) ->
-    let id_typ = transform_type' NORMAL e.note in
-    let id_typ2 = transform_type' NORMAL e2.note in 
-    P_list_forall2 (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id id, id_typ), (transform_var_id id2, id_typ2))
+  | IterPr (p', (iter, [(v, {it = VarE v_iter_id; note = v_typ; _})])) ->
+    let v_mil_typ = transform_type' NORMAL v_typ in 
+    P_list_forall (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id v, remove_iter_from_type v_mil_typ), T_ident (transform_var_id v_iter_id) $@ v_mil_typ)
+  | IterPr (p', (iter, [(v, {it = VarE v_iter_id; note = v_typ; _}); (s, {it = VarE s_iter_id; note = s_typ; _})])) ->
+    let v_mil_typ = transform_type' NORMAL v_typ in
+    let s_mil_typ = transform_type' NORMAL s_typ in 
+    P_list_forall2 (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id v, remove_iter_from_type v_mil_typ), 
+      (transform_var_id s, remove_iter_from_type s_mil_typ), T_ident (transform_var_id v_iter_id) $@ v_mil_typ, 
+       T_ident (transform_var_id s_iter_id) $@ s_mil_typ)
   | IterPr _ -> P_unsupported (string_of_prem p) (* TODO could potentially extend this further if necessary *)
   | RulePr (id, _mixop, exp) -> P_rule (transform_user_def_id id, transform_tuple_exp (transform_exp NORMAL) exp)
   | NegPr p' -> P_neg (transform_premise is_rel_prem p')
@@ -486,7 +490,7 @@ let transform_tf_inst (id : id) (i : inst) =
   match i.it with
   | InstD (binds, _, deftyp) -> 
     match deftyp.it with
-    | AliasT typ -> (make_prefix ^ id.it ^ Tfamily.sub_type_name_binds binds, ("_", transform_type' NORMAL typ))
+    | AliasT typ -> (make_prefix ^ id.it ^ Tfamily.sub_type_name_binds binds, ("x", transform_type' NORMAL typ))
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
 
 (* Inactive for now - need to understand well function defs with pattern guards *)
@@ -605,15 +609,22 @@ let get_inductive_case_prems deftyp =
     | StructT typfields -> List.map (fun (_, (_, _, prems), _) -> List.map (transform_premise true) prems) typfields
     | _ -> []
 
-let rec transform_def (partial_map : string StringMap.t ref) (wf_map : ((premise list) list) StringMap.t ref) (def : def) : mil_def list =
+let get_type_family_args insts = 
+  List.map (fun inst ->
+    match inst.it with
+    | InstD (_, args, _d) -> List.map (transform_arg NORMAL) args
+  ) insts
+
+let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_entry StringMap.t ref) (def : def) : mil_def list =
   (match def.it with
   | TypD (id, params, [({it = InstD (binds, _, deftyp);_} as inst)]) 
       when Tfamily.check_normal_type_creation inst -> 
     let wf_func = create_well_formed_function id params inst def.at in
     if Option.is_some wf_func then 
-      wf_map := StringMap.add id.it (get_inductive_case_prems deftyp) !wf_map;
+      wf_map := StringMap.add id.it (NormalType (get_inductive_case_prems deftyp)) !wf_map;
     [transform_deftyp id binds deftyp]
   | TypD (id, params, insts) -> 
+    wf_map := StringMap.add id.it (FamilyType (get_type_family_args insts)) !wf_map;
     let bs = List.map transform_param params in 
     [InductiveFamilyD (transform_user_def_id id, bs, 
     List.map (transform_tf_inst id) insts)]

@@ -5,10 +5,13 @@ open Mil.Free
 open Util
 
 module StringMap = Map.Make(String)
+type wf_entry = 
+  | NormalType of (premise list) list
+  | FamilyType of (term list) list
 
 type wf_env = {
   mil_env : Mil.Env.t;
-  mutable wf_map : (premise list) list StringMap.t
+  mutable wf_type_map : wf_entry StringMap.t;
 }
 
 let error at msg = Error.error at "MIL Transformation" msg
@@ -17,10 +20,10 @@ let wf_pred_prefix = "wf_"
 
 let wf_pred_suffix = "_wf"
 
-let new_env wf_map script = 
+let new_env wf_type_map script = 
 {
   mil_env = Mil.Env.env_of_script script;
-  wf_map = wf_map
+  wf_type_map = wf_type_map
 }
 
 let rec transform_term env t =
@@ -53,9 +56,9 @@ let rec transform_premise env p =
   | P_neg p' -> P_neg (transform_premise env p')
   | P_rule (id, terms) -> P_rule (id, List.map (transform_term env) terms)
   | P_else -> P_else
-  | P_list_forall (iter, p', (id, t)) -> P_list_forall (iter, transform_premise env p', (id, transform_type env t))
-  | P_list_forall2 (iter, p', (id1, t1), (id2, t2)) ->
-    P_list_forall2 (iter, transform_premise env p', (id1, transform_type env t1), (id2, transform_type env t2))
+  | P_list_forall (iter, p', (v, v_t), v_iter_term) -> P_list_forall (iter, transform_premise env p', (v, transform_type env v_t), transform_term env v_iter_term)
+  | P_list_forall2 (iter, p', (v, v_t), (s, s_t), v_iter_term, s_iter_term) ->
+    P_list_forall2 (iter, transform_premise env p', (v, transform_type env v_t), (s, transform_type env s_t), transform_term env v_iter_term, transform_term env s_iter_term)
   | p' -> p'
 
 let rec transform_fb env f =
@@ -84,15 +87,29 @@ let create_well_formed_predicate env id dep_binders (entries : inductive_type_en
   ) (List.combine entries prems) in
   InductiveRelationD (wf_pred_prefix ^ id, List.map snd (transform_binders env new_binders), cases) $ at
   
+let create_well_formed_family_predicate env id dep_binders (entries : family_type_entry list) (terms_list : term list list) at = 
+  let dep_type = T_arrowtype ((List.map (fun (_, t) -> t) dep_binders) @ [anytype']) in 
+  let user_typ = T_app (T_ident id $@ dep_type, List.map (fun (typ_id, typ) -> T_ident typ_id $@ typ) dep_binders) in 
+  let new_binder = ("x", user_typ) in
+  let new_binders = dep_binders @ [new_binder] in
+  let cases = List.map (fun ((case_id, (t_id, typ)), terms) ->
+    let case_var = T_ident t_id $@ typ in
+    let new_case_term = T_caseapp (([], case_id), [case_var]) $@ user_typ in
+    let case_free_vars = (diff (free_list free_term (new_case_term :: terms)) (bound_binders dep_binders)).var |> VarSet.to_list in 
+    ((case_id ^ wf_pred_suffix, case_free_vars), [], terms @ [new_case_term])
+  ) (List.combine entries terms_list) in
+  InductiveRelationD (wf_pred_prefix ^ id, List.map snd (transform_binders env new_binders), cases) $ at
+
 let rec transform_def env (d : mil_def) =
   match d.it with
   | TypeAliasD (id, bs, t) -> (TypeAliasD (id, transform_binders env bs, transform_type env t) $ d.at, [])
   | RecordD (id, bs, record_entries) -> (RecordD (id, transform_binders env bs, List.map (fun (id', t) -> (id', transform_type env t)) record_entries) $ d.at, [])
   | InductiveD (id, bs, entries) -> 
     let inductive_def = InductiveD (id, transform_binders env bs, List.map (fun (id', bs) -> (id', transform_binders env bs)) entries) in 
-    (match (StringMap.find_opt id env.wf_map) with
+    (match (StringMap.find_opt id env.wf_type_map) with
     | None -> (inductive_def $ d.at, [])
-    | Some (prems) -> (inductive_def $ d.at, [create_well_formed_predicate env id bs entries prems d.at])
+    | Some (NormalType prems) -> (inductive_def $ d.at, [create_well_formed_predicate env id bs entries prems d.at])
+    | _ -> error d.at "Expected a single type, found a type family instead"
     )
   | MutualRecD defs -> 
     let (defs', wf_defs) = List.split (List.map (transform_def env) defs) in 
@@ -107,15 +124,20 @@ let rec transform_def env (d : mil_def) =
         List.map (transform_term env) terms)
     ) entries) $ d.at, [])
   | AxiomD (id, bs, rt) -> (AxiomD (id, transform_binders env bs, transform_type env rt) $ d.at, [])
-  | InductiveFamilyD (id, bs, entries) -> (InductiveFamilyD (id, transform_binders env bs, 
-    List.map (fun (case_id, (t_id, typ)) -> (case_id, (t_id, transform_type env typ))) entries) $ d.at, [])
-  | CoercionD (id1, id2, id3) -> (CoercionD (id1, id2, id3) $ d.at, [])
+  | InductiveFamilyD (id, bs, entries) -> 
+    let family_def = InductiveFamilyD (id, transform_binders env bs, List.map (fun (case_id, (t_id, typ)) -> 
+      (case_id, (t_id, transform_type env typ))) entries) in
+    (match (StringMap.find_opt id env.wf_type_map) with
+    | Some (FamilyType terms) -> (family_def $ d.at, [create_well_formed_family_predicate env id bs entries terms d.at])
+    | _ -> error d.at "Expected to find a family type, found none"
+    )
+  | CoercionD (id1, id2, id3) -> (CoercionD (id1, id2, id3) $ d.at, []) 
   | LemmaD (id, binders, prems) -> (LemmaD (id, transform_binders env binders, List.map (transform_premise env) prems) $ d.at, [])
   | UnsupportedD str -> (UnsupportedD str $ d.at, [])
   
   
-let transform wf_map mil = 
-  let env = new_env !wf_map mil in
+let transform wf_type_map mil = 
+  let env = new_env !wf_type_map mil in
   List.concat_map (fun d -> 
     let (d', wf_defs) = transform_def env d in
     d' :: wf_defs

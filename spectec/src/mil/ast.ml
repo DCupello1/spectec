@@ -96,8 +96,8 @@ and premise =
   | P_neg of premise
   | P_rule of ident * term list
   | P_else
-  | P_list_forall of iterator * premise * binder
-  | P_list_forall2 of iterator * premise * binder * binder
+  | P_list_forall of iterator * premise * binder * term
+  | P_list_forall2 of iterator * premise * binder * binder * term * term
   | P_unsupported of string
 
 and function_body = 

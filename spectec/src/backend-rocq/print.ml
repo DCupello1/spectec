@@ -196,15 +196,17 @@ let rec string_of_premise (prem : premise) =
   | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term false) terms)
   | P_neg p -> parens ("~" ^ string_of_premise p)
   | P_else -> "otherwise" (* Will be removed by an else pass *)
-  | P_list_forall (iterator, p, (id, t)) -> 
-    let binder = string_of_binder (id, Utils.remove_iter_from_type t) in
+  | P_list_forall (iterator, p, (v, v_t), v_iter_term) -> 
+    let binder = string_of_binder (v, v_t) in
     let option_conversion = if iterator = I_option then "option_to_list " else "" in
-    "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id)
-  | P_list_forall2 (iterator, p, (id, t), (id2, t2)) -> 
-    let binder = string_of_binder (id, Utils.remove_iter_from_type t) in
-    let binder2 = string_of_binder (id2, Utils.remove_iter_from_type t2) in
+    "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ string_of_term false v_iter_term)
+  | P_list_forall2 (iterator, p, (v, v_t), (s, s_t), v_iter_term, s_iter_term) -> 
+    let binder = string_of_binder (v, v_t) in
+    let binder2 = string_of_binder (s, s_t) in
     let option_conversion = if iterator = I_option then "option_to_list " else "" in
-    "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ id) ^ " " ^ parens (option_conversion ^ id2)
+    "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise p) ^ " " ^ 
+    parens (option_conversion ^ string_of_term false v_iter_term) ^ " " ^ 
+    parens (option_conversion ^ string_of_term false s_iter_term)
   | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body f =
@@ -296,10 +298,10 @@ let string_of_axiom (id : ident) (binds : binder list) (r_type: return_type) =
   "Axiom " ^ id ^ " : forall" ^ string_of_binders binds ^ ", " ^ string_of_type r_type
 
 let string_of_family_types (id : ident) (bs: binder list) (entries : family_type_entry list) = 
-  "Inductive " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ ": Type :=\n\t| " ^
+  "Inductive " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ " : Type :=\n\t| " ^
   String.concat "\n\t| " (List.map (fun (id', b) -> 
     id' ^ " " ^ string_of_binder b ^ " : " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs) 
-  entries) ^ "\n\tend"
+  entries) 
 
 let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
   "Coercion " ^ func_name ^ " : " ^ typ1 ^ " >-> " ^ typ2

@@ -273,8 +273,6 @@ let collect_uncase_iter env: uncase_map ref * (module Iter.Arg) =
     end
   in Arg.acc, (module Arg)
 
-
-
 let preprocess (il : script): script =
   let p_env = empty_env in 
   p_env.env <- Il.Env.env_of_script il;

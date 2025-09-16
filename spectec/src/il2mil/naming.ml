@@ -1,6 +1,7 @@
 open Util.Source
 open Mil.Ast
 open Mil.Utils
+open Mil.Free
 
 let error at msg = Util.Error.error at "MIL Naming Pass" msg
 
@@ -113,9 +114,9 @@ let rec transform_premise prefix_map p =
   | P_neg p' -> P_neg (transform_premise prefix_map p')
   | P_rule (id, terms) -> P_rule (id, List.map (transform_term prefix_map) terms)
   | P_else -> P_else
-  | P_list_forall (iter, p', (id, t)) -> P_list_forall (iter, transform_premise prefix_map p', (id, transform_type prefix_map t))
-  | P_list_forall2 (iter, p', (id1, t1), (id2, t2)) ->
-    P_list_forall2 (iter, transform_premise prefix_map p', (id1, transform_type prefix_map t1), (id2, transform_type prefix_map t2))
+  | P_list_forall (iter, p', (v, v_t), v_iter_term) -> P_list_forall (iter, transform_premise prefix_map p', (v, transform_type prefix_map v_t), transform_term prefix_map v_iter_term)
+  | P_list_forall2 (iter, p', (v, v_t), (s, s_t), v_iter_term, s_iter_term) ->
+    P_list_forall2 (iter, transform_premise prefix_map p', (v, transform_type prefix_map v_t), (s, transform_type prefix_map s_t), transform_term prefix_map v_iter_term, transform_term prefix_map s_iter_term)
   | p' -> p'
 
 let rec transform_fb prefix_map f =
@@ -126,8 +127,20 @@ let rec transform_fb prefix_map f =
     List.map (transform_premise prefix_map) ps)
   | F_if_else (t, f1, f2) -> F_if_else (transform_term prefix_map t, transform_fb prefix_map f1, transform_fb prefix_map f2)
   | F_let (t1, t2, fb) -> F_let (transform_term prefix_map t1, transform_term prefix_map t2, transform_fb prefix_map fb)
-  | F_match t -> F_match (transform_term prefix_map t)
+| F_match t -> F_match (transform_term prefix_map t)
   | F_default -> F_default
+
+let rename_inductive_binders at dep_binders binders = 
+  let id_set = StringSet.to_list (union (bound_binders dep_binders) (bound_binders binders)).varid in
+  let rec improve_ids_helper ids bs = 
+    match bs with
+    | [] -> []
+    | (b_id, t) :: bs' when b_id = "_" || b_id = var_prefix ^ "_" -> 
+      let new_name = generate_var at ids b_id in 
+      (new_name, t) :: improve_ids_helper (new_name :: ids) bs'
+    | (b_id, t) :: bs' -> (b_id, t) :: improve_ids_helper ids bs'
+  in
+  improve_ids_helper id_set binders
   
 let rec transform_def prefix_map (d : mil_def) =
   (match d.it with
@@ -150,13 +163,13 @@ let rec transform_def prefix_map (d : mil_def) =
       | None -> []
     ) in 
     InductiveD (id, transform_binders prefix_map bs,
-    List.map (fun ((prefixes, id'), bs) -> 
+    List.map (fun ((prefixes, id'), bs') -> 
       let combined_id = string_combine id' id in
       let new_id = (match (StringMap.find_opt combined_id prefix_map) with
         | Some prefix -> extra_prefix @ [prefix] @ prefixes, id'
         | None -> extra_prefix @ prefixes, id'
       ) in 
-      (new_id, transform_binders prefix_map bs)
+      (new_id, rename_inductive_binders d.at (transform_binders prefix_map bs) (transform_binders prefix_map bs'))
     ) entries)
   | MutualRecD defs -> MutualRecD (List.map (transform_def prefix_map) defs)
   | DefinitionD (id, bs, rt, clauses) -> DefinitionD (id, transform_binders prefix_map (improve_ids_binders d.at bs), transform_type prefix_map rt,

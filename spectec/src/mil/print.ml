@@ -1,5 +1,4 @@
 open Ast
-open Utils
 
 let parens s = "(" ^ s ^ ")"
 let square_parens s = "[" ^ s ^ "]"
@@ -124,20 +123,20 @@ let rec string_of_premise p =
   | P_neg prem -> "~" ^ string_of_premise prem
   | P_rule (ident, terms) -> parens (ident ^ string_of_list_prefix " " " " string_of_term terms)
   | P_else -> "otherwise"
-  | P_list_forall (I_list, p, (id, t)) -> 
-    let binder = string_of_binder (id, remove_iter_from_type t) in
-    "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ id
-  | P_list_forall (I_option, p, (id, t)) -> 
-    let binder = string_of_binder (id, remove_iter_from_type t) in
-    "Option.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ id
-  | P_list_forall2 (I_list, p, (id, t), (id2, t2)) -> 
-    let binder = string_of_binder (id, remove_iter_from_type t) in
-    let binder2 = string_of_binder (id2, remove_iter_from_type t2) in
-    "List.Forall2 " ^ parens ( "fun " ^ binder ^ " " ^ binder2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
-  | P_list_forall2 (I_option, p, (id, t), (id2, t2)) -> 
-    let binder = string_of_binder (id, remove_iter_from_type t) in
-    let binder2 = string_of_binder (id2, remove_iter_from_type t2) in
-    "Option.Forall2 " ^ parens ( "fun " ^ binder ^ " " ^ binder2 ^  " => " ^ string_of_premise p) ^ " " ^ id ^ " " ^ id2
+  | P_list_forall (I_list, p, (v, v_t), v_iter_term) -> 
+    let binder = string_of_binder (v, v_t) in
+    "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ string_of_term v_iter_term
+  | P_list_forall (I_option, p, (v, v_t), v_iter_term) -> 
+    let binder = string_of_binder (v, v_t) in
+    "Option.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ string_of_term v_iter_term
+  | P_list_forall2 (I_list, p, (v, v_t), (s, s_t), v_iter_term, s_iter_term) -> 
+    let binder = string_of_binder (v, v_t) in
+    let binder2 = string_of_binder (s, s_t) in
+    "List.Forall2 " ^ parens ( "fun " ^ binder ^ " " ^ binder2 ^  " => " ^ string_of_premise p) ^ " " ^ string_of_term v_iter_term ^ " " ^ string_of_term s_iter_term
+  | P_list_forall2 (I_option, p, (v, v_t), (s, s_t), v_iter_term, s_iter_term) -> 
+    let binder = string_of_binder (v, v_t) in
+    let binder2 = string_of_binder (s, s_t) in
+    "Option.Forall2 " ^ parens ( "fun " ^ binder ^ " " ^ binder2 ^  " => " ^ string_of_premise p) ^ " " ^ string_of_term v_iter_term ^ " " ^ string_of_term s_iter_term
   | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body f =

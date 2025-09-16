@@ -9,10 +9,9 @@ module StringSet = Env.StringSet
 
 module VarSet = Set.Make(struct
   type t = ident * mil_typ
-  let compare (id1, typ1) (id2, typ2) = if id1 = id2 then 0 
-    (* HACK - Need better way to compare types, only hurts performance *)
-    else String.compare (Print.string_of_term' typ1) (Print.string_of_term' typ2)
-
+  let compare (id1, _typ1) (id2, _typ2) = 
+    (* Should have unique ids anyways *)
+    String.compare id1 id2
 end)
 
 type sets =
@@ -117,7 +116,7 @@ and bound_term t =
   ) + bound_type t.typ
 
 and free_binder (_i, t) = free_type t
-and bound_binder (i, _t) = bound_varid i
+and bound_binder (i, t) = bound_varid i + bound_var i t
 and bound_binders bs = free_list bound_binder bs 
 and free_binders bs = free_list_dep free_binder bound_binder bs
 
@@ -126,8 +125,8 @@ and free_premise p =
   | P_if t -> free_term t
   | P_neg p' -> free_premise p'
   | P_rule (id, terms) -> free_relid id + free_list free_term terms
-  | P_list_forall (_, p, b1) -> free_binder b1 + (free_premise p - bound_binder b1)
-  | P_list_forall2 (_, p, b1, b2) -> free_binder b1 + free_binder b2 + (free_premise p - bound_binder b1 - free_binder b2)
+  | P_list_forall (_, p, b1, v_iter) -> free_binder b1 + (free_premise p - bound_binder b1) + free_term v_iter
+  | P_list_forall2 (_, p, b1, b2, v_iter, s_iter) -> free_binder b1 + free_binder b2 + (free_premise p - bound_binder b1 - bound_binder b2) + free_term v_iter + free_term s_iter
   | _ -> empty
 
 (* Function body will be removed later *)

@@ -17,6 +17,8 @@ val free_varid : StringSet.elt -> sets
 val free_opt : ('a -> sets) -> 'a option -> sets
 val free_list : ('a -> sets) -> 'a list -> sets
 
+val bound_binders : binder list -> sets
+
 val free_type : term' -> sets
 val free_term : term -> sets
 val free_binders : binder list -> sets
