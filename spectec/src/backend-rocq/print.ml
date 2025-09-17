@@ -220,7 +220,8 @@ let rec string_of_function_body f =
   | F_default -> "default_val" 
 
 let string_of_typealias (id : ident) (binds : binder list) (typ : mil_typ) = 
-  "Notation " ^ id ^ string_of_binders binds ^ " := " ^ string_of_type typ
+  "Definition " ^ id ^ string_of_binders binds ^ " : Type := " ^ string_of_type typ
+  ^ ".\n\n" ^ string_of_eqtype_proof false id binds
 
 (* TODO improve rendering for dependent records *)
 let string_of_record (id: ident) (binds : binder list) (entries : record_entry list) = 
