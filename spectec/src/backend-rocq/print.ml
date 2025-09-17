@@ -1,3 +1,4 @@
+(* TODO - Make this print file have no dependent type related processing *)
 open Mil.Ast
 open Mil
 open Util.Source
@@ -33,7 +34,6 @@ let comment_desc_def (def: mil_def): string =
   | TypeAliasD _ -> "Type Alias Definition"
   | RecordD _ -> "Record Creation Definition"
   | InductiveD _ -> "Inductive Type Definition"
-  (* | NotationD _ -> "Notation Definition" *)
   | MutualRecD _ -> "Mutual Recursion"
   | DefinitionD _ -> "Auxiliary Definition"
   | InductiveRelationD _ -> "Inductive Relations Definition"
@@ -126,7 +126,7 @@ and string_of_term is_match (term : term) =
   | T_record_update (t1, prefixed_id, t3) -> parens (string_of_term is_match t1 ^ " <| " ^ Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term is_match t3 ^ " |>")
   | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
   | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term is_match term)
-  | T_cast (term, _, typ) -> parens (string_of_term is_match term ^ " : " ^ string_of_type typ)
+  | T_cast (term, _, typ) -> parens (string_of_term is_match term ^ " :> " ^ string_of_type typ)
   | T_tupletype [] -> "unit"
   | T_tupletype (t :: ts) -> List.fold_left (fun acc tup_typ -> parens ("prod " ^ acc ^ " " ^ (string_of_type tup_typ))) (string_of_type t) ts 
   | T_default -> "default_val"
@@ -220,8 +220,7 @@ let rec string_of_function_body f =
   | F_default -> "default_val" 
 
 let string_of_typealias (id : ident) (binds : binder list) (typ : mil_typ) = 
-  "Definition " ^ id ^ string_of_binders binds ^ " := " ^ string_of_type typ
-  ^ ".\n\n" ^ string_of_eqtype_proof false id binds 
+  "Notation " ^ id ^ string_of_binders binds ^ " := " ^ string_of_type typ
 
 (* TODO improve rendering for dependent records *)
 let string_of_record (id: ident) (binds : binder list) (entries : record_entry list) = 
@@ -301,10 +300,20 @@ let string_of_family_types (id : ident) (bs: binder list) (entries : family_type
   "Inductive " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ " : Type :=\n\t| " ^
   String.concat "\n\t| " (List.map (fun (id', b) -> 
     id' ^ " " ^ string_of_binder b ^ " : " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs) 
-  entries) 
+  entries) ^ ".\n\n" ^
+
+  (* Inhabitance proof for default values *)
+  let inhabitance_binders = string_of_binders bs in 
+  let binders = string_of_binders_ids bs in 
+  "Global Instance Inhabited__" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^
+  (match entries with
+    | [] -> "(* FIXME: no inhabitant found! *) .\n" ^
+            "\tAdmitted"
+    | (case_id, _) :: _ -> " := { default_val := " ^ case_id ^ binders ^ " default_val }")
+    
 
 let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
-  "Coercion " ^ func_name ^ " : " ^ typ1 ^ " >-> " ^ typ2
+  "Global Instance " ^ typ1 ^ "_" ^ typ2 ^ "_coerce : Coercion " ^ typ1 ^ " " ^ typ2 ^ " := { coerce := " ^ func_name ^ " }"
 
 let string_of_lemma (id : ident) (binders : binder list) (premises : premise list) = 
   "Lemma " ^ id ^ ":" ^ Print.string_of_list " forall " ", " " " string_of_binder binders ^
@@ -435,6 +444,20 @@ let exported_string =
   "  move=> T eq_dec eqb x y. rewrite /eqb.\n" ^
   "  case: (eq_dec x y); by [apply: ReflectT | apply: ReflectF].\n" ^
   "Qed.\n\n" ^
+  "Class Coercion (A B : Type) := { coerce : A -> B }.\n\n" ^
+  "Notation \"x ':>' B\" := (coerce (A:=_) (B:=B) x)\n" ^
+  "(at level 70, right associativity).\n\n" ^
+  "Definition option_coerce {A B : Type} `{Coercion A B} (a_opt : option A): option B :=\n" ^
+  "\tmatch a_opt with\n" ^
+  "\t\t| Some a => Some (coerce a)\n" ^
+  "\t\t| None => None\n" ^
+  "\tend.\n\n" ^
+  "Definition list_coerce {A B : Type} `{Coercion A B} (a_list : list A): list B :=\n" ^
+  "\tList.map (fun a => coerce a) a_list.\n\n" ^
+  "Definition id_coerce {A : Type} (a : A) : A := a.\n\n" ^
+  "Global Instance option_coercion (A B : Type) {_: Coercion A B}: Coercion (option A) (option B) := { coerce := option_coerce }.\n\n" ^
+  "Global Instance list_coercion (A B : Type) {_: Coercion A B}: Coercion (list A) (list B) := { coerce := list_coerce }.\n\n" ^
+  "Global Instance id_coercion (A : Type): Coercion A A := { coerce := id_coerce }.\n\n" ^
   "Open Scope wasm_scope.\n" ^
   "Import ListNotations.\n" ^
   "Import RecordSetNotations.\n\n"

@@ -21,7 +21,6 @@ let var_prefix = "v_"
 let fun_prefix = "fun_"
 let reserved_prefix = "res_"
 let wf_prefix = "wf_"
-let make_prefix = "mk_"
 
 let reserved_ids_set = ref StringSet.empty
 let env_ref = ref Il.Env.empty
@@ -46,7 +45,7 @@ let transform_id' (prefix : text) (s : text) =
     (* This matches any string that has a name with an apostrophe and ensures that the added suffixes are placed before it 
     * i.e. "val'*" will turn into "val_lst'" 
     *)
-    |> Str.global_replace (Str.regexp {|\([a-zA-Z]+\)\('*\)\(.+\)|}) "\\1\\3\\2"
+    |> Str.global_replace (Str.regexp {|\(.+\)\('+\)\(.+\)|}) "\\1\\3\\2"
   in
   match s with
   | s when StringSet.mem s !reserved_ids_set -> prefix ^ change_id s
@@ -57,7 +56,7 @@ let transform_fun_id (id : id) = fun_prefix ^ transform_id' "" id.it
 let transform_user_def_id (id : id) = transform_id' reserved_prefix id.it
 let transform_rule_id (id : id) (rel_id : id) = 
   match id.it with
-  | "" -> make_prefix ^ rel_id.it
+  | "" -> Tfamily.make_prefix ^ rel_id.it
   | _ -> transform_id' reserved_prefix id.it
 
 let transform_iter (iter : iter) =
@@ -92,7 +91,7 @@ let transform_mixop (typ_id : string) (m : mixop) =
     )
   ) in
   match str with
-  | "" -> make_prefix ^ typ_id
+  | "" -> Tfamily.make_prefix ^ typ_id
   | _ -> str
 
 let atom_string_combine a typ_name = string_combine (transform_atom a) typ_name
@@ -490,8 +489,16 @@ let transform_tf_inst (id : id) (i : inst) =
   match i.it with
   | InstD (binds, _, deftyp) -> 
     match deftyp.it with
-    | AliasT typ -> (make_prefix ^ id.it ^ Tfamily.sub_type_name_binds binds, ("x", transform_type' NORMAL typ))
+    | AliasT typ -> (Tfamily.make_prefix ^ Tfamily.name_prefix id ^ Tfamily.sub_type_name_binds binds, ("x", transform_type' NORMAL typ))
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
+
+let generate_family_coercions (id : id) (i : inst) =
+  match i.it with
+  | InstD (binds, _, deftyp) -> 
+    match deftyp.it with
+    | AliasT {it=VarT (id', _); _} -> CoercionD (Tfamily.make_prefix ^ Tfamily.name_prefix id ^ Tfamily.sub_type_name_binds binds, transform_user_def_id id', transform_user_def_id id)
+    | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
+
 
 (* Inactive for now - need to understand well function defs with pattern guards *)
 let _transform_clauses (clauses : clause list) : clause_entry list =
@@ -626,8 +633,7 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
   | TypD (id, params, insts) -> 
     wf_map := StringMap.add id.it (FamilyType (get_type_family_args insts)) !wf_map;
     let bs = List.map transform_param params in 
-    [InductiveFamilyD (transform_user_def_id id, bs, 
-    List.map (transform_tf_inst id) insts)]
+    InductiveFamilyD (transform_user_def_id id, bs, List.map (transform_tf_inst id) insts) :: List.map (generate_family_coercions id) insts
   | RelD (id, _, typ, rules) -> 
     [InductiveRelationD (transform_user_def_id id, transform_tuple_to_relation_args NORMAL typ, List.map (transform_rule id) rules)]
   | DecD (id, params, typ, clauses) ->
@@ -643,8 +649,9 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
         (* HACK - Need to deal with premises in the future. *)
         [AxiomD (transform_fun_id id, List.map transform_param params, transform_type' NORMAL typ)]
       | _ -> 
+        [AxiomD (transform_fun_id id, List.map transform_param params, transform_type' NORMAL typ)]
         (* Normal function *)
-        let bs = List.map transform_param params in
+        (* let bs = List.map transform_param params in
         let rt = transform_type' NORMAL typ in
         let has_partial_typ_fam = List.exists (fun p -> match p.it with
           | ExpP (id, _) | TypP id | DefP (id, _, _) | GramP (id, _) -> StringMap.mem id.it !partial_map
@@ -653,7 +660,7 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
           then [(List.map (fun (_, t) -> T_ident "_" $@ t) bs, F_term (T_default $@ rt))]
           else []
         in
-        [DefinitionD (transform_fun_id id, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)]
+        [DefinitionD (transform_fun_id id, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)] *)
     )
   | RecD defs -> [MutualRecD (List.concat_map (transform_def partial_map wf_map) defs)]
   | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]
