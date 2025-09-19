@@ -313,8 +313,8 @@ let string_of_family_types (id : ident) (bs: binder list) (entries : family_type
     | (case_id, _) :: _ -> " := { default_val := " ^ case_id ^ binders ^ " default_val }")
     
 
-let string_of_coercion (func_name : func_name) (typ1 : ident) (typ2 : ident) =
-  "Global Instance " ^ typ1 ^ "_" ^ typ2 ^ "_coerce : Coercion " ^ typ1 ^ " " ^ typ2 ^ " := { coerce := " ^ func_name ^ " }"
+let string_of_coercion (func_name : func_name) (typ1 : mil_typ) (typ2 : mil_typ) =
+  "Global Instance " ^ func_name ^ "_coerce : Coercion " ^ string_of_type typ1 ^ " " ^ string_of_type typ2 ^ " := { coerce := " ^ func_name ^ " }"
 
 let string_of_lemma (id : ident) (binders : binder list) (premises : premise list) = 
   "Lemma " ^ id ^ ":" ^ Print.string_of_list " forall " ", " " " string_of_binder binders ^
@@ -323,7 +323,7 @@ let string_of_lemma (id : ident) (binders : binder list) (premises : premise lis
 
 let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) = 
   let end_newline = if has_endline then ".\n\n" else "" in 
-  let start = comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region (def.at)) ^ "\n" in
+  let start = comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region def.at) ^ "\n" in
   match def.it with
   | TypeAliasD (id, binds, typ) -> start ^ string_of_typealias id binds typ ^ end_newline
   | RecordD (id, bs, entries) -> start ^ string_of_record id bs entries ^ end_newline

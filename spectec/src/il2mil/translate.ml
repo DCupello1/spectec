@@ -496,7 +496,7 @@ let generate_family_coercions (id : id) (i : inst) =
   match i.it with
   | InstD (binds, _, deftyp) -> 
     match deftyp.it with
-    | AliasT {it=VarT (id', _); _} -> CoercionD (Tfamily.make_prefix ^ Tfamily.name_prefix id ^ Tfamily.sub_type_name_binds binds, transform_user_def_id id', transform_user_def_id id)
+    | AliasT {it=VarT (id', _); _} -> CoercionD (Tfamily.make_prefix ^ Tfamily.name_prefix id ^ Tfamily.sub_type_name_binds binds, T_ident (transform_user_def_id id'), T_ident (transform_user_def_id id))
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
 
 

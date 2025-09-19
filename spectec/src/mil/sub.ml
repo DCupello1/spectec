@@ -13,6 +13,7 @@ let is_in_sub_hashtable id = Hashtbl.mem sub_hastable id
 
 let get_id_typ term = 
   match term with
+  | T_ident id -> id
   | T_app ({it = T_ident id; _} , _) -> id
   | _ -> "" 
 
@@ -28,9 +29,9 @@ and get_subE_term' t =
   | T_app_infix (op_term, term1, term2) -> get_subE_term op_term @ get_subE_term term1 @ get_subE_term term2
   | T_tupletype terms -> List.concat_map get_subE_term' terms
   | T_arrowtype terms -> List.concat_map get_subE_term' terms
-  | T_cast (t, typ1, typ2) -> 
+  | T_cast (t', typ1, typ2) -> 
     let (id1, id2) = (get_id_typ typ1, get_id_typ typ2) in
-    get_subE_term t @ (if id1 = "" || id2 = "" then [] else [((id1, typ1), (id2, typ2))])
+    get_subE_term t' @ (if id1 = "" || id2 = "" then [] else [((id1, typ1), (id2, typ2))])
   | T_record_update (term1, _, term3) -> get_subE_term term1  @ get_subE_term term3
   | T_tuple terms -> List.concat_map get_subE_term terms
   | _ -> [] 
@@ -93,7 +94,6 @@ and is_same_type' at env (t1 : mil_typ) (t2 : mil_typ) =
 
 
 (* Assumes that tuple variables will be in same order, can be modified if necessary *)
-(* TODO must also check if some types inside the type are subtyppable and as such it should also be allowed *)
 and find_same_typing at env ((_prefixes, case_id): prefixed_ident) (binds: binder list) (cases : inductive_type_entry list) =
   List.find_map (fun ((prefixes', case_id'), binds') -> 
     let case_found = case_id = case_id' && List.length binds = List.length binds' in
@@ -113,22 +113,21 @@ and transform_sub_types (at : region) (env : Env.t) (t1_id : ident) (t1_typ : te
   let params = [(var_prefix ^ t1_id, T_app (T_ident t1_id $@ anytype', []))] in 
   let return_type = T_app (T_ident t2_id $@ anytype', []) in
   let func clauses = DefinitionD (func_name, params, return_type, clauses) $ at in
-  let coercion = CoercionD (func_name, t1_id, t2_id) $ at in 
+  let coercion = CoercionD (func_name, T_ident t1_id, T_ident t2_id) $ at in 
   let clauses_defs_pair = match deftyp, deftyp' with
   | T_inductive cases, T_inductive cases' -> 
-    List.map (fun (case_id, bs) ->
+    List.filter_map (fun (case_id, bs) ->
       let var_list = List.mapi (fun i (_, typ) -> T_ident (var_prefix ^ string_of_int i) $@ typ) bs in
       let opt = find_same_typing at env case_id bs cases' in
       (match opt with
         | Some (case_id', defs) -> 
-          (([T_caseapp (case_id, var_list) $@ t1_typ], F_term (T_caseapp (case_id', var_list) $@ t2_typ)), defs)
-        (* Should find it due to validation *)
-        | _ -> error at ("Couldn't coerce type " ^ t1_id ^ " to " ^ t2_id)
+          Some (([T_caseapp (case_id, var_list) $@ t1_typ], F_term (T_caseapp (case_id', var_list) $@ t2_typ)), defs)
+        | _ -> None
       )
     ) cases
-  (* Only allowed inductive types for now *)
-  | _ -> error at ("Couldn't coerce type " ^ t1_id ^ " to " ^ t2_id) 
+  | _ -> []
   in
+  if clauses_defs_pair = [] then [] else 
   let (clauses, defs) = List.split clauses_defs_pair in
   List.concat defs @ [func clauses; coercion]
 

@@ -139,7 +139,7 @@ and mil_def' =
   | InductiveRelationD of (ident * relation_args * relation_type_entry list)
   | AxiomD of (ident * binder list * return_type)
   | InductiveFamilyD of (ident * binder list * family_type_entry list)
-  | CoercionD of (func_name * ident * ident)
+  | CoercionD of (func_name * mil_typ * mil_typ)
   | LemmaD of (ident * binder list * premise list)
   | UnsupportedD of string
   

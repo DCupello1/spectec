@@ -284,5 +284,6 @@ let preprocess (il : script): script =
   p_env.uncase_map <- !acc;
 
   (* Main transformation *)
-  Tfamily.transform il |>
-  List.concat_map (preprocess_def p_env)
+  
+  List.concat_map (preprocess_def p_env) il |>
+  Tfamily.transform 

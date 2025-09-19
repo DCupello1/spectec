@@ -82,7 +82,7 @@ let rec transform_def env (d: mil_def) =
   | AxiomD (id, bs, rt) -> AxiomD (id, transform_binders env bs, transform_type env rt)
   | InductiveFamilyD (id, bs, entries) -> InductiveFamilyD (id, transform_dep_binders env bs, 
     List.map (fun (id, (t_id, typ)) -> (id, (t_id, transform_type env typ))) entries)
-  | CoercionD (id1, id2, id3) -> CoercionD (id1, id2, id3)
+  | CoercionD (id1, typ1, typ2) -> CoercionD (id1, transform_type env typ1, transform_type env typ2)
   | LemmaD (id, binders, prems) -> LemmaD (id, transform_binders env binders, List.map (transform_premise env) prems)
   | UnsupportedD str -> UnsupportedD str
   ) $ d.at

@@ -181,7 +181,7 @@ let rec string_of_def ?(suppress_unsup = false) (d : mil_def) =
   | AxiomD (id, bs, rt) -> region ^ "axiom " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : " ^ string_of_term' rt ^ endnewline
   | InductiveFamilyD (id, bs, family_type_entries) -> region ^ "inductive " ^ id ^ string_of_list_prefix " " " " string_of_binder bs ^ " : Type =\n\t| " ^
     String.concat "\n\t| " (string_of_family_type_entries id family_type_entries) ^ endnewline
-  | CoercionD (fn_name, typ1, typ2) -> region ^ "coercion " ^ fn_name ^ " : " ^ typ1 ^ " <: " ^ typ2 ^ endnewline
+  | CoercionD (fn_name, typ1, typ2) -> region ^ "coercion " ^ fn_name ^ " : " ^ string_of_term' typ1 ^ " <: " ^ string_of_term' typ2 ^ endnewline
   | LemmaD (id, binders, prems) -> 
     "lemma " ^ id ^ ":" ^ string_of_list " forall " ", " " " string_of_binder binders ^ string_of_list_prefix "\n\t\t" " ->\n\t\t" string_of_premise prems
   | UnsupportedD str when not suppress_unsup -> "Unsupported definition: " ^ str
