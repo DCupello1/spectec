@@ -1,5 +1,5 @@
 open Ast
-module StringSet = Env.StringSet
+module StringSet : Set.S with type elt = string
 
 module VarSet : Set.S with type elt = string * term'
 

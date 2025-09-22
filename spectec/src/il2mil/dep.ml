@@ -1,9 +1,9 @@
 open Util.Source
-open Ast
+open Mil.Ast
 
 let is_dep_type env t = 
   match t with
-  | T_app ({it = T_ident id; _}, args) -> args <> [] && Env.mem_typ env id
+  | T_app ({it = T_ident id; _}, args) -> args <> [] && Mil.Env.mem_typ env id
   | _ -> false
 
 let rec transform_term env t =
@@ -19,9 +19,9 @@ and transform_type env t =
   | T_lambda (bs, t') -> T_lambda (transform_binders env bs, t_func t')
   | T_caseapp (p_id, terms) -> T_caseapp (p_id, List.map t_func terms)
   | T_dotapp (p_id, term) -> T_dotapp (p_id, t_func term)
-  | T_app ({it = T_ident id; typ = T_arrowtype ts}, args) when args <> [] && Env.mem_typ env id ->
+  | T_app ({it = T_ident id; typ = T_arrowtype ts}, args) when args <> [] && Mil.Env.mem_typ env id ->
     let args_filtered = List.filter (fun t -> t.typ = T_type_basic T_anytype) args in
-    List.iter (fun t -> print_endline (Print.string_of_term (transform_term env t))) args_filtered;
+    List.iter (fun t -> print_endline (Mil.Print.string_of_term (transform_term env t))) args_filtered;
     let typ_filtered = T_arrowtype (List.filter (fun t -> t = T_type_basic T_anytype) ts) in 
     if args_filtered = [] then T_ident id else T_app (T_ident id $@ typ_filtered, args_filtered)
   | T_app (t', terms) -> 
@@ -88,5 +88,5 @@ let rec transform_def env (d: mil_def) =
   ) $ d.at
 
 let transform mil = 
-  let env = Env.env_of_script mil in
+  let env = Mil.Env.env_of_script mil in
   List.map (transform_def env) mil

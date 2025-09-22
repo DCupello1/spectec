@@ -118,8 +118,6 @@ and relation_type_entry = (ident * binder list) * premise list * term list
 
 and relation_args = mil_typ list
 
-and inferred_types = term list 
-
 and mil_typ = term'
 
 and return_type = mil_typ

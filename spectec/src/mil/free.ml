@@ -1,11 +1,9 @@
 open Util.Source
 open Ast
 
-
-
 (* Data Structure *)
 
-module StringSet = Env.StringSet
+module StringSet = Set.Make(String)
 
 module VarSet = Set.Make(struct
   type t = ident * mil_typ

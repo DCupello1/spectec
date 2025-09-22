@@ -1,5 +1,5 @@
 (library
   (name mil)
   (libraries util xl il)
-  (modules ast env else sub print utils free dep)
+  (modules ast env else sub print utils free dep subst)
 )

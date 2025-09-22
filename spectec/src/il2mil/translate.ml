@@ -469,8 +469,9 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
 let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
   match deftyp.it with
   | AliasT typ -> TypeAliasD (transform_user_def_id id, List.map transform_bind binds, transform_type' NORMAL typ)
-  | StructT typfields -> RecordD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (a, (_, t, _), _) -> 
-    (([], transform_atom a), transform_type' NORMAL t)) typfields)
+  | StructT typfields -> RecordD (transform_user_def_id id, List.map transform_bind binds, 
+    List.map (fun (a, (_, t, _), _) -> 
+      (([], transform_atom a), transform_type' NORMAL t)) typfields)
   | VariantT typcases -> InductiveD (transform_user_def_id id, List.map transform_bind binds, List.map (fun (m, (_, t, _), _) ->
       (([], transform_mixop id.it m), transform_typ_args NORMAL t)) typcases)
 
@@ -498,7 +499,6 @@ let generate_family_coercions (id : id) (i : inst) =
     match deftyp.it with
     | AliasT {it=VarT (id', _); _} -> CoercionD (Tfamily.make_prefix ^ Tfamily.name_prefix id ^ Tfamily.sub_type_name_binds binds, T_ident (transform_user_def_id id'), T_ident (transform_user_def_id id))
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
-
 
 (* Inactive for now - need to understand well function defs with pattern guards *)
 let _transform_clauses (clauses : clause list) : clause_entry list =
@@ -746,11 +746,10 @@ let transform (reserved_ids : StringSet.t) (il : script) =
 
   reserved_ids_set := reserved_ids; 
   env_ref := Il.Env.env_of_script preprocessed_il;
-
   List.iter (register_partial_type_hint_def partial_map) preprocessed_il;
-  List.filter is_not_hintdef preprocessed_il |> 
-  List.concat_map (transform_def partial_map wf_map) |>
   
+  List.filter is_not_hintdef preprocessed_il |>
+  List.concat_map (transform_def partial_map wf_map) |>
   Naming.transform prefix_map |>
   Wf.transform wf_map |>
-  Mil.Dep.transform
+  Dep.transform

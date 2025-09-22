@@ -15,7 +15,7 @@ module StringSet = Set.Make(String)
 module StringMap = Map.Make(String)
 
 type mil_deftyp =
-  | T_alias of term'
+  | T_alias of mil_typ
   | T_record of record_entry list
   | T_inductive of inductive_type_entry list
   | T_tfamily of family_type_entry list
@@ -140,7 +140,7 @@ let rec check_uniqueness_def map d =
     map := check_map !map id d.at
   | InductiveD (id, _bs', cases) -> 
     List.iter (fun (case_id, _bs') -> 
-      map := check_map !map (Print.string_of_prefixed_ident case_id)  d.at 
+      map := check_map !map (Print.string_of_prefixed_ident case_id) d.at 
     ) cases;
     map := check_map !map id d.at
   | InductiveRelationD (id, _r_args, rules) -> 
@@ -155,3 +155,17 @@ let check_uniqueness ds =
   let case_map = ref StringMap.empty in
   List.iter (check_uniqueness_def case_map) ds
 
+let rec reduce_typealias env typ = 
+  match typ with 
+    | T_ident id | T_app ({it = T_ident id; _}, []) -> (match (find_opt_typ env id) with
+      | Some (_, T_alias typ') -> reduce_typealias env typ'
+      | _ -> typ
+    )
+    | T_app ({it = T_ident id; _}, ts) -> 
+      (match (find_opt_typ env id) with
+      | Some (bs, T_alias typ') -> 
+        let subst = List.fold_left (fun s (t, (id, _)) -> Subst.add_varid s id t) Subst.empty (List.combine ts bs) in
+        reduce_typealias env (Subst.subst_type subst typ')
+      | _ -> typ
+    )
+    | _ -> typ
