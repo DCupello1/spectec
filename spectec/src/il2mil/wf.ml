@@ -143,15 +143,20 @@ let rec transform_def env (d : mil_def) =
   match d.it with
   | TypeAliasD (id, bs, t) -> (TypeAliasD (id, transform_binders env bs, transform_type env t) $ d.at, [])
   | RecordD (id, bs, record_entries) -> 
-    (RecordD (id, transform_binders env bs, List.map (fun (id', t) -> (id', transform_type env t)) record_entries) $ d.at, 
-      Option.to_list (create_well_formed_record_predicate env id bs record_entries d.at))
+    let record_def = RecordD (id, transform_binders env bs, List.map (fun (id', t) -> (id', transform_type env t)) record_entries) $ d.at in 
+    (match (StringMap.find_opt id env.wf_type_map) with
+    | None -> 
+      (record_def, Option.to_list (create_well_formed_record_predicate env id bs record_entries d.at))
+    | Some (NormalType _prems) -> (record_def, Option.to_list (create_well_formed_record_predicate env id bs record_entries d.at))
+    | _ -> error d.at "Expected a single type, found a type family instead"
+    )
   | InductiveD (id, bs, entries) -> 
-    let inductive_def = InductiveD (id, transform_binders env bs, List.map (fun (id', bs) -> (id', transform_binders env bs)) entries) in 
+    let inductive_def = InductiveD (id, transform_binders env bs, List.map (fun (id', bs) -> (id', transform_binders env bs)) entries) $ d.at in 
     (match (StringMap.find_opt id env.wf_type_map) with
     | None -> 
       let prems = List.init (List.length entries) (fun _ -> []) in
-      (inductive_def $ d.at, Option.to_list (create_well_formed_inductive_predicate env id bs entries prems d.at))
-    | Some (NormalType prems) -> (inductive_def $ d.at, Option.to_list (create_well_formed_inductive_predicate env id bs entries prems d.at))
+      (inductive_def, Option.to_list (create_well_formed_inductive_predicate env id bs entries prems d.at))
+    | Some (NormalType prems) -> (inductive_def, Option.to_list (create_well_formed_inductive_predicate env id bs entries prems d.at))
     | _ -> error d.at "Expected a single type, found a type family instead"
     )
   | MutualRecD defs -> 

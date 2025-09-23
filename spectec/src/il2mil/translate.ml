@@ -290,7 +290,7 @@ and transform_tuple_exp (transform_func : exp -> term) (exp : exp) =
   | TupE exps -> List.map transform_func exps
   | _ -> [transform_func exp]
 
-and transform_unop (at : region) (u : unop) (op : optyp) (exp : term) = 
+and transform_unop (at : region) (u : unop) (op : optyp) (exp : term) =
   match u, op with
   | `NotOp, _ ->  
     let not_typ = T_arrowtype [T_type_basic T_bool; T_type_basic T_bool] in
@@ -569,43 +569,15 @@ let _transform_clauses (clauses : clause list) : clause_entry list =
   ) clauses 
   |> rearrange_clauses
 
-let create_well_formed_function id params inst at =
-  let get_typ_from_arg_args_ids (typ : typ) = 
-    match typ.it with
-    | TupT tups -> List.map fst tups 
-    | _ -> []
-  in 
+let needs_well_formed_predicate inst =
   match inst.it with
-  | InstD (_ , _, {it = VariantT typcases; _}) when List.for_all (fun (_, (_, _, prems), _) -> List.is_empty prems) typcases -> 
-    (* Case with no premises, does not need well-formedness *)
-    None
-  | InstD (_, _, {it = VariantT typcases; _}) -> 
-    let user_typ = VarT (id, List.map Preprocess.make_arg params) $ no_region in 
-    let new_param = ExpP ("x" $ no_region, user_typ) $ no_region in
-    let new_params = params @ [new_param] in 
-    let clauses = List.filter_map (fun (m, (binds, typ, prems), _) -> 
-      if prems = [] then None else 
-      let case_typs = Preprocess.get_case_typs typ in   
-      let new_var_exps = List.mapi (fun _idx (e, _t) -> e) case_typs in 
-      let new_tup = TupE (new_var_exps) $$ no_region % (TupT case_typs $ no_region) in
-      let new_case_exp = CaseE(m, new_tup) $$ no_region % user_typ in
-      let new_arg = ExpA new_case_exp $ no_region in 
-      let new_args = List.map Preprocess.make_arg params @ [new_arg] in
-      let free_vars = (free_list free_exp (get_typ_from_arg_args_ids typ)).varid in
-      let filtered_binds = List.filter (fun b -> match b.it with
-        | ExpB (id', _) -> not (Set.mem id'.it free_vars) 
-        | _ -> false
-      ) binds in
-      Some (List.map (transform_arg MATCH) new_args, F_premises (List.map transform_bind filtered_binds, List.map (transform_premise true) prems))
-    ) typcases in
-    let new_arg = List.init (List.length new_params) (fun _ -> T_ident "_" $@ transform_type' NORMAL user_typ) in
-    let extra_clause = if (List.length clauses <> List.length typcases) 
-      then [(new_arg, F_term (T_exp_basic (T_bool true) $@ T_type_basic T_bool))] 
-      else [] 
-    in
-    Some (DefinitionD (wf_prefix ^ id.it, List.map transform_param new_params, T_type_basic T_prop, clauses @ extra_clause) $ at)
-  | _ -> None
-
+  | InstD (_, _, deftyp) -> (match deftyp.it with
+    | VariantT typcases when List.for_all (fun (_, (_, _, prems), _) -> List.is_empty prems) typcases -> false
+    | StructT typfields when List.for_all (fun (_, (_, _, prems), _) -> List.is_empty prems) typfields -> false
+    | VariantT _ | StructT _ -> true
+    | AliasT _ -> false 
+  )
+  
 let _has_prems clause = 
   match clause.it with
   | DefD (_, _, _, prems) -> prems <> []
@@ -624,10 +596,9 @@ let get_type_family_args insts =
 
 let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_entry StringMap.t ref) (def : def) : mil_def list =
   (match def.it with
-  | TypD (id, params, [({it = InstD (binds, _, deftyp);_} as inst)]) 
+  | TypD (id, _, [({it = InstD (binds, _, deftyp);_} as inst)]) 
       when Tfamily.check_normal_type_creation inst -> 
-    let wf_func = create_well_formed_function id params inst def.at in
-    if Option.is_some wf_func then 
+    if needs_well_formed_predicate inst then 
       wf_map := StringMap.add id.it (NormalType (get_inductive_case_prems deftyp)) !wf_map;
     [transform_deftyp id binds deftyp]
   | TypD (id, params, insts) -> 

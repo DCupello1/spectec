@@ -456,9 +456,12 @@ let exported_string =
   "Definition list_coerce {A B : Type} `{Coercion A B} (a_list : list A): list B :=\n" ^
   "\tList.map (fun a => coerce a) a_list.\n\n" ^
   "Definition id_coerce {A : Type} (a : A) : A := a.\n\n" ^
+  "Definition transitive_coerce {A B C : Type} `{Coercion A B} `{Coercion B C} (a : A): C :=\n" ^
+	"\tcoerce (coerce a).\n\n" ^
   "Global Instance option_coercion (A B : Type) {_: Coercion A B}: Coercion (option A) (option B) := { coerce := option_coerce }.\n\n" ^
   "Global Instance list_coercion (A B : Type) {_: Coercion A B}: Coercion (list A) (list B) := { coerce := list_coerce }.\n\n" ^
   "Global Instance id_coercion (A : Type): Coercion A A := { coerce := id_coerce }.\n\n" ^
+  "Global Instance transitive_coercion (A B C : Type) `{Coercion A B} `{Coercion B C}: Coercion A C := { coerce := transitive_coerce }.\n\n" ^
   "Open Scope wasm_scope.\n" ^
   "Import ListNotations.\n" ^
   "Import RecordSetNotations.\n\n"
