@@ -25,6 +25,11 @@ let wf_prefix = "wf_"
 let reserved_ids_set = ref StringSet.empty
 let env_ref = ref Il.Env.empty
 
+let to_string_iter iter = 
+  match iter with
+  | ListN _ -> "*"
+  | _ -> string_of_iter iter
+
 let rec list_split (f : 'a -> bool) = function 
   | [] -> ([], [])
   | x :: xs when f x -> let x_true, x_false = list_split f xs in
@@ -39,13 +44,9 @@ let transform_id' (prefix : text) (s : text) =
      | '-' -> '_'
      | c -> c
     ) s'
-    (* This suffixes any '*' or '^' with '_lst' and '?' with '_opt' for clarity *)
-    |> Str.global_replace (Str.regexp {|\([*|^]\)|}) "_lst"
+    (* This suffixes any '*' with '_lst' and '?' with '_opt' for clarity *)
+    |> Str.global_replace (Str.regexp {|\(*\)|}) "_lst"
     |> Lib.String.replace "?" "_opt"
-    (* This matches any string that has a name with an apostrophe and ensures that the added suffixes are placed before it 
-    * i.e. "val'*" will turn into "val_lst'" 
-    *)
-    |> Str.global_replace (Str.regexp {|\(.+\)\('+\)\(.+\)|}) "\\1\\3\\2"
   in
   match s with
   | s when StringSet.mem s !reserved_ids_set -> prefix ^ change_id s
@@ -67,6 +68,7 @@ let gen_exp_name (e : exp) =
   let rec go iter_lst e' = 
     match e'.it with
     | VarE id -> transform_var_id (id.it ^ String.concat "" (List.map string_of_iter iter_lst) $ id.at) 
+    | IterE (e1, (ListN _, _)) -> go (List :: iter_lst) e1
     | IterE (e1, (iter, _)) -> go (iter :: iter_lst) e1
     | _ -> "_" 
   in
@@ -254,7 +256,7 @@ and transform_exp exp_type (exp : exp) =
       T_app (T_exp_basic T_some $@ sometyp, [transform_exp exp_type e])
     | (List | List1 | ListN _ | Opt), _, (VarE var_id) ->
       (* Still considered a list type so no need to modify type *) 
-      T_ident (transform_var_id (var_id.it ^ string_of_iter iter $ var_id.at))
+      T_ident (transform_var_id (var_id.it ^ to_string_iter iter $ var_id.at))
     | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_iter_id; note = v_typ; _})], _ -> 
       let typ1 = transform_type' exp_type v_typ in
       let res_typ_iter = (transform_type' exp_type exp.note) in
@@ -490,14 +492,28 @@ let transform_tf_inst (id : id) (i : inst) =
   match i.it with
   | InstD (binds, _, deftyp) -> 
     match deftyp.it with
-    | AliasT typ -> (Tfamily.make_prefix ^ Tfamily.name_prefix id ^ Tfamily.sub_type_name_binds binds, ("x", transform_type' NORMAL typ))
+    | AliasT typ -> (Tfamily.constructor_name' id binds, ("x", transform_type' NORMAL typ))
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
 
 let generate_family_coercions (id : id) (i : inst) =
   match i.it with
   | InstD (binds, _, deftyp) -> 
     match deftyp.it with
-    | AliasT {it=VarT (id', _); _} -> CoercionD (Tfamily.make_prefix ^ Tfamily.name_prefix id ^ Tfamily.sub_type_name_binds binds, T_ident (transform_user_def_id id'), T_ident (transform_user_def_id id))
+    | AliasT typ -> CoercionD (Tfamily.constructor_name' id binds, transform_type' NORMAL typ, T_ident (transform_user_def_id id))
+    | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
+
+let gen_family_projections (id : id) (has_one_inst : bool) (i : inst) =
+  match i.it with
+  | InstD (binds, _, deftyp) -> 
+    match deftyp.it with
+    | AliasT typ -> 
+      (* Its fine to not put dependent args since they will be removed later *)
+      let family_typ = T_ident id.it in 
+      let sub_typ = transform_type' NORMAL typ in
+      let sub_term = T_ident "x" $@ sub_typ in
+      let normal_clause = ([T_caseapp (([], Tfamily.make_prefix ^ Tfamily.name_prefix id ^ Tfamily.sub_type_name_binds binds) , [sub_term]) $@ family_typ], F_term (sub_term)) in
+      let extra_clause = if has_one_inst then [] else [([T_ident "_" $@ family_typ], F_default)] in
+      DefinitionD (transform_fun_id (Tfamily.proj_name id binds), [("x", family_typ)], transform_type' NORMAL typ, normal_clause :: extra_clause)
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
 
 (* Inactive for now - need to understand well function defs with pattern guards *)
@@ -604,7 +620,7 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
   | TypD (id, params, insts) -> 
     wf_map := StringMap.add id.it (FamilyType (get_type_family_args insts)) !wf_map;
     let bs = List.map transform_param params in 
-    InductiveFamilyD (transform_user_def_id id, bs, List.map (transform_tf_inst id) insts) :: List.map (generate_family_coercions id) insts
+    InductiveFamilyD (transform_user_def_id id, bs, List.map (transform_tf_inst id) insts) :: List.map (generate_family_coercions id) insts @ List.map (gen_family_projections id (List.length insts = 1)) insts
   | RelD (id, _, typ, rules) -> 
     [InductiveRelationD (transform_user_def_id id, transform_tuple_to_relation_args NORMAL typ, List.map (transform_rule id) rules)]
   | DecD (id, params, typ, clauses) ->
@@ -721,6 +737,6 @@ let transform (reserved_ids : StringSet.t) (il : script) =
   
   List.filter is_not_hintdef preprocessed_il |>
   List.concat_map (transform_def partial_map wf_map) |>
-  Naming.transform prefix_map |>
+  Naming.transform prefix_map wf_map |>
   Wf.transform wf_map |>
   Dep.transform

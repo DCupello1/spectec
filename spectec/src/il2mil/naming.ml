@@ -193,5 +193,11 @@ let rec transform_def prefix_map (d : mil_def) =
   | LemmaD (id, binders, prems) -> LemmaD (id, transform_binders prefix_map binders, List.map (transform_premise prefix_map) prems)
   | UnsupportedD str -> UnsupportedD str
   ) $ d.at
-let transform prefix_map mil = 
+let transform prefix_map wf_map mil = 
+  wf_map := StringMap.map (fun t -> 
+    match t with 
+    | Wf.FamilyType terms_list -> Wf.FamilyType (List.map (fun terms -> List.map (transform_term prefix_map) terms) terms_list)
+    | Wf.NormalType prems_list -> Wf.NormalType (List.map (fun prems -> List.map (transform_premise prefix_map) prems) prems_list)
+    | _ -> t  
+  ) !wf_map;
   List.map (transform_def prefix_map) mil
