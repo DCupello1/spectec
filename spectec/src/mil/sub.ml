@@ -61,6 +61,12 @@ let fold_option f terms1 terms2 =
         Option.map (fun b -> a @ b) opt
   ) (Some []) terms1 terms2
 
+let apply_conversion (v : term) (t1 : mil_typ) (t2 : mil_typ) = 
+  match (t1, t2) with
+  | T_app ({it = T_ident id1; _}, []), T_app ({it = T_ident id2; _}, []) 
+    when is_in_sub_hashtable (combine_ids id1 id2) -> T_cast (v, t1, t2) $@ t2
+  | _ -> v
+
 let rec is_same_type at env (t1 : term) (t2 : term) = is_same_type' at env t1.it t2.it
 and is_same_type' at env (t1 : mil_typ) (t2 : mil_typ) =
   match (t1, t2) with
@@ -92,7 +98,6 @@ and is_same_type' at env (t1 : mil_typ) (t2 : mil_typ) =
     if sub_defs = [] then None else Some sub_defs
   | _ -> None
 
-
 (* Assumes that tuple variables will be in same order, can be modified if necessary *)
 and find_same_typing at env ((_prefixes, case_id): prefixed_ident) (binds: binder list) (cases : inductive_type_entry list) =
   List.find_map (fun ((prefixes', case_id'), binds') -> 
@@ -101,9 +106,9 @@ and find_same_typing at env ((_prefixes, case_id): prefixed_ident) (binds: binde
     List.fold_left2 (fun acc t1 t2 -> 
       match acc with
         | None -> None
-        | Some (p_id, a) -> let opt = is_same_type' at env t1 t2 in 
-          Option.map (fun b -> (p_id, a @ b)) opt
-    ) (Some ((prefixes', case_id'), [])) (List.map snd binds) (List.map snd binds')
+        | Some (p_id, bs', a) -> let opt = is_same_type' at env t1 t2 in 
+          Option.map (fun b -> (p_id, bs', a @ b)) opt
+    ) (Some ((prefixes', case_id'), binds', [])) (List.map snd binds) (List.map snd binds')
   ) cases
 
 and transform_sub_types (at : region) (env : Env.t) (t1_id : ident) (t1_typ : term') (t2_id : ident) (t2_typ : term') =
@@ -120,8 +125,9 @@ and transform_sub_types (at : region) (env : Env.t) (t1_id : ident) (t1_typ : te
       let var_list = List.mapi (fun i (_, typ) -> T_ident (var_prefix ^ string_of_int i) $@ typ) bs in
       let opt = find_same_typing at env case_id bs cases' in
       (match opt with
-        | Some (case_id', defs) -> 
-          Some (([T_caseapp (case_id, var_list) $@ t1_typ], F_term (T_caseapp (case_id', var_list) $@ t2_typ)), defs)
+        | Some (case_id', bs', defs) -> 
+          let new_var_list = List.map2 (fun t (_, typ2) -> apply_conversion t t.typ typ2) var_list bs' in
+          Some (([T_caseapp (case_id, var_list) $@ t1_typ], F_term (T_caseapp (case_id', new_var_list) $@ t2_typ)), defs)
         | _ -> None
       )
     ) cases
@@ -139,7 +145,6 @@ and transform_subE at env sub_expressions =
       Hashtbl.add sub_hastable combined_name combined_name;
       transform_sub_types at env id1 t1 id2 t2
   )) sub_expressions 
-  
 
 (* TODO can be extended to other defs if necessary *)
 let rec transform_sub_def (env : Env.t) (d : mil_def) =
@@ -164,7 +169,6 @@ let rec transform_sub_def (env : Env.t) (d : mil_def) =
   | MutualRecD defs -> 
     let defs', ds = List.split (List.map (transform_sub_def env) defs) in
     (List.concat defs', MutualRecD ds $ d.at)
-  (* | MutualRecD defs -> [MutualRecD (List.concat_map (transform_sub_def env) defs) $ d.at] *)
   | _ -> ([], d)
 
 let transform (mil : mil_script) =

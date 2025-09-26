@@ -198,7 +198,7 @@ and transform_exp exp_type (exp : exp) =
   | CaseE (mixop, e) ->
     let reduced_typ = Il.Eval.reduce_typ !env_ref exp.note in 
     let typ_id = string_of_typ_name reduced_typ $ no_region in
-    T_caseapp (([], transform_mixop typ_id.it mixop), transform_tuple_exp (transform_exp exp_type) e) $@ (transform_type' exp_type reduced_typ)
+    T_caseapp (([], transform_mixop typ_id.it mixop), transform_tuple_exp (transform_exp exp_type) e) $@ (transform_type' exp_type reduced_typ) 
   | UncaseE (_e, _mixop) -> T_unsupported ("UncaseE: " ^ Il.Print.string_of_exp exp) $@ exp_typ (* Should be removed by preprocessing *)
   | OptE (Some e) ->
     let typ' = transform_type' exp_type e.note in
@@ -238,7 +238,7 @@ and transform_exp exp_type (exp : exp) =
     T_app (T_ident (transform_fun_id id) $@ fun_type, List.map (transform_arg exp_type) args) $@ exp_typ
   | IterE (exp1, (iter, ids)) ->  
     let term1 = transform_exp exp_type exp1 in
-    let term1_typ = transform_type' exp_type exp1.note in
+    let term1_typ = term1.typ in
     (match iter, ids, exp1.it with
     | ListN (n, None), [], _ -> 
       let n_typ = transform_type' exp_type n.note in
@@ -257,25 +257,25 @@ and transform_exp exp_type (exp : exp) =
     | (List | List1 | ListN _ | Opt), _, (VarE var_id) ->
       (* Still considered a list type so no need to modify type *) 
       T_ident (transform_var_id (var_id.it ^ to_string_iter iter $ var_id.at))
-    | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_iter_id; note = v_typ; _})], _ -> 
-      let typ1 = transform_type' exp_type v_typ in
+    | (List | List1 | ListN _ | Opt), [(v, v_exp)], _ -> 
+      let typ1 = transform_type' exp_type v_exp.note in
       let res_typ_iter = (transform_type' exp_type exp.note) in
       let res_type = remove_iter_from_type res_typ_iter in
       let vartyp1 = remove_iter_from_type typ1 in
       let lambda_typ = T_arrowtype [vartyp1; res_type] in
       let map_typ = T_arrowtype [lambda_typ; typ1; res_typ_iter] in
-      T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [T_lambda ([(transform_var_id v, vartyp1)], term1) $@ lambda_typ; T_ident (transform_var_id v_iter_id) $@ typ1])
-    | (List | List1 | ListN _ | Opt), [(v, {it = VarE v_iter_id; note = v_typ; _}); (s, {it = VarE s_list_id; note = s_typ; _})], _ -> 
-      let typ1 = transform_type' exp_type v_typ in
-      let typ2 = transform_type' exp_type s_typ in
+      T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [(T_lambda ([(transform_var_id v, vartyp1)], term1)) $@ lambda_typ; transform_exp exp_type v_exp])
+    | (List | List1 | ListN _ | Opt), [(v, v_exp); (s, s_exp)], _ -> 
+      let typ1 = transform_type' exp_type v_exp.note in
+      let typ2 = transform_type' exp_type s_exp.note in
       let res_typ_iter = (transform_type' exp_type exp.note) in
       let res_type = remove_iter_from_type res_typ_iter in
       let vartyp1 = remove_iter_from_type typ1 in
       let vartyp2 = remove_iter_from_type typ2 in
       let lambda_typ = T_arrowtype [vartyp1; vartyp2; res_type] in
       let zipwith_typ = T_arrowtype [lambda_typ; typ1; typ2; res_typ_iter] in
-      T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], term1) $@ lambda_typ; T_ident (transform_var_id v_iter_id) $@ typ1; T_ident (transform_var_id s_list_id) $@ typ2])
-    | _ -> term1.it) $@ exp_typ
+      T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(transform_var_id v, vartyp1); (transform_var_id s, vartyp2)], term1) $@ lambda_typ; transform_exp exp_type v_exp; transform_exp exp_type s_exp])
+    | _ -> T_unsupported (Il.Print.string_of_exp exp)) $@ exp_typ
   | SubE (e, typ1, typ2) -> T_cast (transform_exp exp_type e, transform_type' exp_type typ1, transform_type' exp_type typ2) $@ exp_typ
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp exp_type e, transform_numtyp numtyp1, transform_numtyp numtyp2) $@ exp_typ
   | LiftE exp ->
@@ -499,7 +499,9 @@ let generate_family_coercions (id : id) (i : inst) =
   match i.it with
   | InstD (binds, _, deftyp) -> 
     match deftyp.it with
-    | AliasT typ -> CoercionD (Tfamily.constructor_name' id binds, transform_type' NORMAL typ, T_ident (transform_user_def_id id))
+    | AliasT typ -> 
+      [CoercionD (Tfamily.constructor_name' id binds, transform_type' NORMAL typ, T_ident (transform_user_def_id id));
+       CoercionD (transform_fun_id (Tfamily.proj_name id binds), T_ident (transform_user_def_id id), transform_type' NORMAL typ)]
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
 
 let gen_family_projections (id : id) (has_one_inst : bool) (i : inst) =
@@ -620,7 +622,10 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
   | TypD (id, params, insts) -> 
     wf_map := StringMap.add id.it (FamilyType (get_type_family_args insts)) !wf_map;
     let bs = List.map transform_param params in 
-    InductiveFamilyD (transform_user_def_id id, bs, List.map (transform_tf_inst id) insts) :: List.map (generate_family_coercions id) insts @ List.map (gen_family_projections id (List.length insts = 1)) insts
+    InductiveFamilyD (transform_user_def_id id, bs, 
+      List.map (transform_tf_inst id) insts) :: 
+      List.map (gen_family_projections id (List.length insts = 1)) insts @ 
+      List.concat_map (generate_family_coercions id) insts
   | RelD (id, _, typ, rules) -> 
     [InductiveRelationD (transform_user_def_id id, transform_tuple_to_relation_args NORMAL typ, List.map (transform_rule id) rules)]
   | DecD (id, params, typ, clauses) ->
