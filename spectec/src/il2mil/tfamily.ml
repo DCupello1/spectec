@@ -80,6 +80,12 @@ let make_bind_set binds =
     | _ -> acc  
   ) StringMap.empty binds
 
+let match_case_typings env real_typs expected_typs =
+  match (Eval.match_list Eval.match_typ env Subst.empty real_typs expected_typs) with
+  | exception Eval.Irred -> Subst.empty
+  | Some s -> s
+  | None -> Subst.empty 
+
 let rec get_real_typ_from_exp bind_map env e =  
   match e.it with
   | VarE id -> (match StringMap.find_opt id.it bind_map with
@@ -87,10 +93,13 @@ let rec get_real_typ_from_exp bind_map env e =
     | None -> e.note
   )
   (* TODO - only assumes functions, not function params *)
-  | CallE (id, args) -> (match (Env.find_opt_def env id) with
+  | CallE (id, args) -> 
+    (match (Env.find_opt_def env id) with
     | Some (params, typ, _) -> 
       let subst = create_arg_param_subst args params in 
-      Subst.subst_typ subst typ
+      let s_typ = Subst.subst_typ subst typ in
+      print_endline (Print.string_of_typ s_typ);
+      s_typ
     | None -> e.note
   )
   | CaseE _ -> Eval.reduce_typ env e.note 
@@ -126,8 +135,12 @@ let rec get_real_typ_from_exp bind_map env e =
   | IterE (e', (iter, _)) ->
     let t = get_real_typ_from_exp bind_map env e' in
     IterT (t, iter) $ e.at  
+  | IdxE (e', _) -> 
+    let t = get_real_typ_from_exp bind_map env e' in
+    remove_iter_from_type t
   | LenE _ -> NumT `NatT $ e.at
   | MemE _ -> BoolT $ e.at
+  | SubE (_, _, t) -> t
   | _ -> e.note
 
 and get_real_typ_from_arg bind_map env arg =
@@ -155,10 +168,8 @@ let get_family_type_id env typ =
     )
     | _ -> None
 
-let check_type_equality env typ expected_typ = 
-  let r_typ = Eval.reduce_typ env typ in
-  let r_expected_typ = Eval.reduce_typ env expected_typ in
-  Eq.eq_typ r_typ r_expected_typ
+let check_type_equality typ expected_typ = 
+  Eq.eq_typ typ expected_typ
 
 let rec get_binds_from_inst env args expected_typ = function
   | [] -> None
@@ -180,18 +191,19 @@ let get_family_type_binds env family_typ expected_typ =
     )
     | _ -> None
 
-let apply_conversion env exp expected_typ real_typ = 
-  if (is_family_typ env expected_typ || is_family_typ env real_typ) 
+let apply_conversion env exp real_typ expected_typ = 
+  if (is_family_typ env real_typ || is_family_typ env expected_typ) 
     then SubE({exp with note = real_typ}, real_typ, expected_typ) $$ exp.at % expected_typ
     else exp
 
-let apply_conversion_call_arg bind_map env p a = 
+let apply_conversion_call_arg bind_map env subst p a = 
   match p.it, a.it with
   | ExpP (_, expected_typ), ExpA e -> 
-    let real_typ = get_real_typ_from_exp bind_map env e in 
-    let matched = Eq.eq_typ expected_typ real_typ in
+    let real_typ = get_real_typ_from_exp bind_map env e in
+    let s_expected_typ = Subst.subst_typ subst expected_typ in
+    let matched = check_type_equality real_typ s_expected_typ in
     if matched then a else 
-    ExpA (apply_conversion env e expected_typ real_typ) $ a.at
+    ExpA (apply_conversion env e real_typ s_expected_typ) $ a.at
   | _ -> a
 
 let apply_conversion_case_exp bind_map env case_typ m e =
@@ -199,17 +211,20 @@ let apply_conversion_case_exp bind_map env case_typ m e =
   let reduced_typ_id = Print.string_of_typ_name (Eval.reduce_typ env case_typ) $ no_region in 
   match (Env.find_opt_typ env reduced_typ_id) with
   | Some (_, [({it = InstD (_, _, {it = VariantT typcases; _}); _} as inst)]) when check_normal_type_creation inst -> 
-    let f = List.find_map (fun (m', (_, t, _), _) -> 
+    let result = List.find_map (fun (m', (_, t, _), _) -> 
       let typs = get_tuple_typ t in 
       if Eq.eq_mixop m m' then Some typs else None
     ) typcases in 
-    (match f with
+    (match result with
     | Some typs ->
+      let real_typs = List.map (get_real_typ_from_exp bind_map env) exps in
+      let subst = match_case_typings env real_typs typs in
       let new_exps = List.map2 (fun e' expected_typ -> 
         let real_typ = get_real_typ_from_exp bind_map env e' in
-        let matched = Eq.eq_typ expected_typ real_typ in
+        let s_expected_typ = Subst.subst_typ subst expected_typ in
+        let matched = check_type_equality real_typ s_expected_typ in
         if matched then e' else 
-        apply_conversion env e' expected_typ real_typ
+        apply_conversion env e' real_typ s_expected_typ
       ) exps typs in
       let tup_typ = TupT (List.map (fun e' -> (VarE ("_" $ e'.at) $$ e'.at % e'.note, e'.note)) new_exps) $ e.at in
       TupE new_exps $$ e.at % tup_typ
@@ -242,7 +257,8 @@ and transform_exp bind_map env e =
     (match (Env.find_opt_def env fun_id) with
     | Some (params, _, _) -> 
       let fun_args' = List.map (transform_arg bind_map env) fun_args in
-      let new_args = List.map2 (fun a p -> apply_conversion_call_arg bind_map env p a) fun_args' params in
+      let subst = create_arg_param_subst fun_args' params in
+      let new_args = List.map2 (fun a p -> apply_conversion_call_arg bind_map env subst p a) fun_args' params in
       CallE (fun_id, new_args)
     | None -> CallE (fun_id, List.map (transform_arg bind_map env) fun_args)
     )
@@ -250,7 +266,7 @@ and transform_exp bind_map env e =
     let t_e1 = t_func e1 in
     let expected_typ = get_real_typ_from_exp bind_map env e in
     let real_typ = get_real_typ_from_exp bind_map env t_e1 in 
-    let converted_e1 = if Eq.eq_typ expected_typ real_typ then t_e1 else apply_conversion env t_e1 expected_typ real_typ in
+    let converted_e1 = if check_type_equality real_typ expected_typ then t_e1 else apply_conversion env t_e1 real_typ expected_typ in
     UnE (unop, optyp, converted_e1) 
   | BinE (binop, optyp, e1, e2) ->
     let t_e1 = t_func e1 in
@@ -258,25 +274,27 @@ and transform_exp bind_map env e =
     let expected_typ = get_real_typ_from_exp bind_map env e in
     let real_typ1 = get_real_typ_from_exp bind_map env t_e1 in 
     let real_typ2 = get_real_typ_from_exp bind_map env t_e2 in
-    let converted_e1 = if Eq.eq_typ expected_typ real_typ1 then t_e1 else apply_conversion env t_e1 expected_typ real_typ1 in
-    let converted_e2 = if Eq.eq_typ expected_typ real_typ2 then t_e2 else apply_conversion env t_e2 expected_typ real_typ2 in
+    let converted_e1 = if check_type_equality real_typ1 expected_typ then t_e1 else apply_conversion env t_e1 real_typ1 expected_typ in
+    let converted_e2 = if check_type_equality real_typ2 expected_typ then t_e2 else apply_conversion env t_e2 real_typ2 expected_typ in
     BinE (binop, optyp, converted_e1, converted_e2) 
   | CmpE (cmpop, optyp, e1, e2) -> 
     let t_e1 = t_func e1 in 
     let t_e2 = t_func e2 in
     let rel_typ1 = get_real_typ_from_exp bind_map env t_e1 in 
     let expected_typ2 = transform_typ bind_map env t_e2.note in
-    if Eq.eq_typ rel_typ1 expected_typ2
+    if check_type_equality rel_typ1 expected_typ2
       then CmpE (cmpop, optyp, t_e1, t_e2) 
-      else CmpE (cmpop, optyp, apply_conversion env t_e1 expected_typ2 rel_typ1, t_e2)
+      else CmpE (cmpop, optyp, apply_conversion env t_e1 rel_typ1 expected_typ2, t_e2)
+  | IterE (({it = VarE id; _} as e1), (iter, ([(id', _)] as id_exp_pairs))) when Eq.eq_id id id' -> 
+    IterE (t_func e1, (transform_iter bind_map env iter, List.map (fun (id'', e') -> (id'', t_func e')) id_exp_pairs))
   | IterE (e1, (iter, id_exp_pairs)) -> 
     let new_id_exp_pairs = List.map (fun (id, e') ->
       let t_e1' = t_func e' in 
       let real_typ = get_real_typ_from_exp bind_map env t_e1' in
       let expected_typ = t_e1'.note in
-      if Eq.eq_typ real_typ expected_typ
+      if check_type_equality real_typ expected_typ
         then (id, t_e1')
-        else (id, apply_conversion env t_e1' expected_typ real_typ)
+        else (id, apply_conversion env t_e1' real_typ expected_typ)
     ) id_exp_pairs in
     IterE (t_func e1, (transform_iter bind_map env iter, new_id_exp_pairs))
   | TupE (exps) -> TupE (List.map t_func exps) 
@@ -297,13 +315,31 @@ and transform_exp bind_map env e =
     let rel_typ1 = get_real_typ_from_exp bind_map env t_e1 in 
     let rel_typ2 = get_real_typ_from_exp bind_map env t_e2 in
     let expected_typ = e.note in 
-    let new_e1 = if (Eq.eq_typ expected_typ rel_typ1) then t_e1 else apply_conversion env t_e1 expected_typ rel_typ1 in 
-    let new_e2 = if (Eq.eq_typ expected_typ rel_typ2) then t_e2 else apply_conversion env t_e2 expected_typ rel_typ2 in 
+    let new_e1 = if (check_type_equality rel_typ1 expected_typ) then t_e1 else apply_conversion env t_e1 rel_typ1 expected_typ in 
+    let new_e2 = if (check_type_equality rel_typ2 expected_typ) then t_e2 else apply_conversion env t_e2 rel_typ2 expected_typ in 
     CatE (new_e1, new_e2) 
   | IdxE (e1, e2) -> IdxE (t_func e1, t_func e2) 
   | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3) 
-  | UpdE (e1, p, e2) -> UpdE (t_func e1, p, t_func e2) 
-  | ExtE (e1, p, e2) -> ExtE (t_func e1, p, t_func e2)  
+  | UpdE (e1, p, e2) -> 
+    let t_e1 = t_func e1 in 
+    let t_e2 = t_func e2 in 
+    let rel_typ1 = get_real_typ_from_exp bind_map env t_e1 in 
+    let rel_typ2 = get_real_typ_from_exp bind_map env t_e2 in
+    let expected_typ1 = e.note in
+    let expected_typ2 = remove_iter_from_type expected_typ1 in 
+    let new_e1 = if (check_type_equality rel_typ1 expected_typ1) then t_e1 else apply_conversion env t_e1 rel_typ1 expected_typ1 in 
+    let new_e2 = if (check_type_equality rel_typ2 expected_typ2) then t_e2 else apply_conversion env t_e2 rel_typ2 expected_typ2 in 
+    UpdE (new_e1, p, new_e2) 
+  | ExtE (e1, p, e2) -> 
+    let t_e1 = t_func e1 in 
+    let t_e2 = t_func e2 in 
+    let rel_typ1 = get_real_typ_from_exp bind_map env t_e1 in 
+    let rel_typ2 = get_real_typ_from_exp bind_map env t_e2 in
+    let expected_typ1 = e.note in
+    let expected_typ2 = remove_iter_from_type expected_typ1 in 
+    let new_e1 = if (check_type_equality rel_typ1 expected_typ1) then t_e1 else apply_conversion env t_e1 rel_typ1 expected_typ1 in 
+    let new_e2 = if (check_type_equality rel_typ2 expected_typ2) then t_e2 else apply_conversion env t_e2 rel_typ2 expected_typ2 in 
+    ExtE (new_e1, p, new_e2)  
   | CvtE (e1, nt1, nt2) -> CvtE (t_func e1, nt1, nt2) 
   | SubE (e1, t1, t2) -> SubE (t_func e1, transform_typ bind_map env t1, transform_typ bind_map env t2) 
   | exp -> exp 
