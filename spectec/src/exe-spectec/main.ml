@@ -34,8 +34,9 @@ let all_passes = [ Else; Totalize; Sideconditions ]
 type mil_pass =
   | MIL_Sub
   | MIL_Else
+  | MIL_Simpl
 
-let all_mil_passes = [ MIL_Sub; MIL_Else ]
+let all_mil_passes = [ MIL_Sub; MIL_Else; MIL_Simpl ]
 
 type file_kind =
   | Spec
@@ -110,10 +111,12 @@ let enable_mil_pass pass = selected_mil_passes := PSMIL.add pass !selected_mil_p
 let pass_mil_flag = function 
   | MIL_Sub -> "sub"
   | MIL_Else -> "else removal"
+  | MIL_Simpl -> "simplification"
 
 let run_pass_mil : mil_pass -> Mil.Ast.mil_script -> Mil.Ast.mil_script = function
   | MIL_Sub -> Mil.Sub.transform
   | MIL_Else -> Mil.Else.transform
+  | MIL_Simpl -> Mil.Simpl.transform
 
 (* Argument parsing *)
 
@@ -218,7 +221,8 @@ let () =
       enable_pass Sideconditions;
     | Rocq ->
       enable_pass Sideconditions; enable_pass Totalize; enable_pass Else;
-      enable_mil_pass MIL_Sub
+      enable_mil_pass MIL_Sub;
+      enable_mil_pass MIL_Simpl
     | _ when !print_al || !print_al_o <> "" ->
       enable_pass Sideconditions;
     | _ -> ()

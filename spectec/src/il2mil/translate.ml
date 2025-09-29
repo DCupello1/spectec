@@ -37,7 +37,7 @@ let rec list_split (f : 'a -> bool) = function
   | xs -> ([], xs)
 
 (* Id transformation *)
-let transform_id' (prefix : text) (s : text) = 
+let transform_id' (is_var : bool) (prefix : text) (s : text) = 
   let change_id s' = 
     String.map (function
      | '.' -> '_'
@@ -50,15 +50,16 @@ let transform_id' (prefix : text) (s : text) =
   in
   match s with
   | s when StringSet.mem s !reserved_ids_set -> prefix ^ change_id s
+  | s when is_var && Il.Env.mem_typ !env_ref (s $ no_region) -> var_prefix ^ change_id s
   | s -> change_id s
 
-let transform_var_id (id : id) = var_prefix ^ transform_id' "" id.it
-let transform_fun_id (id : id) = fun_prefix ^ transform_id' "" id.it
-let transform_user_def_id (id : id) = transform_id' reserved_prefix id.it
+let transform_var_id (id : id) = transform_id' true reserved_prefix id.it
+let transform_fun_id (id : id) = fun_prefix ^ transform_id' false "" id.it
+let transform_user_def_id (id : id) = transform_id' false reserved_prefix id.it
 let transform_rule_id (id : id) (rel_id : id) = 
   match id.it with
   | "" -> Tfamily.make_prefix ^ rel_id.it
-  | _ -> transform_id' reserved_prefix id.it
+  | _ -> transform_id' false reserved_prefix id.it
 
 let transform_iter (iter : iter) =
   if iter = Opt then I_option else I_list
