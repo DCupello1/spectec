@@ -39,7 +39,7 @@ let remove_iter_from_type t =
 let make_arg b = 
   (match b.it with
   | ExpB (id, typ) -> ExpA (VarE id $$ id.at % typ) 
-  | TypB id -> TypA (VarT (id, []) $ id.at) (* TODO unsure this makes sense*)
+  | TypB id -> TypA (VarT (id, []) $ id.at) (* TODO unsure this makes sense *)
   | DefB (id, _, _) -> DefA id 
   | GramB (_, _, _) -> assert false (* Avoid this *)
   ) $ b.at
@@ -250,7 +250,11 @@ and transform_exp is_match bind_map env e =
   let typ = transform_typ is_match bind_map env e.note in
   let t_func = transform_exp is_match bind_map env in
   (match e.it with
-  | VarE id -> VarE id
+  | VarE var_id when is_family_typ env e.note && is_match -> 
+    (match (get_family_type_binds env e.note) with
+    | Some (id, binds) -> CaseE (constructor_name_mixop id binds, VarE var_id $$ e.at % (get_real_typ_from_exp bind_map env e))  
+    | None -> VarE var_id 
+    )
   | CaseE (m, e1) when is_match -> 
     let t_e1 = t_func e1 in 
     (match (get_family_type_binds env e.note) with

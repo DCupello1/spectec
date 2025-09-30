@@ -17,8 +17,6 @@ type exp_type =
 let error at msg = Error.error at "MIL Transformation" msg
 
 let coerce_prefix = "coec_"
-let var_prefix = "v_"
-let fun_prefix = "fun_"
 let reserved_prefix = "res_"
 let wf_prefix = "wf_"
 
@@ -36,8 +34,10 @@ let rec list_split (f : 'a -> bool) = function
     (x :: x_true, x_false)
   | xs -> ([], xs)
 
+type id_type = VAR | USERDEF | FUNCDEF
+
 (* Id transformation *)
-let transform_id' (is_var : bool) (prefix : text) (s : text) = 
+let transform_id' (id_type : id_type) (s : text) = 
   let change_id s' = 
     String.map (function
      | '.' -> '_'
@@ -48,18 +48,19 @@ let transform_id' (is_var : bool) (prefix : text) (s : text) =
     |> Str.global_replace (Str.regexp {|\(*\)|}) "_lst"
     |> Lib.String.replace "?" "_opt"
   in
-  match s with
-  | s when StringSet.mem s !reserved_ids_set -> prefix ^ change_id s
-  | s when is_var && Il.Env.mem_typ !env_ref (s $ no_region) -> var_prefix ^ change_id s
-  | s -> change_id s
+  match id_type with
+  | VAR when Il.Env.mem_typ !env_ref (s $ no_region) -> var_prefix ^ change_id s
+  | FUNCDEF when Il.Env.mem_typ !env_ref (s $ no_region) || Il.Env.mem_rel !env_ref (s $ no_region) -> fun_prefix ^ change_id s 
+  | _ when StringSet.mem s !reserved_ids_set -> reserved_prefix ^ change_id s
+  | _ -> change_id s
 
-let transform_var_id (id : id) = transform_id' true reserved_prefix id.it
-let transform_fun_id (id : id) = fun_prefix ^ transform_id' false "" id.it
-let transform_user_def_id (id : id) = transform_id' false reserved_prefix id.it
+let transform_var_id (id : id) = transform_id' VAR id.it
+let transform_fun_id (id : id) = transform_id' FUNCDEF id.it
+let transform_user_def_id (id : id) = transform_id' USERDEF id.it
 let transform_rule_id (id : id) (rel_id : id) = 
   match id.it with
   | "" -> Tfamily.make_prefix ^ rel_id.it
-  | _ -> transform_id' false reserved_prefix id.it
+  | _ -> transform_id' USERDEF id.it
 
 let transform_iter (iter : iter) =
   if iter = Opt then I_option else I_list
@@ -613,6 +614,17 @@ let get_type_family_args insts =
     | InstD (_, args, _d) -> List.map (transform_arg NORMAL) args
   ) insts
 
+let is_family_typ env t = 
+  match t.it with
+  | VarT (id, _) -> 
+    (* If it is a type family, try to reduce it to simplify the typing later on *)
+    (match (Il.Env.find_opt_typ env id) with
+      | Some (_, insts) -> Tfamily.check_type_family insts 
+      | _ -> false
+    )
+  | _ -> false
+  
+
 let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_entry StringMap.t ref) (def : def) : mil_def list =
   (match def.it with
   | TypD (id, _, [({it = InstD (binds, _, deftyp);_} as inst)]) 
@@ -642,18 +654,19 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
         (* HACK - Need to deal with premises in the future. *)
         [AxiomD (transform_fun_id id, List.map transform_param params, transform_type' NORMAL typ)]
       | _ -> 
-        [AxiomD (transform_fun_id id, List.map transform_param params, transform_type' NORMAL typ)]
+        (* [AxiomD (transform_fun_id id, List.map transform_param params, transform_type' NORMAL typ)] *)
         (* Normal function *)
-        (* let bs = List.map transform_param params in
+        let bs = List.map transform_param params in
         let rt = transform_type' NORMAL typ in
-        let has_partial_typ_fam = List.exists (fun p -> match p.it with
-          | ExpP (id, _) | TypP id | DefP (id, _, _) | GramP (id, _) -> StringMap.mem id.it !partial_map
+        let has_typ_fam = List.exists (fun p -> match p.it with
+          | ExpP (_, typ) -> is_family_typ !env_ref typ
+          | _ -> false
         ) params in 
-        let extra_clause = if has_partial_typ_fam 
+        let extra_clause = if has_typ_fam 
           then [(List.map (fun (_, t) -> T_ident "_" $@ t) bs, F_term (T_default $@ rt))]
           else []
         in
-        [DefinitionD (transform_fun_id id, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)] *)
+        [DefinitionD (transform_fun_id id, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)]
     )
   | RecD defs -> [MutualRecD (List.concat_map (transform_def partial_map wf_map) defs)]
   | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]

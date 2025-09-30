@@ -286,4 +286,5 @@ let preprocess (il : script): script =
   (* Main transformation *)
   
   List.concat_map (preprocess_def p_env) il |>
-  Tfamily.transform 
+  Tfamily.transform |>
+  Sub_removal.transform

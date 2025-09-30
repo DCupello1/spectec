@@ -114,7 +114,7 @@ and find_same_typing at env ((_prefixes, case_id): prefixed_ident) (binds: binde
 and transform_sub_types (at : region) (env : Env.t) (t1_id : ident) (t1_typ : term') (t2_id : ident) (t2_typ : term') =
   let (_, deftyp) = find_typ env t1_id at in
   let (_, deftyp') = find_typ env t2_id at in
-  let func_name = fun_prefix ^ coerce_prefix ^ t1_id ^ "__" ^ t2_id in 
+  let func_name = coerce_prefix ^ t1_id ^ "__" ^ t2_id in 
   let params = [(var_prefix ^ t1_id, T_app (T_ident t1_id $@ anytype', []))] in 
   let return_type = T_app (T_ident t2_id $@ anytype', []) in
   let func clauses = DefinitionD (func_name, params, return_type, clauses) $ at in

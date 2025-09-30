@@ -94,6 +94,7 @@ let collect_sub_matches env: (id * exp) list list ref * (module Iter.Arg) =
             print_endline ("Coercing to: " ^ Il.Print.string_of_typ t2);
             []
           ) in
+          if case_instances <> [] then 
           acc := List.map (fun e' -> (var_id, e' $$ t1.at % t1)) case_instances :: !acc
         | _ -> ()
     end
@@ -110,27 +111,35 @@ let transform_clause _id env clause =
       Il.Subst.add_varid acc id exp) Il.Subst.empty
     ) cases_list in
     List.map (fun subst -> 
-      let (new_binds, _) = Il.Subst.subst_binds subst binds in
+      let binds_filtered = Lib.List.filter_not (fun b -> match b.it with
+        | ExpB (id, _) -> Il.Subst.mem_varid subst id  
+        | _ -> false
+      ) binds in 
+      let (new_binds, _) = Il.Subst.subst_binds subst binds_filtered in
       let new_args = Il.Subst.subst_args subst args in
       let new_prems = Il.Subst.subst_list Il.Subst.subst_prem subst prems in
       let new_exp = Il.Subst.subst_exp subst exp in
       DefD (new_binds, new_args, new_exp, new_prems) $ clause.at
     ) subst_list
   
-let remove_overlapping_clauses env clauses = 
+let _remove_overlapping_clauses env clauses = 
   Lib.List.nub (fun clause clause' -> match clause.it, clause'.it with
-  | DefD (_, args, _, _), DefD (_, args', _, _) -> 
+  | DefD (_, args, exp, _), DefD (_, args', exp', _) -> 
     (* Reduction is done here to remove subtyping expressions *)
     let reduced_args = List.map (Eval.reduce_arg env) args in
     let reduced_args' = List.map (Eval.reduce_arg env) args' in
-    Eq.eq_list Eq.eq_arg reduced_args reduced_args'
+    let reduced_exp = Eval.reduce_exp env exp in 
+    let reduced_exp' = Eval.reduce_exp env exp' in 
+    Eq.eq_list Eq.eq_arg reduced_args reduced_args' && Eq.eq_exp reduced_exp reduced_exp'
   ) clauses
 
 let rec transform_def env def = 
   (match def.it with
   | RecD defs -> RecD (List.map (transform_def env) defs)
-  | DecD (id, params, typ, clauses) -> DecD (id, params, typ, List.concat_map (transform_clause id env) clauses |> (remove_overlapping_clauses env))
-    | d -> d
+  | DecD (id, params, typ, []) -> 
+    DecD (id, params, typ, [])
+  | DecD (id, params, typ, clauses) -> DecD (id, params, typ, List.concat_map (transform_clause id env) clauses |> (_remove_overlapping_clauses env))
+  | d -> d
   ) $ def.at
 
 let transform (il : script): script = 
