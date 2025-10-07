@@ -1,13 +1,10 @@
 open Il.Ast
 open Il
 open Util.Source
-open Util
 
 module StringMap = Map.Make(String)
 module IntSet = Set.Make(Int)
 type uncase_map = (IntSet.t) StringMap.t
-
-let error at msg = Error.error at "MIL Preprocessing" msg
 
 type env = {
   mutable uncase_map : uncase_map;
@@ -61,16 +58,18 @@ let create_projection_functions id params int_set inst =
   let get_deftyp inst' = (match inst'.it with
     | InstD (_binds, _args, deftyp) -> deftyp.it
   ) in 
-  let user_typ = VarT (id, List.map make_arg params) $ no_region in 
-  let new_param = ExpP ("x" $ no_region, user_typ) $ no_region in
+  let at = inst.at in 
+  let user_typ = VarT (id, List.map make_arg params) $ at in 
+  let new_param = ExpP ("x" $ at, user_typ) $ at in
   let make_func m case_typs n = 
     let new_params = params @ [new_param] in 
-    let new_var_exps = List.mapi (fun idx (_, t) -> VarE (var_prefix ^ typ_name t ^ "_" ^ Int.to_string idx $ no_region) $$ no_region % t) case_typs in 
-    let new_tup = TupE (new_var_exps) $$ no_region % (TupT case_typs $ no_region) in
-    let new_case_exp = CaseE(m, new_tup) $$ no_region % user_typ in
-    let new_arg = ExpA new_case_exp $ no_region in 
+    let new_var_exps = List.mapi (fun idx (_, t) -> VarE (var_prefix ^ typ_name t ^ "_" ^ Int.to_string idx $ at) $$ at % t) case_typs in 
+    let new_tup = TupE (new_var_exps) $$ at % (TupT case_typs $ at) in
+    let new_case_exp = CaseE(m, new_tup) $$ at % user_typ in
+    let new_arg = ExpA new_case_exp $ at in 
+    let new_binds = List.mapi (fun idx (_, t) -> ExpB (var_prefix ^ typ_name t ^ "_" ^ Int.to_string idx $ at, t) $ at) case_typs in
     DecD ((proj_prefix ^ id.it ^ "_" ^ Int.to_string n) $ id.at, new_params, snd (List.nth case_typs n), 
-    [DefD (List.map make_bind new_params, List.map make_arg params @ [new_arg], List.nth new_var_exps n, []) $ no_region]
+    [DefD (List.map make_bind params @ new_binds, List.map make_arg params @ [new_arg], List.nth new_var_exps n, []) $ at]
   )
   in
 
@@ -104,7 +103,7 @@ and preprocess_exp p_env e =
   (match e.it with
   | ProjE ({ it = UncaseE(e, _); _}, n) -> 
     (* Supplying the projection function for UncaseE removal *)
-    let typ = (Il.Eval.reduce_typ p_env.env e.note) in 
+    let typ = Eval.reduce_typ p_env.env e.note in 
     let typ_name = Print.string_of_typ_name typ in
     let args = (match typ.it with 
       | VarT (_, args) -> args
@@ -185,13 +184,13 @@ and preprocess_param p_env p =
 let rec preprocess_prem p_env prem = 
   (match prem.it with
   | RulePr (id, m, e) -> RulePr (id, m, preprocess_exp p_env e)
-  | NegPr prem1 -> NegPr (preprocess_prem p_env prem1)
   | IfPr e -> IfPr (preprocess_exp p_env e)
   | LetPr (e1, e2, ids) -> LetPr (preprocess_exp p_env e1, preprocess_exp p_env e2, ids)
   | ElsePr -> ElsePr
   | IterPr (prem1, (iter, id_exp_pairs)) -> IterPr (preprocess_prem p_env prem1, 
       (preprocess_iter p_env iter, List.map (fun (id, exp) -> (id, preprocess_exp p_env exp)) id_exp_pairs)
     )
+  | NegPr p -> NegPr p
   ) $ prem.at
 
 let preprocess_inst p_env inst = 
@@ -273,7 +272,7 @@ let collect_uncase_iter env: uncase_map ref * (module Iter.Arg) =
     end
   in Arg.acc, (module Arg)
 
-let preprocess (il : script): script =
+let transform (il : script): script =
   let p_env = empty_env in 
   p_env.env <- Il.Env.env_of_script il;
 
@@ -285,6 +284,4 @@ let preprocess (il : script): script =
 
   (* Main transformation *)
   
-  List.concat_map (preprocess_def p_env) il |>
-  Tfamily.transform |>
-  Sub_removal.transform
+  List.concat_map (preprocess_def p_env) il 

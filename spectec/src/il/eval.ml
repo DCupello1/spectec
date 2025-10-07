@@ -355,15 +355,15 @@ and reduce_exp env e : exp =
     | _ -> CatE (e1', e2')
     ) $> e
   | CaseE (op, e1) -> CaseE (op, reduce_exp env e1) $> e
-  | CvtE (e1, _nt1, nt2) ->
+  | CvtE (e1, nt1, nt2) ->
     let e1' = reduce_exp env e1 in
     (match e1'.it with
     | NumE n ->
       (match Num.cvt nt2 n with
       | Some n' -> NumE n' $> e
-      | None -> e1'
+      | None -> CvtE (e1', nt1, nt2) $> e 
       )
-    | _ -> e1'
+    | _ -> CvtE (e1', nt1, nt2) $> e 
     )
   | SubE (e1, t1, t2) when equiv_typ env t1 t2 ->
     reduce_exp env e1
