@@ -448,26 +448,27 @@ and transform_path' (paths : path list) typ at n name is_extend end_term =
 
 (* Premises *)
 let rec transform_premise (is_rel_prem : bool) (p : prem) =
+  let exp_type = if is_rel_prem then RELATION else NORMAL in 
   match p.it with
   | IfPr exp -> 
     let typ = T_type_basic (if is_rel_prem then T_prop else T_bool) in
-    let exp_type = if is_rel_prem then RELATION else NORMAL in 
+    
     P_if ((transform_exp exp_type exp).it $@ typ)
   | ElsePr -> P_else
   | LetPr (exp1, exp2, _) -> 
-    let eqtyp = T_arrowtype [transform_type' NORMAL exp1.note; transform_type' NORMAL exp2.note; T_type_basic T_bool] in
-    P_if (T_app_infix (T_exp_basic T_eq $@ eqtyp, transform_exp NORMAL exp1, transform_exp NORMAL exp2) $@ T_type_basic T_bool)
-  | IterPr (p', (iter, [(v, {it = VarE v_iter_id; note = v_typ; _})])) ->
-    let v_mil_typ = transform_type' NORMAL v_typ in 
-    P_list_forall (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id v, remove_iter_from_type v_mil_typ), T_ident (transform_var_id v_iter_id) $@ v_mil_typ)
-  | IterPr (p', (iter, [(v, {it = VarE v_iter_id; note = v_typ; _}); (s, {it = VarE s_iter_id; note = s_typ; _})])) ->
-    let v_mil_typ = transform_type' NORMAL v_typ in
-    let s_mil_typ = transform_type' NORMAL s_typ in 
+    let eqtyp = T_arrowtype [transform_type' exp_type exp1.note; transform_type' exp_type exp2.note; T_type_basic T_bool] in
+    P_if (T_app_infix (T_exp_basic T_eq $@ eqtyp, transform_exp exp_type exp1, transform_exp exp_type exp2) $@ T_type_basic T_bool)
+  | IterPr (p', (iter, [(v, v_exp)])) ->
+    let v_mil_typ = transform_type' exp_type v_exp.note in 
+    P_list_forall (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id v, remove_iter_from_type v_mil_typ), transform_exp exp_type v_exp)
+  | IterPr (p', (iter, [(v, v_exp); (s, s_exp)])) ->
+    let v_mil_typ = transform_type' exp_type v_exp.note in
+    let s_mil_typ = transform_type' exp_type s_exp.note in 
     P_list_forall2 (transform_iter iter, transform_premise is_rel_prem p', (transform_var_id v, remove_iter_from_type v_mil_typ), 
-      (transform_var_id s, remove_iter_from_type s_mil_typ), T_ident (transform_var_id v_iter_id) $@ v_mil_typ, 
-       T_ident (transform_var_id s_iter_id) $@ s_mil_typ)
+      (transform_var_id s, remove_iter_from_type s_mil_typ), transform_exp exp_type v_exp, 
+      transform_exp exp_type s_exp)
   | IterPr _ -> P_unsupported (string_of_prem p) (* TODO could potentially extend this further if necessary *)
-  | RulePr (id, _mixop, exp) -> P_rule (transform_user_def_id id, transform_tuple_exp (transform_exp NORMAL) exp)
+  | RulePr (id, _mixop, exp) -> P_rule (transform_user_def_id id, transform_tuple_exp (transform_exp exp_type) exp)
   | NegPr p' -> P_neg (transform_premise is_rel_prem p')
 
 let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
@@ -654,9 +655,9 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
         (* HACK - Need to deal with premises in the future. *)
         [AxiomD (transform_fun_id id, List.map transform_param params, transform_type' NORMAL typ)]
       | _ -> 
-        (* [AxiomD (transform_fun_id id, List.map transform_param params, transform_type' NORMAL typ)] *)
+        [AxiomD (transform_fun_id id, List.map transform_param params, transform_type' NORMAL typ)]
         (* Normal function *)
-        let bs = List.map transform_param params in
+        (* let bs = List.map transform_param params in
         let rt = transform_type' NORMAL typ in
         let has_typ_fam = List.exists (fun p -> match p.it with
           | ExpP (_, typ) -> is_family_typ !env_ref typ
@@ -666,7 +667,7 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
           then [(List.map (fun (_, t) -> T_ident "_" $@ t) bs, F_term (T_default $@ rt))]
           else []
         in
-        [DefinitionD (transform_fun_id id, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)]
+        [DefinitionD (transform_fun_id id, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)] *)
     )
   | RecD defs -> [MutualRecD (List.concat_map (transform_def partial_map wf_map) defs)]
   | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]
@@ -745,16 +746,15 @@ let is_not_hintdef (d : def) : bool =
   | _ -> true 
 
 let transform (reserved_ids : StringSet.t) (il : script) =
-  let preprocessed_il = Preprocess.preprocess il in
   let partial_map = ref StringMap.empty in 
-  let prefix_map = create_prefix_map preprocessed_il in 
+  let prefix_map = create_prefix_map il in 
   let wf_map = ref StringMap.empty in 
 
   reserved_ids_set := reserved_ids; 
-  env_ref := Il.Env.env_of_script preprocessed_il;
-  List.iter (register_partial_type_hint_def partial_map) preprocessed_il;
+  env_ref := Il.Env.env_of_script il;
+  List.iter (register_partial_type_hint_def partial_map) il;
   
-  List.filter is_not_hintdef preprocessed_il |>
+  List.filter is_not_hintdef il |>
   List.concat_map (transform_def partial_map wf_map) |>
   Naming.transform prefix_map wf_map |>
   Wf.transform wf_map |>
