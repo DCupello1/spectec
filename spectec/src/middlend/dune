@@ -8,5 +8,7 @@
     sideconditions
     else
     uncaseremoval
+    naming
+    undep
   )
 )

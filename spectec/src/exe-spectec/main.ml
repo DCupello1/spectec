@@ -22,6 +22,8 @@ type pass =
   | Unthe
   | Sideconditions
   | Uncaseremoval
+  | Naming
+  | Undep
 
 (* This list declares the intended order of passes.
 
@@ -29,8 +31,8 @@ Because passes have dependencies, and because some flags enable multiple
 passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
-let _skip_passes = [ Sub; Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ Else; Totalize; Sideconditions; Uncaseremoval ]
+let _skip_passes = [ Unthe ]  (* Not clear how to extend them to indexed types *)
+let all_passes = [ Else; Totalize; Sideconditions; Uncaseremoval; Undep; Sub; Naming ]
 
 type mil_pass =
   | MIL_Sub
@@ -88,6 +90,8 @@ let pass_flag = function
   | Unthe -> "the-elimination"
   | Sideconditions -> "sideconditions"
   | Uncaseremoval -> "uncase-elimination"
+  | Naming -> "unique-naming"
+  | Undep -> "remove-dependent-types"
 
 let pass_desc = function
   | Else -> "Eliminate the otherwise premise in relations"
@@ -96,6 +100,8 @@ let pass_desc = function
   | Unthe -> "Eliminate the ! operator in relations"
   | Sideconditions -> "Infer side conditions"
   | Uncaseremoval -> "Eliminate the uncase expression"
+  | Naming -> "Improves names and makes them unique"
+  | Undep -> "Transform dependent types into types with well-formedness predicates"
 
 let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
   | Else -> Middlend.Else.transform
@@ -104,6 +110,8 @@ let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
   | Unthe -> Middlend.Unthe.transform
   | Sideconditions -> Middlend.Sideconditions.transform
   | Uncaseremoval -> Middlend.Uncaseremoval.transform
+  | Naming -> Middlend.Naming.transform
+  | Undep -> Middlend.Undep.transform
 
 (* MIL passes *)
 module PSMIL = Set.Make(struct type t = mil_pass let compare = compare; end)
@@ -225,7 +233,7 @@ let () =
       enable_pass Sideconditions;
     | Rocq ->
       enable_pass Sideconditions; enable_pass Totalize; enable_pass Else;
-      enable_pass Uncaseremoval;
+      enable_pass Uncaseremoval; enable_pass Undep;
       enable_mil_pass MIL_Sub;
       enable_mil_pass MIL_Simpl
     | _ when !print_al || !print_al_o <> "" ->
