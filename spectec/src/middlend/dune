@@ -10,5 +10,6 @@
     uncaseremoval
     naming
     undep
+    typefamilyremoval
   )
 )

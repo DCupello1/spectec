@@ -104,6 +104,11 @@ let long_prod (g, e, prems) =
   let ats = g.at :: e.at :: El.Convert.map_filter_nl_list Source.at prems in
   Elem (SynthP (g, e, prems) $ over_region ats)
 
+let equiv_prod (g1, g2, prems) =
+  let open Source in
+  let ats = g1.at :: g2.at :: El.Convert.map_filter_nl_list Source.at prems in
+  Elem (EquivP (g1, g2, prems) $ over_region ats)
+
 let short_prod (g, prems) =
   let open Source in
   let var () = VarE ("<implicit-prod-result>" $ g.at, []) $ g.at in
@@ -121,6 +126,18 @@ and long_alt_prod' = function
     let open Source in
     let ats = El.Convert.map_filter_nl_list Source.at elsr in
     [long_prod (AltG (List.rev elsr) $ over_region ats, e, prems)]
+
+let rec long_equiv_prod (alts, g2, prems) = long_equiv_prod' (List.rev alts, g2, prems)
+and long_equiv_prod' = function
+  | ([], _, _) -> assert false
+  | (Nl::elsr, g2, []) -> long_equiv_prod' (elsr, g2, []) @ [Nl]
+  | (Nl::elsr, g2, prems) -> long_equiv_prod' (elsr, g2, prems)
+  | ((Elem g1)::elsr, g2, prems) when List.for_all ((=) Nl) elsr ->
+    [equiv_prod (g1, g2, prems)]
+  | (elsr, g2, prems) ->
+    let open Source in
+    let ats = El.Convert.map_filter_nl_list Source.at elsr in
+    [equiv_prod (AltG (List.rev elsr) $ over_region ats, g2, prems)]
 
 let rec short_alt_prod (els, prems) = short_alt_prod' (List.rev els, prems)
 and short_alt_prod' = function
@@ -142,7 +159,7 @@ and short_alt_prod' = function
 %token NOT AND OR
 %token QUEST PLUS MINUS STAR SLASH BACKSLASH UP CAT PLUSMINUS MINUSPLUS
 %token ARROW ARROW2 ARROWSUB ARROW2SUB DARROW2 SQARROW SQARROWSUB SQARROWSTAR SQARROWSTARSUB
-%token MEM PREC SUCC TURNSTILE TILESTURN TURNSTILESUB TILESTURNSUB
+%token MEM NOTMEM PREC SUCC TURNSTILE TILESTURN TURNSTILESUB TILESTURNSUB
 %token DOLLAR TICK
 %token BOT TOP
 %token HOLE MULTIHOLE NOTHING FUSE FUSEFUSE LATEX
@@ -165,10 +182,10 @@ and short_alt_prod' = function
 %right SQARROW SQARROWSUB SQARROWSTAR SQARROWSTARSUB PREC SUCC BIGAND BIGOR BIGADD BIGMUL BIGCAT
 %left COLON SUB SUP ASSIGN EQUIV APPROX COLONSUB EQUIVSUB APPROXSUB
 %left COMMA COMMA_NL
-%right EQ NE LT GT LE GE MEM EQSUB
+%right EQ NE LT GT LE GE MEM NOTMEM EQSUB
 %right ARROW ARROWSUB
 %left SEMICOLON
-%left DOT DOTDOT DOTDOTDOT
+%left DOTDOTDOT
 %left PLUS MINUS CAT
 %left STAR SLASH BACKSLASH
 
@@ -279,6 +296,7 @@ atom_escape :
   | TICK LE { Atom.LessEqual }
   | TICK GE { Atom.GreaterEqual }
   | TICK MEM { Atom.Mem }
+  | TICK NOTMEM { Atom.NotMem }
   | TICK QUEST { Atom.Quest }
   | TICK PLUS { Atom.Plus }
   | TICK STAR { Atom.Star }
@@ -291,6 +309,10 @@ atom_escape :
   | BOT { Atom.Bot }
   | TOP { Atom.Top }
   | INFINITY { Atom.Infinity }
+  | DOT { Atom.Dot }
+  | DOTDOT { Atom.Dot2 }
+  | TICK DOT { Atom.Dot }
+  | TICK DOTDOT { Atom.Dot2 }
 
 varid_bind_with_suffix :
   | varid { $1 }
@@ -343,8 +365,6 @@ check_atom :
 %inline infixop :
   | infixop_ { $1 $$ $sloc }
 %inline infixop_ :
-  | DOT { Atom.Dot }
-  | DOTDOT { Atom.Dot2 }
   | DOTDOTDOT { Atom.Dot3 }
   | SEMICOLON { Atom.Semicolon }
   | BACKSLASH { Atom.Backslash }
@@ -635,6 +655,7 @@ exp_bin_ :
   | exp_bin boolop exp_bin { BinE ($1, $2, $3) }
   | exp_bin CAT exp_bin { CatE ($1, $3) }
   | exp_bin MEM exp_bin { MemE ($1, $3) }
+  | exp_bin NOTMEM exp_bin { UnE (`NotOp, MemE ($1, $3) $ $sloc) }
 
 exp_rel : exp_rel_ { $1 $ $sloc }
 exp_rel_ :
@@ -703,6 +724,7 @@ arith_bin_ :
   | arith_bin boolop arith_bin { BinE ($1, $2, $3) }
   | arith_bin CAT arith_bin { CatE ($1, $3) }
   | arith_bin MEM arith_bin { MemE ($1, $3) }
+  | arith_bin NOTMEM arith_bin { UnE (`NotOp, MemE ($1, $3) $ $sloc) }
 
 arith : arith_bin { $1 }
 
@@ -812,6 +834,7 @@ prod_ :
   | sym ARROW2 exp prem_list { SynthP ($1, $3, $4) }
   | sym ARROW2 exp bar(sym) DOTDOTDOT bar(sym) sym ARROW2 exp
     { RangeP ($1, $3, $7, $9) }
+  | sym EQUIV sym prem_list { EquivP ($1, $3, $4) }
 
 gram :
   | dots_list(prod) { $1 $ $sloc }
@@ -855,6 +878,9 @@ gram_long1 :  (* sym nl_list -> prod nl_list * dots *)
       long_alt_prod (alts @ [Elem $1], $3, $4) @ x, y }
   | sym_seq ARROW2 exp bar(gram) long_range_cont_or_gram_long
     { fun alts -> $5 (alt_sym (alts @ [Elem $1])) $3 $4 }
+  | sym_seq EQUIV sym_seq prem_list gram_cont(gram_long)
+    { fun alts -> let x, y = $5 in
+      long_equiv_prod (alts @ [Elem $1], $3, $4) @ x, y }
 
 gram_long :  (* prod nl_list * dots *)
   | gram_empty { [], $1 }
@@ -862,6 +888,8 @@ gram_long :  (* prod nl_list * dots *)
   | sym_alt ARROW2 exp prem_list1 gram_cont(gram_long)
     { let x, y = $5 in long_prod ($1, $3, $4) :: x, y }
   | sym_alt ARROW2 exp bar(gram) long_range_cont_or_gram_long { $5 $1 $3 $4 }
+  | sym_alt EQUIV sym_seq prem_list gram_cont(gram_long)
+    { let x, y = $5 in equiv_prod ($1, $3, $4) :: x, y }
 
 gram_short1 :  (* sym nl_list -> prod nl_list * dots *)
   | prod_short1 gram_cont(gram_short)
@@ -879,9 +907,12 @@ gram_short :  (* prod nl_list * dots *)
 prod_long1 :  (* sym nl_list -> prod nl_list *)
   | sym_seq ARROW2 exp prem_list
     { fun alts -> long_alt_prod (alts @ [Elem $1], $3, $4) }
+  | sym_seq EQUIV sym prem_list
+    { fun alts -> [long_equiv_prod (alts @ [Elem $1], $3, $4)] }
 
 prod_long :  (* prem nl_list -> prod nl_elem *)
   | sym_alt ARROW2 exp { fun prems -> long_prod ($1, $3, prems) }
+  | sym_alt EQUIV sym { fun prems -> long_equiv_prod ($1, $3, prems) }
 *)
 
 prod_short1 :  (* sym nl_list -> prod nl_list *)
@@ -893,7 +924,7 @@ prod_short :  (* prod nl_elem *)
 
 long_range_cont_or_gram_long :  (* sym -> exp -> prod nl_list -> prod nl_list * dots *)
   | long_range_cont gram_cont(gram_long)
-    { fun g1 e1 _nl -> let x, y = $2 in $1 g1 e1 :: x, y }
+    { fun g1 e1 nl -> let x, y = $2 in $1 g1 e1 :: nl @ x, y }
   | gram_long
     { fun g1 e1 nl -> let x, y = $1 in
       Elem Source.(SynthP (g1, e1, []) $ over_region [g1.at; e1.at]) :: nl @ x, y }
@@ -905,15 +936,19 @@ long_range_cont :  (* sym -> exp -> prod nl_elem *)
 
 short_range_cont_or_gram_long_or_short :  (* sym nl_list -> sym -> sym nl_list -> prod nl_list * dots *)
   | short_range_cont ARROW2 exp prem_list gram_cont(gram_long)
-    { fun alts g1 _ ->
-      let x, y = $5 in long_alt_prod (alts @ [Elem ($1 g1)], $3, $4) @ x, y }
+    { fun alts g1 nl ->
+      let nl' = List.map (function Nl -> Nl | Elem _ -> assert false) nl in
+      let x, y = $5 in long_alt_prod (alts @ [Elem ($1 g1)], $3, $4) @ nl' @ x, y }
   | short_range_cont prem_list1 gram_cont(gram_short)
-    { fun alts g1 _ ->
-      let x, y = $3 in short_alt_prod (alts @ [Elem ($1 g1)], $2) @ x, y }
+    { fun alts g1 nl ->
+      let nl' = List.map (function Nl -> Nl | Elem _ -> assert false) nl in
+      let x, y = $3 in short_alt_prod (alts @ [Elem ($1 g1)], $2) @ nl' @ x, y }
   | short_range_cont
-    { fun alts g1 _ -> short_alt_prod (alts @ [Elem ($1 g1)], []), NoDots }
+    { fun alts g1 nl ->
+      let nl' = List.map (function Nl -> Nl | Elem _ -> assert false) nl in
+      short_alt_prod (alts @ [Elem ($1 g1)], []) @ nl', NoDots }
   | short_range_cont bar(sym) gram_long_or_short
-    { fun alts g1 nl -> $3 (alts @ [Elem ($1 g1)] @ nl) }
+    { fun alts g1 nl -> $3 (alts @ [Elem ($1 g1)] @ nl @ $2) }
   | gram_long_or_short
     { fun alts g1 nl -> $1 (alts @ [Elem g1] @ nl) }
 

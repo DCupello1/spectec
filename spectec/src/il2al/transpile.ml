@@ -484,6 +484,10 @@ let remove_dead_assignment il =
         | EnterI (e1, e2, il) ->
           let il', bounds = remove_dead_assignment' il ([], bounds) in
           enterI (e1, e2, il') ~at:at :: acc, bounds @ free_expr e1 @ free_expr e2
+        | ForEachI (xes, il) ->
+          let il', bounds = remove_dead_assignment' il ([], bounds) in
+          let _, es = List.split xes in
+          forEachI (xes, il') ~at:at :: acc, bounds @ free_list free_expr es
         (* n in, Let val'* ++ val^n be val*. should be bound, not binding *)
         | LetI ({ it = CatE (e11, e12) ; _ }, e2) ->
           let bindings = free_expr e11 @ free_expr e12 in
@@ -504,6 +508,12 @@ let remove_dead_assignment il =
             acc, bounds
           else
             (instr :: acc), (IdSet.diff bounds bindings) @ free_expr e2
+        | AppendI ({it = (VarE _ | IterE _); _} as e1, e2) ->
+          let bindings = free_expr e1 in
+          if IdSet.(is_empty (inter bindings bounds)) then
+            acc, bounds
+          else
+            (instr :: acc), (IdSet.diff bounds bindings) @ free_expr e1 @ free_expr e2
         | AssertI _ when acc = [] -> acc, bounds
         | _ ->
           instr :: acc, bounds @ free_instr instr)
@@ -548,6 +558,10 @@ let remove_trivial_assignment il =
           acc, [ifI (e, il1', il2') ~at:at]
         | LetI ({it = VarE x1; _}, {it = VarE x2; _}) ->
             (x1, x2) :: acc, []
+        | LetI (
+          {it = IterE ({it = VarE x1; _}, (_, [_, {it = VarE x1'; _}])); _},
+          {it = IterE ({it = VarE x2; _}, (_, [_, {it = VarE x2'; _}])); _}) ->
+            (x1, x2) :: (x1', x2') :: acc, []
         | _ ->
           acc, [instr]
       ) binds il
@@ -599,6 +613,28 @@ let rec remove_nop acc il = match il with
   | { it = NopI; _ } :: acc' -> remove_nop (i' :: acc') il'
   | _ -> remove_nop (i' :: acc) il'
 
+(* Remove Pop frame; push frame *)
+let rec remove_dead_pop_push il =
+
+  let is_frame e = match e.note.it with
+    | Il.Ast.VarT (id, _) when id.it = "evalctx" -> true
+    | _ -> false
+  in
+
+  List.fold_right (fun i acc ->
+    let at = i.at in
+    match i.it with
+    | IfI (c, il1, il2) -> ifI (c, remove_dead_pop_push il1, remove_dead_pop_push il2) ~at :: acc
+    | OtherwiseI il -> otherwiseI (remove_dead_pop_push il) ~at :: acc
+    | EitherI (il1, il2) -> eitherI (remove_dead_pop_push il1, remove_dead_pop_push il2) ~at :: acc
+    | PopI e ->
+      (match acc with
+      | {it = PushI e'; _} :: tl when Al.Eq.eq_expr e e' && is_frame e -> tl
+      | _ -> i :: acc
+      )
+    | _ -> i :: acc
+  ) il []
+
 let simplify_record_concat expr =
   let expr' =
     match expr.it with
@@ -616,6 +652,18 @@ let simplify_record_concat expr =
     | e -> e
   in
   { expr with it = expr' }
+
+let simplify_dot_access e =
+  match e.it with
+  | AccE ({it = StrE r; _}, {it = DotP a; _}) ->
+    let e_opt = List.find_map (fun (a', er) ->
+      if a.it = a'.it then Some !er else None
+    ) r in
+    (match e_opt with
+    | Some e -> e
+    | None -> e
+    )
+  | _ -> e
 
 type count = One of string | Many
 module Counter = Map.Make (String)
@@ -675,6 +723,58 @@ let infer_case_assert instrs =
     | Some (hd, tl) -> hd @ rewrite_if tl
   in
   rewrite_il instrs
+
+let split x il =
+  let contains_x i = Free.IdSet.mem x (Free.free_instr i) in
+  let rec aux acc il =
+    match il with
+    | [] -> None
+    | hd :: tl ->
+      match hd.it with
+      | IfI (
+        {it = IsDefinedE {it = IterE (_, (Opt, [x', _])); _}; _},
+        {it = LetI ({it = OptE Some lhs; _}, {it = IterE (rhs, (Opt, [x'', _])); _}); _} :: rest,
+        []
+      ) when x = x' && x = x'' ->
+        if List.exists contains_x tl then
+          None
+        else
+          let if_info = (hd, lhs, rhs, rest) in
+          Some (acc, if_info, tl)
+      | _ when contains_x hd -> None
+      | _ -> aux (acc @ [hd]) tl
+  in
+  aux [] il
+
+(* Merge `x? = y?` and `if x is defined then ...` *)
+let rec merge_isdefined instrs =
+  List.fold_right (fun i acc ->
+    match i.it with
+    | IfI (c, il1, il2) ->
+      let it = IfI (c, merge_isdefined il1, merge_isdefined il2) in
+      {i with it} :: acc
+    | OtherwiseI il ->
+      let it = OtherwiseI (merge_isdefined il) in
+      {i with it} :: acc
+    | EitherI (il1, il2) ->
+      let it = EitherI (merge_isdefined il1, merge_isdefined il2) in
+      {i with it} :: acc
+    | LetI (({it = IterE (e1', (Opt, [x1, _])); _}) as e1, ({it = IterE (_, (Opt, [_, _])); _} as e2)) ->
+      (match split x1 acc with
+      | Some (prefix, (hd, lhs, rhs, rest), suffix) ->
+        let i' = {i with it = LetI ({e1 with it = OptE (Some e1')}, e2)} in
+        let hd' = {hd with it = LetI (lhs, rhs)} in
+        let i'' = {hd with it = IfI (
+          isDefinedE e2 ~note:boolT,
+          i' :: hd' :: rest,
+          []
+        )}
+        in
+        prefix @ i'' :: suffix
+      | None -> i :: acc
+      )
+    | _ -> i :: acc
+  ) instrs []
 
 (* Remove case check for a single case type *)
 let remove_trivial_case_check instr =
@@ -736,7 +836,7 @@ let reduce_comp expr =
 let loop_max = 100
 let loop_cnt = ref loop_max
 let rec enhance_readability instrs =
-  let pre_expr = simplify_record_concat << if_not_defined << reduce_comp in
+  let pre_expr = simplify_record_concat << if_not_defined << reduce_comp << simplify_dot_access in
   let walk_expr walker expr =
     let expr1 = pre_expr expr in
     Al.Walk.base_walker.walk_expr walker expr1
@@ -764,12 +864,14 @@ let rec enhance_readability instrs =
     |> remove_redundant_assignment
     |> remove_trivial_assignment
     |> remove_pre_trap
+    |> remove_dead_pop_push
     |> unify_if
     |> unify_multi_if
     |> infer_else
     |> List.concat_map remove_unnecessary_branch
     |> remove_nop []
     |> infer_case_assert
+    |> merge_isdefined
     |> List.concat_map (walker.walk_instr walker)
   in
 
@@ -968,68 +1070,6 @@ let remove_state algo =
     }
   )
 
-(* Insert "Let f be the current frame" if necessary. *)
-let insert_frame_binding instrs =
-  let open Free in
-  let (@) = IdSet.union in
-  let frame_count = ref 0 in
-  let bindings = ref IdSet.empty in
-  let found = ref false in
-
-  let count_frame e =
-    (match e.it with
-    | VarE "f" -> frame_count := !frame_count + 1
-    | _ -> ());
-    e
-  in
-
-  let update_bindings i =
-    frame_count := 0;
-    match i.it with
-    | LetI ({ it = CatE (e11, e12) ; _ }, _) ->
-      let bindings' = free_expr e11 @ free_expr e12 in
-      let get_bounds_iters e =
-        match e.it with
-        | IterE (_, (ListN (e_iter, _), _)) -> free_expr e_iter
-        | _ -> IdSet.empty
-      in
-      let bounds_iters = (get_bounds_iters e11) @ (get_bounds_iters e12) in
-      bindings := IdSet.diff bindings' bounds_iters |> IdSet.union !bindings;
-      [ i ]
-    | LetI (e1, _) ->
-      bindings := IdSet.union !bindings (free_expr e1);
-      found := (not (IdSet.mem "f" !bindings)) && !frame_count > 0;
-      [ i ]
-    | _ -> [ i ]
-  in
-
-  let found_frame _ = !found in
-  let check_free_frame i =
-    found := (not (IdSet.mem "f" !bindings)) && !frame_count > 0;
-    [ i ]
-  in
-
-  let walk_expr walker expr =
-    let expr1 = count_frame expr in
-    Al.Walk.base_walker.walk_expr walker expr1
-  in
-  let walk_instr walker instr =
-    let instr1 = update_bindings instr in
-    let instr2 = List.concat_map (fun i -> if found_frame i then [i] else Al.Walk.base_walker.walk_instr walker i) instr1 in
-    List.concat_map check_free_frame instr2
-  in
-  let walker = { Walk.base_walker with
-    walk_expr = walk_expr;
-    walk_instr = walk_instr;
-  }
-  in
-
-  match List.concat_map (walker.walk_instr walker) instrs with
-  | il when !found ->
-    let frame = frameE (varE "_" ~note:natT, varE "f" ~note:frameT) ~note:evalctxT in
-    (letI (frame, getCurContextE (Some frame_atom) ~note:evalctxT)) :: il
-  | _ -> instrs
-
 
 (* This function infers whether the frame should be
    considered global or not within this given AL function.
@@ -1078,7 +1118,7 @@ let handle_framed_algo a instrs =
   (* End of helpers *)
 
   let frame = frameE (varE "_" ~note:natT, e_zf) ~note:evalctxT ~at:e_zf.at in
-  let instr_hd = letI (frame, getCurContextE (Some frame_atom) ~note:evalctxT) in
+  let instr_hd = letI (frame, getCurContextE frame_atom ~note:evalctxT) in
   let walk_expr walker expr =
     let expr1 = frame_finder expr in
     let expr2 = Al.Walk.base_walker.walk_expr walker expr1 in

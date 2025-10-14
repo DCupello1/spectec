@@ -6,76 +6,39 @@
 
 grammar Tlabel_(I) : (name?, I) =
   | eps => (eps, {LABELS eps} ++ I)
-  ;; TODO(4, rossberg): fix validation error
-  ;;| id:Tid => (id, {LABELS id} ++ I)                    -- if ~(id <- I.LABELS)
+  | id:Tid => (id, {LABELS id} ++ I)                    -- if id </- I.LABELS
   | id:Tid => (id, {LABELS id} ++ I[.LABELS[x] = eps])  -- if id = I.LABELS[x]
 
 
-;; Block types
-
-grammar Tblocktype_(I) : blocktype =
-  | t?:Tresult_(I)? => _RESULT t?
-  | (x,I'):Ttypeuse_(I) => _IDX x  -- if I' = {LOCALS (eps)*}
-
-
-;; Instructions
+;; Instruction forms
 
 grammar Tinstr_(I) : instr =
   | in:Tplaininstr_(I) => in
   | in:Tblockinstr_(I) => in
 
-grammar Tinstrs_(I) : instr* =
+grammar Tinstrs_(I)/unfolded : instr* =
   | in*:Tinstr_(I)* => in*
   | ...
 
 grammar Tinstrs_(I)/folded : instr* = ...
   | in**:Tfoldedinstr_(I)* => $concat_(instr, in**)
 
-grammar Tfoldedinstr_(I) : instr* =
-  | in:Tinstr_(I) => in
-  | "(" in:Tplaininstr_(I) in'*:Tinstrs_(I) ")" => in'* in
-  | "(" "block" (id?,I'):Tlabel_(I) bt:Tblocktype_(I) in*:Tinstrs_(I') ")" =>
-    BLOCK bt in*
-  | "(" "loop" (id?,I'):Tlabel_(I) bt:Tblocktype_(I) in*:Tinstrs_(I') ")" =>
-    LOOP bt in*
-  ;; TODO(4, rossberg): flatten option
-(;
-  | "(" "if" (id?,I'):Tlabel_(I) bt:Tblocktype_(I) in*:Tinstrs_(I')
-      "(" "then" in_1*:Tinstrs_(I') ")"
-      ("(" "else" in_1*:Tinstrs_(I') ")")? ")" =>
-    in* (IF bt in_1* ELSE in_2*)
-;)
-  | "(" "try_table" (id?,I'):Tlabel_(I) bt:Tblocktype_(I) c*:Tcatch_(I)* in*:Tinstrs_(I') ")" =>
-    TRY_TABLE bt c* in*
 
-
-;; Block instructions
-
-grammar Tblockinstr_(I) : instr =
-  | "block" (id?,I'):Tlabel_(I) bt:Tblocktype_(I) in*:Tinstrs_(I') "end" id'?:Tid? =>
-    BLOCK bt in*
-    -- if id'? = eps \/ id'? = id?
-  | "loop" (id?,I'):Tlabel_(I) bt:Tblocktype_(I) in*:Tinstrs_(I') "end" id'?:Tid? =>
-    LOOP bt in*
-    -- if id'? = eps \/ id'? = id?
-  | "if" (id?,I'):Tlabel_(I) bt:Tblocktype_(I) in_1*:Tinstrs_(I') "else" id_1?:Tid? in_2*:Tinstrs_(I') "end" id_2?:Tid? =>
-    IF bt in_1* ELSE in_2*
-    -- if (id_1? = eps \/ id_1? = id?) /\ (id_2? = eps \/ id_2? = id?)
-  | "try_table" (id?,I'):Tlabel_(I) bt:Tblocktype_(I) c*:Tcatch_(I)* in*:Tinstrs_(I') "end" id'?:Tid? =>
-    TRY_TABLE bt c* in*
-    -- if id'? = eps \/ id'? = id?
+grammar Tfoldedinstr_(I)/plain : instr* =
+  | "(" Tplaininstr_(I) Tinstrs_(I) ")" ==
+    Tinstrs_(I) Tplaininstr_(I)
   | ...
 
-grammar Tblockinstr_(I)/abbrev : instr = ...
-  | "if" (id?,I'):Tlabel_(I)  bt:Tblocktype_(I) in*:Tinstrs_(I') "end" id'?:Tid? =>
-    IF bt in* ELSE eps
-    -- if id'? = eps \/ id'? = id?
-
-grammar Tcatch_(I) : catch =
-  | "(" "catch" x:Ttagidx_(I) l:Tlabelidx_(I) ")" => CATCH x l
-  | "(" "catch_ref" x:Ttagidx_(I) l:Tlabelidx_(I) ")" => CATCH_REF x l
-  | "(" "catch_all" l:Tlabelidx_(I) ")" => CATCH_ALL l
-  | "(" "catch_all_ref" l:Tlabelidx_(I) ")" => CATCH_ALL_REF l
+grammar Tfoldedinstr_(I)/block : instr* = ...
+  | "(" "block" Tlabel_(I) Tblocktype_(I) Tinstrs_(I') ")" ==
+    "block" Tlabel_(I) Tblocktype_(I) Tinstrs_(I') "end"
+  | "(" "loop" Tlabel_(I) Tblocktype_(I) Tinstrs_(I') ")" ==
+    "loop" Tlabel_(I) Tblocktype_(I) Tinstrs_(I') "end"
+  | "(" "if" Tlabel_(I) Tblocktype_(I) Tfoldedinstr_(I)*
+      "(" "then" in_1*:Tinstrs_(I') ")" ("(" "else" in_2*:Tinstrs_(I') ")")? ")" ==
+    Tfoldedinstr_(I)* "if" Tlabel_(I) Tblocktype_(I) in_1*:Tinstrs_(I') ("else" in_2*:Tinstrs_(I'))? "end"
+  | "(" "try_table" Tlabel_(I) Tblocktype_(I) Tcatch_(I)* Tinstrs_(I') ")" ==
+    "try_table" Tlabel_(I) Tblocktype_(I) Tcatch_(I)* Tinstrs_(I') "end"
 
 
 ;; Parametric instructions
@@ -84,8 +47,53 @@ grammar Tplaininstr_(I)/parametric : instr =
   | "unreachable" => UNREACHABLE
   | "nop" => NOP
   | "drop" => DROP
-  | "select" t?:Tresult_(I)? => SELECT t?
+  | "select" (t*:Tresult_(I)*)? => SELECT (t*)?
   | ...
+
+
+;; Block instructions
+
+grammar Tblocktype_(I) : blocktype =
+  | t?:Tresult_(I)? => _RESULT t?
+  | (x,I'):Ttypeuse_(I) => _IDX x
+    ----
+    -- if I' = {LOCALS (eps)*}
+
+grammar Tblockinstr_(I)/plain : instr =
+  | "block" (id?,I'):Tlabel_(I) bt:Tblocktype_(I)
+    in*:Tinstrs_(I')
+    "end" id'?:Tid? => BLOCK bt in*
+    ----
+    -- if id'? = eps \/ id'? = id?
+  | "loop" (id?,I'):Tlabel_(I) bt:Tblocktype_(I)
+    in*:Tinstrs_(I')
+    "end" id'?:Tid? => LOOP bt in*
+    ----
+    -- if id'? = eps \/ id'? = id?
+  | "if" (id?,I'):Tlabel_(I) bt:Tblocktype_(I)
+    in_1*:Tinstrs_(I')
+    "else" id_1?:Tid?
+    in_2*:Tinstrs_(I')
+    "end" id_2?:Tid? => IF bt in_1* ELSE in_2*
+    ----
+    -- if (id_1? = eps \/ id_1? = id?) /\ (id_2? = eps \/ id_2? = id?)
+  | "try_table" (id?,I'):Tlabel_(I) bt:Tblocktype_(I)
+    c*:Tcatch_(I)*
+    in*:Tinstrs_(I')
+    "end" id'?:Tid? => TRY_TABLE bt c* in*
+    ----
+    -- if id'? = eps \/ id'? = id?
+  | ...
+
+grammar Tblockinstr_(I)/abbrev : instr = ...
+  | "if" Tlabel_(I) Tblocktype_(I) Tinstrs_(I) "end" Tid? ==
+    "if" Tlabel_(I) Tblocktype_(I) Tinstrs_(I) "else" "end" Tid?
+
+grammar Tcatch_(I) : catch =
+  | "(" "catch" x:Ttagidx_(I) l:Tlabelidx_(I) ")" => CATCH x l
+  | "(" "catch_ref" x:Ttagidx_(I) l:Tlabelidx_(I) ")" => CATCH_REF x l
+  | "(" "catch_all" l:Tlabelidx_(I) ")" => CATCH_ALL l
+  | "(" "catch_all_ref" l:Tlabelidx_(I) ")" => CATCH_ALL_REF l
 
 
 ;; Plain control instructions
@@ -100,7 +108,7 @@ grammar Tplaininstr_(I)/br : instr = ...
   | "br_on_cast_fail" l:Tlabelidx_(I) rt_1:Treftype_(I) rt_2:Treftype_(I) => BR_ON_CAST_FAIL l rt_1 rt_2
   | ...
 
-grammar Tplaininstr_(I)/call : instr = ...
+grammar Tplaininstr_(I)/func-plain : instr = ...
   | "call" x:Tfuncidx_(I) => CALL x
   | "call_ref" x:Ttypeidx_(I) => CALL_REF $($(_IDX x))
   | "call_indirect" x:Ttableidx_(I) (y,I'):Ttypeuse_(I) => CALL_INDIRECT x $($(_IDX y))
@@ -112,16 +120,182 @@ grammar Tplaininstr_(I)/call : instr = ...
     -- if I' = {LOCALS (eps)*}
   | ...
 
-grammar Tplaininstr_(I)/call/abbrev : instr = ...
-  | "call_indirect" (y,I'):Ttypeuse_(I) => CALL_INDIRECT 0 $($(_IDX y))
-    -- if I' = {LOCALS (eps)*}
-  | "return_call_indirect" (y,I'):Ttypeuse_(I) => RETURN_CALL_INDIRECT 0 $($(_IDX y))
-    -- if I' = {LOCALS (eps)*}
+grammar Tplaininstr_(I)/func-abbrev : instr = ...
+  | "call_indirect" Ttypeuse_(I) == "call_indirect" "0" Ttypeuse_(I)
+  | "return_call_indirect" Ttypeuse_(I) == "return_call_indirect" "0" Ttypeuse_(I)
   | ...
 
 grammar Tplaininstr_(I)/exn : instr = ...
   | "throw" x:Ttagidx_(I) => THROW x
   | "throw_ref" => THROW_REF
+  | ...
+
+
+;; Variable instructions
+
+grammar Tplaininstr_(I)/local : instr = ...
+  | "local.get" x:Tlocalidx_(I) => LOCAL.GET x
+  | "local.set" x:Tlocalidx_(I) => LOCAL.SET x
+  | "local.tee" x:Tlocalidx_(I) => LOCAL.TEE x
+  | ...
+
+grammar Tplaininstr_(I)/global : instr = ...
+  | "global.get" x:Tglobalidx_(I) => GLOBAL.GET x
+  | "global.set" x:Tglobalidx_(I) => GLOBAL.SET x
+  | ...
+
+
+;; Table instructions
+
+grammar Tplaininstr_(I)/table-plain : instr = ...
+  | "table.get" x:Ttableidx_(I) => TABLE.GET x
+  | "table.set" x:Ttableidx_(I) => TABLE.SET x
+  | "table.size" x:Ttableidx_(I) => TABLE.SIZE x
+  | "table.grow" x:Ttableidx_(I) => TABLE.GROW x
+  | "table.fill" x:Ttableidx_(I) => TABLE.FILL x
+  | "table.copy" x_1:Ttableidx_(I) x_2:Ttableidx_(I) => TABLE.COPY x_1 x_2
+  | "table.init" x:Ttableidx_(I) y:Telemidx_(I) => TABLE.INIT x y
+  | ...
+
+grammar Tplaininstr_(I)/table-abbrev : instr = ...
+  | "table.get" == "table.get" "0"
+  | "table.set" == "table.set" "0"
+  | "table.size" == "table.size" "0"
+  | "table.grow" == "table.grow" "0"
+  | "table.fill" == "table.fill" "0"
+  | "table.copy" == "table.copy" "0" "0"
+  | "table.init" Telemidx_(I) == "table.init" "0" Telemidx_(I)
+  | ...
+
+grammar Tplaininstr_(I)/elem : instr = ...
+  | "elem.drop" x:Telemidx_(I) => ELEM.DROP x
+  | ...
+
+
+;; Memory instructions
+
+grammar Tmemarg_(N) : memarg =
+  | n:Toffset m:Talign_(N) => {ALIGN n, OFFSET m}
+
+grammar Toffset : u64 =
+  | "offset=" n:Tu64 => n
+  | eps => 0
+
+grammar Talign_(N) : u64 =
+  | "align=" m:Tu64 => m  -- if $(m = 2^n)
+  | eps => N
+
+grammar Tlaneidx : laneidx =
+  | i:Tu8 => i
+
+grammar Tplaininstr_(I)/memory-plain : instr = ...
+  | "i32.load" x:Tmemidx_(I) ao:Tmemarg_(4) => LOAD I32 x ao
+  | "i64.load" x:Tmemidx_(I) ao:Tmemarg_(8) => LOAD I64 x ao
+  | "f32.load" x:Tmemidx_(I) ao:Tmemarg_(4) => LOAD F32 x ao
+  | "f64.load" x:Tmemidx_(I) ao:Tmemarg_(8) => LOAD F64 x ao
+  | "i32.load8_s" x:Tmemidx_(I) ao:Tmemarg_(1) => LOAD I32 (`8 _ S) x ao
+  | "i32.load8_u" x:Tmemidx_(I) ao:Tmemarg_(1) => LOAD I32 (`8 _ U) x ao
+  | "i32.load16_s" x:Tmemidx_(I) ao:Tmemarg_(2) => LOAD I32 (`16 _ S) x ao
+  | "i32.load16_u" x:Tmemidx_(I) ao:Tmemarg_(2) => LOAD I32 (`16 _ U) x ao
+  | "i64.load8_s" x:Tmemidx_(I) ao:Tmemarg_(1) => LOAD I64 (`8 _ S) x ao
+  | "i64.load8_u" x:Tmemidx_(I) ao:Tmemarg_(1) => LOAD I64 (`8 _ U) x ao
+  | "i64.load16_s" x:Tmemidx_(I) ao:Tmemarg_(2) => LOAD I64 (`16 _ S) x ao
+  | "i64.load16_u" x:Tmemidx_(I) ao:Tmemarg_(2) => LOAD I64 (`16 _ U) x ao
+  | "i64.load32_s" x:Tmemidx_(I) ao:Tmemarg_(4) => LOAD I64 (`32 _ S) x ao
+  | "i64.load32_u" x:Tmemidx_(I) ao:Tmemarg_(4) => LOAD I64 (`32 _ U) x ao
+  | "v128.load" x:Tmemidx_(I) ao:Tmemarg_(16) => VLOAD V128 x ao
+  | "v128.load8x8_s" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `8 X `8 _ S) x ao
+  | "v128.load8x8_u" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `8 X `8 _ U) x ao
+  | "v128.load16x4_s" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `16 X `4 _ S) x ao
+  | "v128.load16x4_u" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `16 X `4 _ U) x ao
+  | "v128.load32x2_s" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `32 X `2 _ S) x ao
+  | "v128.load32x2_u" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `32 X `2 _ U) x ao
+  | "v128.load8_splat" x:Tmemidx_(I) ao:Tmemarg_(1) => VLOAD V128 (SPLAT `8) x ao
+  | "v128.load16_splat" x:Tmemidx_(I) ao:Tmemarg_(2) => VLOAD V128 (SPLAT `16) x ao
+  | "v128.load32_splat" x:Tmemidx_(I) ao:Tmemarg_(4) => VLOAD V128 (SPLAT `32) x ao
+  | "v128.load64_splat" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SPLAT `64) x ao
+  | "v128.load32_zero" x:Tmemidx_(I) ao:Tmemarg_(4) => VLOAD V128 (ZERO `32) x ao
+  | "v128.load64_zero" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (ZERO `64) x ao
+  | "v128.load8_lane" x:Tmemidx_(I) ao:Tmemarg_(1) i:Tlaneidx => VLOAD_LANE V128 `8 x ao i
+  | "v128.load16_lane" x:Tmemidx_(I) ao:Tmemarg_(2) i:Tlaneidx => VLOAD_LANE V128 `16 x ao i
+  | "v128.load32_lane" x:Tmemidx_(I) ao:Tmemarg_(4) i:Tlaneidx => VLOAD_LANE V128 `32 x ao i
+  | "v128.load64_lane" x:Tmemidx_(I) ao:Tmemarg_(8) i:Tlaneidx => VLOAD_LANE V128 `64 x ao i
+  | "i32.store" x:Tmemidx_(I) ao:Tmemarg_(4) => STORE I32 x ao
+  | "i64.store" x:Tmemidx_(I) ao:Tmemarg_(8) => STORE I64 x ao
+  | "f32.store" x:Tmemidx_(I) ao:Tmemarg_(4) => STORE F32 x ao
+  | "f64.store" x:Tmemidx_(I) ao:Tmemarg_(8) => STORE F64 x ao
+  | "i32.store8" x:Tmemidx_(I) ao:Tmemarg_(1) => STORE I32 `8 x ao
+  | "i32.store16" x:Tmemidx_(I) ao:Tmemarg_(2) => STORE I32 `16 x ao
+  | "i64.store8" x:Tmemidx_(I) ao:Tmemarg_(1) => STORE I64 `8 x ao
+  | "i64.store16" x:Tmemidx_(I) ao:Tmemarg_(2) => STORE I64 `16 x ao
+  | "i64.store32" x:Tmemidx_(I) ao:Tmemarg_(4) => STORE I64 `32 x ao
+  | "v128.store" x:Tmemidx_(I) ao:Tmemarg_(16) => VSTORE V128 x ao
+  | "v128.store8_lane" x:Tmemidx_(I) ao:Tmemarg_(1) i:Tlaneidx => VSTORE_LANE V128 `8 x ao i
+  | "v128.store16_lane" x:Tmemidx_(I) ao:Tmemarg_(2) i:Tlaneidx => VSTORE_LANE V128 `16 x ao i
+  | "v128.store32_lane" x:Tmemidx_(I) ao:Tmemarg_(4) i:Tlaneidx => VSTORE_LANE V128 `32 x ao i
+  | "v128.store64_lane" x:Tmemidx_(I) ao:Tmemarg_(8) i:Tlaneidx => VSTORE_LANE V128 `64 x ao i
+  | "memory.size" x:Tmemidx_(I) => MEMORY.SIZE x
+  | "memory.grow" x:Tmemidx_(I) => MEMORY.GROW x
+  | "memory.fill" x:Tmemidx_(I) => MEMORY.FILL x
+  | "memory.copy" x_1:Tmemidx_(I) x_2:Tmemidx_(I) => MEMORY.COPY x_1 x_2
+  | "memory.init" x:Tmemidx_(I) y:Tdataidx_(I) => MEMORY.INIT x y
+  | ...
+
+grammar Tplaininstr_(I)/memory-abbrev : instr = ...
+  | "i32.load" Tmemarg_(4) == "i32.load" "0" Tmemarg_(4)
+  | "i64.load" Tmemarg_(8) == "i64.load" "0" Tmemarg_(8)
+  | "f32.load" Tmemarg_(4) == "f32.load" "0" Tmemarg_(4)
+  | "f64.load" Tmemarg_(8) == "f64.load" "0" Tmemarg_(8)
+  | "i32.load8_s" Tmemarg_(1) == "i32.load8_s" "0" Tmemarg_(1)
+  | "i32.load8_u" Tmemarg_(1) == "i32.load8_u" "0" Tmemarg_(1)
+  | "i32.load16_s" Tmemarg_(2) == "i32.load16_s" "0" Tmemarg_(2)
+  | "i32.load16_u" Tmemarg_(2) == "i32.load16_u" "0" Tmemarg_(2)
+  | "i64.load8_s" Tmemarg_(1) == "i64.load8_s" "0" Tmemarg_(1)
+  | "i64.load8_u" Tmemarg_(1) == "i64.load8_u" "0" Tmemarg_(1)
+  | "i64.load16_s" Tmemarg_(2) == "i64.load16_s" "0" Tmemarg_(2)
+  | "i64.load16_u" Tmemarg_(2) == "i64.load16_u" "0" Tmemarg_(2)
+  | "i64.load32_s" Tmemarg_(4) == "i64.load32_s" "0" Tmemarg_(4)
+  | "i64.load32_u" Tmemarg_(4) == "i64.load32_u" "0" Tmemarg_(4)
+  | "v128.load" Tmemarg_(16) == "v128.load" "0" Tmemarg_(16)
+  | "v128.load8x8_s" Tmemarg_(8) == "v128.load8x8_s" "0" Tmemarg_(8)
+  | "v128.load8x8_u" Tmemarg_(8) == "v128.load8x8_u" "0" Tmemarg_(8)
+  | "v128.load16x4_s" Tmemarg_(8) == "v128.load16x4_s" "0" Tmemarg_(8)
+  | "v128.load16x4_u" Tmemarg_(8) == "v128.load16x4_u" "0" Tmemarg_(8)
+  | "v128.load32x2_s" Tmemarg_(8) == "v128.load32x2_s" "0" Tmemarg_(8)
+  | "v128.load32x2_u" Tmemarg_(8) == "v128.load32x2_u" "0" Tmemarg_(8)
+  | "v128.load8_splat" Tmemarg_(1) == "v128.load8_splat" "0" Tmemarg_(1)
+  | "v128.load16_splat" Tmemarg_(2) == "v128.load16_splat" "0" Tmemarg_(2)
+  | "v128.load32_splat" Tmemarg_(4) == "v128.load32_splat" "0" Tmemarg_(4)
+  | "v128.load64_splat" Tmemarg_(8) == "v128.load64_splat" "0" Tmemarg_(8)
+  | "v128.load32_zero" Tmemarg_(4) == "v128.load32_zero" "0" Tmemarg_(4)
+  | "v128.load64_zero" Tmemarg_(8) == "v128.load64_zero" "0" Tmemarg_(8)
+  | "v128.load8_lane" Tmemarg_(1) Tlaneidx == "v128.load8_lane" "0" Tmemarg_(1) Tlaneidx
+  | "v128.load16_lane" Tmemarg_(2) Tlaneidx == "v128.load16_lane" "0" Tmemarg_(2) Tlaneidx
+  | "v128.load32_lane" Tmemarg_(4) Tlaneidx == "v128.load32_lane" "0" Tmemarg_(4) Tlaneidx
+  | "v128.load64_lane" Tmemarg_(8) Tlaneidx == "v128.load64_lane" "0" Tmemarg_(8) Tlaneidx
+  | "i32.store" Tmemarg_(4) == "i32.store" "0" Tmemarg_(4)
+  | "i64.store" Tmemarg_(8) == "i64.store" "0" Tmemarg_(8)
+  | "f32.store" Tmemarg_(4) == "f32.store" "0" Tmemarg_(4)
+  | "f64.store" Tmemarg_(8) == "f64.store" "0" Tmemarg_(8)
+  | "i32.store8" Tmemarg_(1) == "i32.store8" "0" Tmemarg_(1)
+  | "i32.store16" Tmemarg_(2) == "i32.store16" "0" Tmemarg_(2)
+  | "i64.store8" Tmemarg_(1) == "i64.store8" "0" Tmemarg_(1)
+  | "i64.store16" Tmemarg_(2) == "i64.store16" "0" Tmemarg_(2)
+  | "i64.store32" Tmemarg_(4) == "i64.store32" "0" Tmemarg_(4)
+  | "v128.store" Tmemarg_(16) == "v128.store" "0" Tmemarg_(16)
+  | "v128.store8_lane" Tmemarg_(1) Tlaneidx == "v128.store8_lane" "0" Tmemarg_(1) Tlaneidx
+  | "v128.store16_lane" Tmemarg_(2) Tlaneidx == "v128.store16_lane" "0" Tmemarg_(1) Tlaneidx
+  | "v128.store32_lane" Tmemarg_(4) Tlaneidx == "v128.store32_lane" "0" Tmemarg_(1) Tlaneidx
+  | "v128.store64_lane" Tmemarg_(8) Tlaneidx == "v128.store64_lane" "0" Tmemarg_(1) Tlaneidx
+  | "memory.size" == "memory.size" "0"
+  | "memory.grow" == "memory.grow" "0"
+  | "memory.fill" == "memory.fill" "0"
+  | "memory.copy" == "memory.copy" "0" "0"
+  | "memory.init" Tdataidx_(I) == "memory.init" "0" Tdataidx_(I)
+  | ...
+
+grammar Tplaininstr_(I)/data : instr = ...
+  | "data.drop" x:Tdataidx_(I) => DATA.DROP x
   | ...
 
 
@@ -175,180 +349,13 @@ grammar Tplaininstr_(I)/extern : instr = ...
   | ...
 
 
-;; Variable instructions
-
-grammar Tplaininstr_(I)/local : instr = ...
-  | "local.get" x:Tlocalidx_(I) => LOCAL.GET x
-  | "local.set" x:Tlocalidx_(I) => LOCAL.SET x
-  | "local.tee" x:Tlocalidx_(I) => LOCAL.TEE x
-  | ...
-
-grammar Tplaininstr_(I)/global : instr = ...
-  | "global.get" x:Tglobalidx_(I) => GLOBAL.GET x
-  | "global.set" x:Tglobalidx_(I) => GLOBAL.SET x
-  | ...
-
-
-;; Table instructions
-
-grammar Tplaininstr_(I)/table : instr = ...
-  | "table.get" x:Ttableidx_(I) => TABLE.GET x
-  | "table.set" x:Ttableidx_(I) => TABLE.SET x
-  | "table.size" x:Ttableidx_(I) => TABLE.SIZE x
-  | "table.grow" x:Ttableidx_(I) => TABLE.GROW x
-  | "table.fill" x:Ttableidx_(I) => TABLE.FILL x
-  | "table.copy" x_1:Ttableidx_(I) x_2:Ttableidx_(I) => TABLE.COPY x_1 x_2
-  | "table.init" x:Ttableidx_(I) y:Telemidx_(I) => TABLE.INIT x y
-  | ...
-
-grammar Tplaininstr_(I)/table/abbrev : instr = ...
-  | "table.get" => TABLE.GET 0
-  | "table.set" => TABLE.SET 0
-  | "table.size" => TABLE.SIZE 0
-  | "table.grow" => TABLE.GROW 0
-  | "table.fill" => TABLE.FILL 0
-  | "table.copy" => TABLE.COPY 0 0
-  | "table.init" y:Telemidx_(I) => TABLE.INIT 0 y
-  | ...
-
-grammar Tplaininstr_(I)/elem : instr = ...
-  | "elem.drop" x:Telemidx_(I) => ELEM.DROP x
-  | ...
-
-
-;; Memory instructions
-
-grammar Tmemarg_(N) : memarg =
-  | n:Toffset m:Talign_(N) => {ALIGN n, OFFSET m}
-
-grammar Toffset : u64 =
-  | "offset=" n:Tu64 => n
-
-grammar Talign_(N) : u64 =
-  | "align=" m:Tu64 => m  -- if $(m = 2^n)
-
-grammar Tlaneidx : laneidx =
-  | i:Tu8 => i
-
-grammar Tplaininstr_(I)/memory : instr = ...
-  | "i32.load" x:Tmemidx_(I) ao:Tmemarg_(4) => LOAD I32 x ao
-  | "i64.load" x:Tmemidx_(I) ao:Tmemarg_(8) => LOAD I64 x ao
-  | "f32.load" x:Tmemidx_(I) ao:Tmemarg_(4) => LOAD F32 x ao
-  | "f64.load" x:Tmemidx_(I) ao:Tmemarg_(8) => LOAD F64 x ao
-  | "i32.load8_s" x:Tmemidx_(I) ao:Tmemarg_(1) => LOAD I32 (`8 _ S) x ao
-  | "i32.load8_u" x:Tmemidx_(I) ao:Tmemarg_(1) => LOAD I32 (`8 _ U) x ao
-  | "i32.load16_s" x:Tmemidx_(I) ao:Tmemarg_(2) => LOAD I32 (`16 _ S) x ao
-  | "i32.load16_u" x:Tmemidx_(I) ao:Tmemarg_(2) => LOAD I32 (`16 _ U) x ao
-  | "i64.load8_s" x:Tmemidx_(I) ao:Tmemarg_(1) => LOAD I64 (`8 _ S) x ao
-  | "i64.load8_u" x:Tmemidx_(I) ao:Tmemarg_(1) => LOAD I64 (`8 _ U) x ao
-  | "i64.load16_s" x:Tmemidx_(I) ao:Tmemarg_(2) => LOAD I64 (`16 _ S) x ao
-  | "i64.load16_u" x:Tmemidx_(I) ao:Tmemarg_(2) => LOAD I64 (`16 _ U) x ao
-  | "i64.load32_s" x:Tmemidx_(I) ao:Tmemarg_(4) => LOAD I64 (`32 _ S) x ao
-  | "i64.load32_u" x:Tmemidx_(I) ao:Tmemarg_(4) => LOAD I64 (`32 _ U) x ao
-  | "v128.load" x:Tmemidx_(I) ao:Tmemarg_(16) => VLOAD V128 x ao
-  | "v128.load8x8_s" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `8 X `8 _ S) x ao
-  | "v128.load8x8_u" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `8 X `8 _ U) x ao
-  | "v128.load16x4_s" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `16 X `4 _ S) x ao
-  | "v128.load16x4_u" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `16 X `4 _ U) x ao
-  | "v128.load32x2_s" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `32 X `2 _ S) x ao
-  | "v128.load32x2_u" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SHAPE `32 X `2 _ U) x ao
-  | "v128.load8_splat" x:Tmemidx_(I) ao:Tmemarg_(1) => VLOAD V128 (SPLAT `8) x ao
-  | "v128.load16_splat" x:Tmemidx_(I) ao:Tmemarg_(2) => VLOAD V128 (SPLAT `16) x ao
-  | "v128.load32_splat" x:Tmemidx_(I) ao:Tmemarg_(4) => VLOAD V128 (SPLAT `32) x ao
-  | "v128.load64_splat" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (SPLAT `64) x ao
-  | "v128.load32_zero" x:Tmemidx_(I) ao:Tmemarg_(4) => VLOAD V128 (ZERO `32) x ao
-  | "v128.load64_zero" x:Tmemidx_(I) ao:Tmemarg_(8) => VLOAD V128 (ZERO `64) x ao
-  | "v128.load8_lane" x:Tmemidx_(I) ao:Tmemarg_(1) i:Tlaneidx => VLOAD_LANE V128 `8 x ao i
-  | "v128.load16_lane" x:Tmemidx_(I) ao:Tmemarg_(2) i:Tlaneidx => VLOAD_LANE V128 `16 x ao i
-  | "v128.load32_lane" x:Tmemidx_(I) ao:Tmemarg_(4) i:Tlaneidx => VLOAD_LANE V128 `32 x ao i
-  | "v128.load64_lane" x:Tmemidx_(I) ao:Tmemarg_(8) i:Tlaneidx => VLOAD_LANE V128 `64 x ao i
-  | "i32.store" x:Tmemidx_(I) ao:Tmemarg_(4) => STORE I32 x ao
-  | "i64.store" x:Tmemidx_(I) ao:Tmemarg_(8) => STORE I64 x ao
-  | "f32.store" x:Tmemidx_(I) ao:Tmemarg_(4) => STORE F32 x ao
-  | "f64.store" x:Tmemidx_(I) ao:Tmemarg_(8) => STORE F64 x ao
-  | "i32.store8" x:Tmemidx_(I) ao:Tmemarg_(1) => STORE I32 `8 x ao
-  | "i32.store16" x:Tmemidx_(I) ao:Tmemarg_(2) => STORE I32 `16 x ao
-  | "i64.store8" x:Tmemidx_(I) ao:Tmemarg_(1) => STORE I64 `8 x ao
-  | "i64.store16" x:Tmemidx_(I) ao:Tmemarg_(2) => STORE I64 `16 x ao
-  | "i64.store32" x:Tmemidx_(I) ao:Tmemarg_(4) => STORE I64 `32 x ao
-  | "v128.store" x:Tmemidx_(I) ao:Tmemarg_(16) => VSTORE V128 x ao
-  | "v128.store8_lane" x:Tmemidx_(I) ao:Tmemarg_(1) i:Tlaneidx => VSTORE_LANE V128 `8 x ao i
-  | "v128.store16_lane" x:Tmemidx_(I) ao:Tmemarg_(2) i:Tlaneidx => VSTORE_LANE V128 `16 x ao i
-  | "v128.store32_lane" x:Tmemidx_(I) ao:Tmemarg_(4) i:Tlaneidx => VSTORE_LANE V128 `32 x ao i
-  | "v128.store64_lane" x:Tmemidx_(I) ao:Tmemarg_(8) i:Tlaneidx => VSTORE_LANE V128 `64 x ao i
-  | "memory.size" x:Tmemidx_(I) => MEMORY.SIZE x
-  | "memory.grow" x:Tmemidx_(I) => MEMORY.GROW x
-  | "memory.fill" x:Tmemidx_(I) => MEMORY.FILL x
-  | "memory.copy" x_1:Tmemidx_(I) x_2:Tmemidx_(I) => MEMORY.COPY x_1 x_2
-  | "memory.init" x:Tmemidx_(I) y:Tdataidx_(I) => MEMORY.INIT x y
-  | ...
-
-grammar Tplaininstr_(I)/memory/abbrev : instr = ...
-  | "i32.load" ao:Tmemarg_(4) => LOAD I32 0 ao
-  | "i64.load" ao:Tmemarg_(8) => LOAD I64 0 ao
-  | "f32.load" ao:Tmemarg_(4) => LOAD F32 0 ao
-  | "f64.load" ao:Tmemarg_(8) => LOAD F64 0 ao
-  | "i32.load8_s" ao:Tmemarg_(1) => LOAD I32 (`8 _ S) 0 ao
-  | "i32.load8_u" ao:Tmemarg_(1) => LOAD I32 (`8 _ U) 0 ao
-  | "i32.load16_s" ao:Tmemarg_(2) => LOAD I32 (`16 _ S) 0 ao
-  | "i32.load16_u" ao:Tmemarg_(2) => LOAD I32 (`16 _ U) 0 ao
-  | "i64.load8_s" ao:Tmemarg_(1) => LOAD I64 (`8 _ S) 0 ao
-  | "i64.load8_u" ao:Tmemarg_(1) => LOAD I64 (`8 _ U) 0 ao
-  | "i64.load16_s" ao:Tmemarg_(2) => LOAD I64 (`16 _ S) 0 ao
-  | "i64.load16_u" ao:Tmemarg_(2) => LOAD I64 (`16 _ U) 0 ao
-  | "i64.load32_s" ao:Tmemarg_(4) => LOAD I64 (`32 _ S) 0 ao
-  | "i64.load32_u" ao:Tmemarg_(4) => LOAD I64 (`32 _ U) 0 ao
-  | "v128.load" ao:Tmemarg_(16) => VLOAD V128 0 ao
-  | "v128.load8x8_s" ao:Tmemarg_(8) => VLOAD V128 (SHAPE `8 X `8 _ S) 0 ao
-  | "v128.load8x8_u" ao:Tmemarg_(8) => VLOAD V128 (SHAPE `8 X `8 _ U) 0 ao
-  | "v128.load16x4_s" ao:Tmemarg_(8) => VLOAD V128 (SHAPE `16 X `4 _ S) 0 ao
-  | "v128.load16x4_u" ao:Tmemarg_(8) => VLOAD V128 (SHAPE `16 X `4 _ U) 0 ao
-  | "v128.load32x2_s" ao:Tmemarg_(8) => VLOAD V128 (SHAPE `32 X `2 _ S) 0 ao
-  | "v128.load32x2_u" ao:Tmemarg_(8) => VLOAD V128 (SHAPE `32 X `2 _ U) 0 ao
-  | "v128.load8_splat" ao:Tmemarg_(1) => VLOAD V128 (SPLAT `8) 0 ao
-  | "v128.load16_splat" ao:Tmemarg_(2) => VLOAD V128 (SPLAT `16) 0 ao
-  | "v128.load32_splat" ao:Tmemarg_(4) => VLOAD V128 (SPLAT `32) 0 ao
-  | "v128.load64_splat" ao:Tmemarg_(8) => VLOAD V128 (SPLAT `64) 0 ao
-  | "v128.load32_zero" ao:Tmemarg_(4) => VLOAD V128 (ZERO `32) 0 ao
-  | "v128.load64_zero" ao:Tmemarg_(8) => VLOAD V128 (ZERO `64) 0 ao
-  | "v128.load8_lane" ao:Tmemarg_(1) i:Tlaneidx => VLOAD_LANE V128 `8 0 ao i
-  | "v128.load16_lane" ao:Tmemarg_(2) i:Tlaneidx => VLOAD_LANE V128 `16 0 ao i
-  | "v128.load32_lane" ao:Tmemarg_(4) i:Tlaneidx => VLOAD_LANE V128 `32 0 ao i
-  | "v128.load64_lane" ao:Tmemarg_(8) i:Tlaneidx => VLOAD_LANE V128 `64 0 ao i
-  | "i32.store" ao:Tmemarg_(4) => STORE I32 0 ao
-  | "i64.store" ao:Tmemarg_(8) => STORE I64 0 ao
-  | "f32.store" ao:Tmemarg_(4) => STORE F32 0 ao
-  | "f64.store" ao:Tmemarg_(8) => STORE F64 0 ao
-  | "i32.store8" ao:Tmemarg_(1) => STORE I32 `8 0 ao
-  | "i32.store16" ao:Tmemarg_(2) => STORE I32 `16 0 ao
-  | "i64.store8" ao:Tmemarg_(1) => STORE I64 `8 0 ao
-  | "i64.store16" ao:Tmemarg_(2) => STORE I64 `16 0 ao
-  | "i64.store32" ao:Tmemarg_(4) => STORE I64 `32 0 ao
-  | "v128.store" ao:Tmemarg_(16) => VSTORE V128 0 ao
-  | "v128.store8_lane" ao:Tmemarg_(1) i:Tlaneidx => VSTORE_LANE V128 `8 0 ao i
-  | "v128.store16_lane" ao:Tmemarg_(2) i:Tlaneidx => VSTORE_LANE V128 `16 0 ao i
-  | "v128.store32_lane" ao:Tmemarg_(4) i:Tlaneidx => VSTORE_LANE V128 `32 0 ao i
-  | "v128.store64_lane" ao:Tmemarg_(8) i:Tlaneidx => VSTORE_LANE V128 `64 0 ao i
-  | "memory.size" => MEMORY.SIZE 0
-  | "memory.grow" => MEMORY.GROW 0
-  | "memory.fill" => MEMORY.FILL 0
-  | "memory.copy" => MEMORY.COPY 0 0
-  | "memory.init" y:Telemidx_(I) => MEMORY.INIT 0 y
-  | ...
-
-grammar Tplaininstr_(I)/data : instr = ...
-  | "data.drop" x:Tdataidx_(I) => DATA.DROP x
-  | ...
-
-
 ;; Numeric instructions
 
 grammar Tplaininstr_(I)/num-const : instr = ...
-  | "i32.const" n:Ti32 => CONST I32 n
-  | "i64.const" n:Ti64 => CONST I64 n
-  ;; TODO(4, rossberg): enable fN
-  ;;| "f32.const" n:Tf32 => CONST F32 n
-  ;;| "f64.const" n:Tf64 => CONST F64 n
+  | "i32.const" c:Ti32 => CONST I32 c
+  | "i64.const" c:Ti64 => CONST I64 c
+  | "f32.const" c:Tf32 => CONST F32 c
+  | "f64.const" c:Tf64 => CONST F64 c
   | ...
 
 grammar Tplaininstr_(I)/num-test-i32 : instr = ...
@@ -548,13 +555,12 @@ grammar Tplaininstr_(I)/num-cvt-reinterpret : instr = ...
 ;; Vector instructions
 
 grammar Tplaininstr_(I)/vec-const : instr = ...
-  | "v128.const" "i8x16" n*:Ti8^16 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $ibytes_(8, n)*))
-  | "v128.const" "i16x8" n*:Ti16^8 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $ibytes_(16, n)*))
-  | "v128.const" "i32x4" n*:Ti32^4 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $ibytes_(32, n)*))
-  | "v128.const" "i64x2" n*:Ti64^2 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $ibytes_(64, n)*))
-;; TODO(4, rossberg): enable fN
-;;  | "v128.const" "f32x4" q*:Tf32^4 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $fbytes_(32, q)*))
-;;  | "v128.const" "f64x2" q*:Tf64^2 => VCONST V128 $inv_ibytes_(128, $concat_(byte, fibytes_(64, q)*))
+  | "v128.const" "i8x16" c*:Ti8^16 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $ibytes_(8, c)*))
+  | "v128.const" "i16x8" c*:Ti16^8 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $ibytes_(16, c)*))
+  | "v128.const" "i32x4" c*:Ti32^4 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $ibytes_(32, c)*))
+  | "v128.const" "i64x2" c*:Ti64^2 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $ibytes_(64, c)*))
+  | "v128.const" "f32x4" c*:Tf32^4 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $fbytes_(32, c)*))
+  | "v128.const" "f64x2" c*:Tf64^2 => VCONST V128 $inv_ibytes_(128, $concat_(byte, $fbytes_(64, c)*))
   | ...
 
 grammar Tplaininstr_(I)/vec-shuffle : instr = ...
@@ -573,20 +579,20 @@ grammar Tplaininstr_(I)/vec-splat : instr = ...
   | ...
 
 grammar Tplaininstr_(I)/vec-lane : instr = ...
-  | "i8x16.extract_lane_s" l:Tlaneidx => VEXTRACT_LANE (I8 X `16) S l
-  | "i8x16.extract_lane_u" l:Tlaneidx => VEXTRACT_LANE (I8 X `16) U l
-  | "i16x8.extract_lane_s" l:Tlaneidx => VEXTRACT_LANE (I16 X `8) S l
-  | "i16x8.extract_lane_u" l:Tlaneidx => VEXTRACT_LANE (I16 X `8) U l
-  | "i32x4.extract_lane" l:Tlaneidx => VEXTRACT_LANE (I32 X `4) l
-  | "i64x2.extract_lane" l:Tlaneidx => VEXTRACT_LANE (I64 X `2) l
-  | "f32x4.extract_lane" l:Tlaneidx => VEXTRACT_LANE (F32 X `4) l
-  | "f64x2.extract_lane" l:Tlaneidx => VEXTRACT_LANE (F64 X `2) l
-  | "i8x16.replace_lane" l:Tlaneidx => VREPLACE_LANE (I8 X `16) l
-  | "i16x8.replace_lane" l:Tlaneidx => VREPLACE_LANE (I16 X `8) l
-  | "i32x4.replace_lane" l:Tlaneidx => VREPLACE_LANE (I32 X `4) l
-  | "i64x2.replace_lane" l:Tlaneidx => VREPLACE_LANE (I64 X `2) l
-  | "f32x4.replace_lane" l:Tlaneidx => VREPLACE_LANE (F32 X `4) l
-  | "f64x2.replace_lane" l:Tlaneidx => VREPLACE_LANE (F64 X `2) l
+  | "i8x16.extract_lane_s" i:Tlaneidx => VEXTRACT_LANE (I8 X `16) S i
+  | "i8x16.extract_lane_u" i:Tlaneidx => VEXTRACT_LANE (I8 X `16) U i
+  | "i16x8.extract_lane_s" i:Tlaneidx => VEXTRACT_LANE (I16 X `8) S i
+  | "i16x8.extract_lane_u" i:Tlaneidx => VEXTRACT_LANE (I16 X `8) U i
+  | "i32x4.extract_lane" i:Tlaneidx => VEXTRACT_LANE (I32 X `4) i
+  | "i64x2.extract_lane" i:Tlaneidx => VEXTRACT_LANE (I64 X `2) i
+  | "f32x4.extract_lane" i:Tlaneidx => VEXTRACT_LANE (F32 X `4) i
+  | "f64x2.extract_lane" i:Tlaneidx => VEXTRACT_LANE (F64 X `2) i
+  | "i8x16.replace_lane" i:Tlaneidx => VREPLACE_LANE (I8 X `16) i
+  | "i16x8.replace_lane" i:Tlaneidx => VREPLACE_LANE (I16 X `8) i
+  | "i32x4.replace_lane" i:Tlaneidx => VREPLACE_LANE (I32 X `4) i
+  | "i64x2.replace_lane" i:Tlaneidx => VREPLACE_LANE (I64 X `2) i
+  | "f32x4.replace_lane" i:Tlaneidx => VREPLACE_LANE (F32 X `4) i
+  | "f64x2.replace_lane" i:Tlaneidx => VREPLACE_LANE (F64 X `2) i
   | ...
 
 grammar Tplaininstr_(I)/vec-test-v128 : instr = ...

@@ -339,7 +339,7 @@ let cond_of_pop_value e =
     | Some {it = Atom.Atom "VCONST"; _} -> topValueE (Some t) ~note:bt
     | _ -> topValueE None ~note:bt
     ) *)
-  | GetCurContextE (Some a) ->
+  | GetCurContextE a ->
     contextKindE a ~at ~note:bt
   (* TODO: Remove this when pops is done *)
   | IterE (_, (ListN (e', _), _)) ->
@@ -1037,6 +1037,23 @@ let translate_helper helper =
   FuncA (name, params, body) $ helper.at
 
 
+let to_frame_instr r =
+  let _id, l, _r, _prems = r in
+
+  let rec e_to_frame_instr e =
+    match e with
+    | {it = Il.Ast.CaseE ([[]; [{it = Semicolon; _}]; []], {it = TupE [lhs; rhs]; _}); _} ->
+      let i = e_to_frame_instr lhs in
+      if i = [] then e_to_frame_instr rhs else i
+    | {it = Il.Ast.VarE _; note = {it = Il.Ast.VarT ({it = "frame"; _}, _); _}; _} ->
+      let frame = frameE (varE "_" ~note:natT, (translate_exp e)) ~note:evalctxT in
+      [letI (frame, getCurContextE frame_atom ~note:evalctxT)]
+    | _ -> []
+  in
+
+  e_to_frame_instr l
+
+
 let extract_winstr r at =
   let _id, _l, _r, prems = r in
   match List.find_opt is_winstr_prem prems with
@@ -1074,7 +1091,7 @@ let translate_context_winstr winstr =
 
   let destruct = caseE (case, List.map translate_exp args) ~note:evalctxT ~at in
   [
-    letI (destruct, getCurContextE (Some kind) ~note:evalctxT) ~at:at;
+    letI (destruct, getCurContextE kind ~note:evalctxT) ~at:at;
     insert_assert vals;
   ] @ insert_pop' vals @ [
     insert_assert winstr;
@@ -1088,13 +1105,7 @@ let translate_context ctx =
   | Il.CaseE ([{it = Atom.Atom id; _} as atom]::_ as case, { it = Il.TupE args; _ }) when List.mem id context_names ->
     let destruct = caseE (case, List.map translate_exp args) ~note:evalctxT ~at in
     [
-      letI (destruct, getCurContextE (Some atom) ~note:evalctxT) ~at:at;
-    ],
-    exitI atom ~at:at
-  | Il.CaseE ([atom]::_, _) ->
-    [
-      yetI "this should not happen";
-      letI (translate_exp ctx, getCurContextE (None) ~note:ctx.note) ~at:at;
+      letI (destruct, getCurContextE atom ~note:evalctxT) ~at:at;
     ],
     exitI atom ~at:at
   | _ -> [ yetI "TODO: translate_context" ~at ], yetI "TODO: translate_context"
@@ -1105,6 +1116,9 @@ let rec translate_rgroup' (rule: rule_def) =
   let instr_name, _, rgroup = rule.it in
   let pops, rgroup' = extract_pops rgroup in
   let subgroups = group_by_context rgroup' in
+
+  (* Insert 'Let f be the current frame' *)
+  let frame_instr = to_frame_instr (List.hd rgroup') in
 
   let blocks = List.map (fun (k, (subgroup: rule_clause list)) ->
     match k with
@@ -1176,7 +1190,8 @@ let rec translate_rgroup' (rule: rule_def) =
       insert_to_last b2 b1
   in
 
-  translate_prems pops body_instrs
+  frame_instr
+  @ translate_prems pops body_instrs
 
 (* Main translation for reduction rules
  * `rgroup` -> `Al.Algo` *)
@@ -1187,9 +1202,11 @@ and translate_rgroup (rule: rule_def) =
   let instrs = translate_rgroup' rule in
 
   let name =
-    match case_of_case winstr with
-    | (atom :: _) :: _ -> atom
-    | _ -> assert false
+    try
+      match case_of_case winstr with
+      | (atom :: _) :: _ -> atom
+      | _ -> failwith ""
+    with | _ -> error rule.at "The reduction rules do not have valid or consistent target Wasm instructions."
   in
   let anchor = rel_id.it ^ "/" ^ instr_name in
   let al_params =
@@ -1211,7 +1228,6 @@ and translate_rgroup (rule: rule_def) =
   in
   let body =
     instrs
-    |> Transpile.insert_frame_binding
     |> Transpile.insert_nop
     |> List.concat_map (walker.walk_instr walker)
     |> Transpile.enhance_readability

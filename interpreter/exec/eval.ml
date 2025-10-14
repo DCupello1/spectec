@@ -157,25 +157,23 @@ let split n (vs : 'a stack) at = take n vs at, drop n vs at
  *   c : config
  *)
 
+let oob i n j =
+  I64.(lt_u (add i n) i || gt_u (add i n) j)
+
 let mem_oob frame x i n =
-  let mem = (memory frame.inst x) in
-  I64.gt_u (I64.add (addr_of_num i) (addr_of_num n))
-    (Memory.bound mem)
+  oob (addr_of_num i) (addr_of_num n) (Memory.bound (memory frame.inst x))
 
 let data_oob frame x i n =
-  I64.gt_u (I64.add (addr_of_num i) (addr_of_num n))
-    (Data.size (data frame.inst x))
+  oob (addr_of_num i) (addr_of_num n) (Data.size (data frame.inst x))
 
 let table_oob frame x i n =
-  I64.gt_u (I64.add (addr_of_num i) (addr_of_num n))
-    (Table.size (table frame.inst x))
+  oob (addr_of_num i) (addr_of_num n) (Table.size (table frame.inst x))
 
 let elem_oob frame x i n =
-  I64.gt_u (I64.add (addr_of_num i) (addr_of_num n))
-    (Elem.size (elem frame.inst x))
+  oob (addr_of_num i) (addr_of_num n) (Elem.size (elem frame.inst x))
 
 let array_oob a i n =
-  I64.gt_u (I64.add (Convert.I64_.extend_i32_u i) (Convert.I64_.extend_i32_u n))
+  oob (Convert.I64_.extend_i32_u i) (Convert.I64_.extend_i32_u n)
     (Convert.I64_.extend_i32_u (Aggr.array_length a))
 
 let rec step (c : config) : config =
@@ -190,6 +188,15 @@ let rec step (c : config) : config =
 
       | Nop, vs ->
         vs, []
+
+      | Drop, v :: vs' ->
+        vs', []
+
+      | Select _, Num (I32 i) :: v2 :: v1 :: vs' ->
+        if i = 0l then
+          v2 :: vs', []
+        else
+          v1 :: vs', []
 
       | Block (bt, es'), vs ->
         let InstrT (ts1, ts2, _xs) = blocktype c.frame.inst bt e.at in
@@ -319,15 +326,6 @@ let rec step (c : config) : config =
         let n2 = List.length ts2 in
         let args, vs' = split n1 vs e.at in
         vs', [Handler (n2, cs, ([], [Label (n2, [], (args, List.map plain es')) @@ e.at])) @@ e.at]
-
-      | Drop, v :: vs' ->
-        vs', []
-
-      | Select _, Num (I32 i) :: v2 :: v1 :: vs' ->
-        if i = 0l then
-          v2 :: vs', []
-        else
-          v1 :: vs', []
 
       | LocalGet x, vs ->
         (match !(local c.frame x) with

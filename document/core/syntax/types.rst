@@ -156,7 +156,7 @@ The syntax of abstract heap types is :ref:`extended <syntax-heaptype-ext>` with 
    pair: abstract syntax; reference type
    pair: reference; type
 .. _syntax-reftype:
-.. _syntax-nullable:
+.. _syntax-null:
 
 Reference Types
 ~~~~~~~~~~~~~~~
@@ -308,6 +308,7 @@ $${definition-ignore: psize}
    pair: abstract syntax; sub type
 .. _syntax-rectype:
 .. _syntax-subtype:
+.. _syntax-final:
 
 Recursive Types
 ~~~~~~~~~~~~~~~
@@ -357,8 +358,8 @@ Limits
 
 $${syntax: limits}
 
-.. scratch
-   If no maximum is given, then the respective storage can grow to any valid size.
+If no maximum is present,
+then the respective storage can grow to any valid size.
 
 
 .. index:: ! tag type, type use, tag, function type, exception tag

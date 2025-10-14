@@ -1072,25 +1072,35 @@ Printf.eprintf "[render_atom %s @ %s] id=%s def=%s macros: %s (%s)\n%!"
 
 
 let render_text s =
-    let buf = Buffer.create (String.length s) in
-    for i = 0 to String.length s - 1 do
-      match s.[i] with
-      | '#' -> Buffer.add_string buf "\\#"
-      | '$' -> Buffer.add_string buf "\\$"
-      | '%' -> Buffer.add_string buf "\\%"
-      | '&' -> Buffer.add_string buf "\\&"
-      | '_' -> Buffer.add_string buf "\\_"
-      | '{' -> Buffer.add_string buf "\\{"
-      | '}' -> Buffer.add_string buf "\\}"
-      | '[' -> Buffer.add_string buf "{[}"
-      | ']' -> Buffer.add_string buf "{]}"
-      | '\\' -> Buffer.add_string buf "\\backslash{}"
-      | '^' ->  Buffer.add_string buf "\\hat{~~}"
-      | '`' ->  Buffer.add_string buf "\\grave{~~}"
-      | '~' ->  Buffer.add_string buf "\\tilde{~~}"
-      | c -> Buffer.add_char buf c
-    done;
-    Buffer.contents buf
+  let buf = Buffer.create (String.length s + 32) in
+  Buffer.add_string buf "\\mbox{‘\\texttt{";
+  for i = 0 to String.length s - 1 do
+    match s.[i] with
+    | '\'' -> Buffer.add_string buf "\\kern0.03em{'}\\kern0.03em"  (* TODO: not typeset in TT *)
+    | '"' -> Buffer.add_string buf "\\kern-0.02em{'}\\kern-0.05em{'}\\kern-0.02em"  (* TODO: not typeset in TT *)
+    | '#' -> Buffer.add_string buf "\\#"
+    | '$' -> Buffer.add_string buf "\\$"
+    | '%' -> Buffer.add_string buf "\\%"
+    | '&' -> Buffer.add_string buf "\\&"
+    | '_' -> Buffer.add_string buf "\\_"
+    | '=' -> Buffer.add_string buf "{=}"
+    | '<' -> Buffer.add_string buf "{<}"
+    | '>' -> Buffer.add_string buf "{>}"
+    | '-' -> Buffer.add_string buf "{-}"
+    | '(' -> Buffer.add_string buf "{(}"
+    | ')' -> Buffer.add_string buf "{)}"
+    | '{' -> Buffer.add_string buf "{\\{}"
+    | '}' -> Buffer.add_string buf "{\\}}"
+    | '[' -> Buffer.add_string buf "{[}"
+    | ']' -> Buffer.add_string buf "{]}"
+    | '\\' -> Buffer.add_string buf "$\\mathtt{\\backslash}$"  (* TODO: not typeset in TT *)
+    | '^' ->  Buffer.add_string buf "$\\mathtt{\\hat{~~}}$"
+    | '`' ->  Buffer.add_string buf "$\\mathtt{\\grave{~~}}$"
+    | '~' ->  Buffer.add_string buf "$\\mathtt{\\tilde{~~}}$"
+    | c -> Buffer.add_char buf c
+  done;
+  Buffer.add_string buf "}’}";
+  Buffer.contents buf
 
 
 (* Operators *)
@@ -1156,32 +1166,32 @@ and render_nottyp env t : table =
       render_table env "@{}" ["l"; "l"] 0 0
         (concat_table "" (render_nl_list env (`H, ", ") render_typfield tfs) [Row [Col " \\}"]])
     )]]
-  | CaseT (dots1, ts, tcs, dots2) ->
+  | CaseT (dots1, ts, tcs, _dots2) ->
     let render env = function
       | `Dots -> render_dots Dots
       | `Typ t -> render_nottyp env t
       | `TypCase tc -> render_typcase env tc
     in
     let rhss =
-      render_nl_list env (`H, "~|~") render (
+      render_nl_list env (`H, "~~|~~") render (
         (match dots1 with Dots -> [Elem `Dots] | NoDots -> []) @
         map_nl_list (fun t -> `Typ t) ts @
         map_nl_list (fun tc -> `TypCase tc) tcs @
-        (match dots2 with Dots -> [Elem `Dots] | NoDots -> [])
+        [] (* (match dots2 with Dots -> [Elem `Dots] | NoDots -> []) *)
       )
     in
     if env.config.display then
       rhss
     else
-      [Row [Col (string_of_table " ~|~ " " ~|~ " "" "" rhss)]]
+      [Row [Col (string_of_table " ~~|~~ " " ~~|~~ " "" "" rhss)]]
   | ConT tcon ->
     render_typcon env tcon
   | RangeT tes ->
-    render_nl_list env (`H, "~|~") render_typenum tes
+    render_nl_list env (`H, "~~|~~") render_typenum tes
   | NumT `NatT ->
-    [Row [Col "0 ~|~ 1 ~|~ 2 ~|~ \\dots"]]
+    [Row [Col "0 ~~|~~ 1 ~~|~~ 2 ~~|~~ \\dots"]]
   | NumT `IntT ->
-    [Row [Col "\\dots ~|~ {-2} ~|~ {-1} ~|~ 0 ~|~ 1 ~|~ 2 ~|~ \\dots"]]
+    [Row [Col "\\dots ~~|~~ {-2} ~~|~~ {-1} ~~|~~ 0 ~~|~~ 1 ~~|~~ 2 ~~|~~ \\dots"]]
   | _ ->
     [Row [Col (render_typ env t)]]
 
@@ -1201,7 +1211,7 @@ and render_typenum env (e, eo) : row list =
   let r =
     match eo with
     | None -> ""
-    | Some e2 -> " ~|~ \\ldots ~|~ " ^ render_exp env e2
+    | Some e2 -> " ~~|~~ \\ldots ~~|~~ " ^ render_exp env e2
   in
   [Row [Col (render_exp env e ^ r)]]
 
@@ -1211,11 +1221,6 @@ and render_typenum env (e, eo) : row list =
 and is_atom_exp_with_show env e =
   match e.it with
   | AtomE atom when Map.mem (typed_id atom).it !(env.show_atom) -> true
-| AtomE atom ->
-if atom.it = Atom.Atom "X" && String.contains e.at.left.file 'A' then
-Printf.eprintf "[is_atom_exp %s:X @ %s] false %s\n%!" (Source.string_of_region e.at) atom.note.Atom.def
-(typed_id atom).it;
-false
   | _ -> false
 
 and flatten_fuse_exp_rev e =
@@ -1250,8 +1255,10 @@ and render_exp env e =
     let atom = {it = Atom.Atom (Z.to_string n); at = e.at; note = Atom.info "nat"} in
     render_atom (without_macros true env) atom
   | NumE _ -> assert false
-  | TextE t -> "\\mbox{`$\\mathtt{" ^ render_text t ^ "}$'}"
+  | TextE t -> render_text t
   | CvtE (e1, _) -> render_exp env e1
+  | UnE (`NotOp, {it = MemE (e1, e2); _}) ->
+    render_exp env e1 ^ " \\notin " ^ render_exp env e2
   | UnE (op, e2) -> "{" ^ render_unop op ^ render_exp env e2 ^ "}"
   | BinE (e1, `PowOp, ({it = ParenE e2; _ } | e2)) ->
     "{" ^ render_exp env e1 ^ "^{" ^ render_exp env e2 ^ "}}"
@@ -1295,10 +1302,15 @@ Printf.eprintf "[render %s:X @ %s] try expansion\n%!" (Source.string_of_region e
     render_exp env e1 ^
       "{}[" ^ render_path env p ^ " \\mathrel{{=}{\\oplus}} " ^ render_exp env e2 ^ "]"
   | StrE efs ->
-    "\\{ " ^
-    "\\begin{array}[t]{@{}l@{}}\n" ^
-    concat_map_nl ",\\; " "\\\\\n  " (render_expfield env) efs ^ " \\}" ^
-    "\\end{array}"
+    if not (List.mem Nl efs) then
+      let sep = if env.config.display then ",\\;\\allowbreak " else ",\\; " in
+      "\\{ " ^
+      concat_map_nl sep "\\\\\n  " (render_expfield env) efs ^ " \\}"
+    else
+      "\\{ " ^
+      "\\begin{array}[t]{@{}l@{}}\n" ^
+      concat_map_nl ",\\; " "\\\\\n  " (render_expfield env) efs ^ " \\}" ^
+      "\\end{array}"
   | DotE (e1, atom) -> render_exp env e1 ^ "{.}" ^ render_fieldname env atom
   | CommaE (e1, e2) -> render_exp env e1 ^ ", " ^ render_exp env e2
   | CatE (e1, e2) -> render_exp env e1 ^ " \\oplus " ^ render_exp env e2
@@ -1365,7 +1377,7 @@ and render_exps sep env es =
 
 and render_exp_seq env = function
   | [] -> ""
-  | es when (List.hd es).at.left.line < (Lib.List.last es).at.right.line ->
+  | es when env.config.display && (List.hd es).at.left.line < (Lib.List.last es).at.right.line ->
     "\\begin{array}[t]{@{}l@{}} " ^ render_exp_seq' env es ^ " \\end{array}"
   | es -> render_exp_seq' env es
 
@@ -1379,7 +1391,7 @@ and render_exp_seq' env = function
     in
     let s2 = render_exp_seq' env es in
     if s1 <> "" && s2 <> "" then s1 ^ "\\," ^ s2 else s1 ^ s2
-  | e1::e2::es when e1.at.right.line < e2.at.left.line ->
+  | e1::e2::es when env.config.display && e1.at.right.line < e2.at.left.line ->
     let s1 = render_exp env e1 in
     let s2 = render_exp_seq' env (e2::es) in
     s1 ^ " \\\\\n  " ^ s2
@@ -1491,12 +1503,12 @@ and render_sym env g : string =
       "%X"
     in "\\mathrm{U{+}" ^ Z.format fmt n ^ "}"
   | NumG (`AtomOp, n) -> "\\mathtt{" ^ Z.to_string n ^ "}"
-  | TextG t -> "\\mbox{`$\\mathtt{" ^ render_text t ^ "}$'}"
+  | TextG t -> render_text t
   | EpsG -> "\\epsilon"
   | SeqG gs -> render_sym_seq env gs
-  | AltG gs -> render_syms " ~|~ " env gs
+  | AltG gs -> render_syms " ~~|~~ " env gs
   | RangeG (g1, g2) ->
-    render_sym env g1 ^ " ~|~ \\ldots ~|~ " ^ render_sym env g2
+    render_sym env g1 ^ " ~~|~~ \\ldots ~~|~~ " ^ render_sym env g2
   | ParenG g1 -> "(" ^ render_sym env g1 ^ ")"
   | TupG gs -> "(" ^ concat ", " (List.map (render_sym env) gs) ^ ")"
   | IterG (g1, iter) -> "{" ^ render_sym env g1 ^ render_iter env iter ^ "}"
@@ -1508,25 +1520,35 @@ and render_sym env g : string =
     "{" ^ render_sym env g1 ^ "}" ^ "{" ^ render_sym env g2 ^ "}"
   | UnparenG ({it = ParenG g1; _} | g1) -> render_sym env g1
 
-(* TODO(3, rossberg): don't hard-code number of tabs *)
 and render_syms sep env gs =
-  let br = if env.config.display then " \\\\\n&&& " else " " in
-  altern_map_nl sep br (render_sym env) gs
+  if env.config.display && List.exists ((=) Nl) gs then
+    "\\begin{array}[t]{@{}l@{}} " ^
+    altern_map_nl sep " \\\\\n " (render_sym env) gs ^
+    "\\end{array}"
+  else
+    altern_map_nl sep " " (render_sym env) gs
 
-(* TODO(3, rossberg): don't hard-code number of tabs *)
-and render_sym_seq env = function
+and render_sym_seq env gs =
+  match El.Convert.filter_nl gs with
   | [] -> ""
-  | (Elem g1)::(Elem g2)::gs when g1.at.right.line < g2.at.left.line ->
+  | gs' when env.config.display && (List.hd gs').at.left.line < (Lib.List.last gs').at.right.line
+    || List.exists ((=) Nl) gs ->
+    "\\begin{array}[t]{@{}l@{}} " ^ render_sym_seq' env gs ^ " \\end{array}"
+  | _ -> render_sym_seq' env gs
+
+and render_sym_seq' env = function
+  | [] -> ""
+  | (Elem g1)::(Elem g2)::gs when env.config.display && g1.at.right.line < g2.at.left.line ->
     let s1 = render_sym env g1 in
-    let s2 = render_sym_seq env (Elem g2::gs) in
-    s1 ^ " \\\\\n  &&& " ^ s2
+    let s2 = render_sym_seq' env (Elem g2::gs) in
+    s1 ^ " \\\\\n  " ^ s2
   | (Elem g1)::gs ->
     let s1 = render_sym env g1 in
-    let s2 = render_sym_seq env gs in
+    let s2 = render_sym_seq' env gs in
     if s1 <> "" && s2 <> "" then s1 ^ "~~" ^ s2 else s1 ^ s2
   | Nl::gs ->
-    let s = render_sym_seq env gs in
-    " \\\\[0.8ex]\n  &&& " ^ s
+    let s = render_sym_seq' env gs in
+    " \\\\[0.8ex]\n  " ^ s
 
 and render_prod env prod : row list =
   match prod.it with
@@ -1554,27 +1576,64 @@ and render_prod env prod : row list =
         (render_conditions env prems)
     )
   | RangeP (g1, e1, g2, e2) ->
-    render_prod env (SynthP (g1, e1, []) $ g1.at) @
-    prefix_rows_hd [Col "\\ldots"] [] @
-    render_prod env (SynthP (g2, e2, []) $ g2.at)
+    let at = Source.after_region e1.at in
+    if g1.at.right.line = e2.at.left.line then
+      prefix_rows_hd
+        [Col (
+          render_sym env g1 ^ " ~\\Rightarrow~ " ^ render_exp env e1 ^
+          " ~~|~~ \\ldots ~~|~~ " ^
+          render_sym env g2 ^ " ~\\Rightarrow~ " ^ render_exp env e2
+        )]
+        []
+    else
+      render_prod env (SynthP (g1, e1, []) $ g1.at) @
+      render_prod env (SynthP (ArithG (AtomE Atom.(Dot3 $$ at % info "") $ at) $ at,
+        VarE ("<implicit-prod-result>" $ at, []) $ at, []) $ at) @
+      render_prod env (SynthP (g2, e2, []) $ g2.at)
+  | EquivP (g1, g2, prems) ->
+    (match prems with
+    | _ when not env.config.display ->
+      prefix_rows_hd
+        [Col (render_sym env g1 ^ " ~\\equiv~ " ^ render_sym env g2)]
+        (render_conditions env prems)
+    | _ ->
+      prefix_rows_hd
+        ( Col (render_sym env g1) ::
+          Col "\\quad\\equiv\\quad{}" ::
+          if g1.at.right.line = g2.at.left.line then
+            Col (render_sym env g2) :: []
+          else
+            Br `Narrow :: Col (render_sym env g2) :: []
+        )
+        (render_conditions env prems)
+    )
 
 and render_gram env gram : table =
-  let (dots1, prods, dots2) = gram.it in
+  let (dots1, prods, _dots2) = gram.it in
+  let singleline =
+    List.length prods > 1 && gram.at.left.line = gram.at.right.line ||
+    List.exists (function (Elem {it = RangeP _; _}) -> true | _ -> false) prods
+  in
   let render env = function
     | `Dots -> render_dots Dots
-    | `Prod p -> render_prod env p
+    | `Prod p ->
+      let env' =
+        if singleline
+        then env_with_config env {env.config with display = false}
+        else env
+      in render_prod env' p
   in
   let rhss =
-    render_nl_list env (`H, "~|~") render (
+    render_nl_list env (`H, "~~|~~") render (
       (match dots1 with Dots -> [Elem `Dots] | NoDots -> []) @
       map_nl_list (fun p -> `Prod p) prods @
-      (match dots2 with Dots -> [Elem `Dots] | NoDots -> [])
+      [] (* (match dots2 with Dots -> [Elem `Dots] | NoDots -> []) *)
     )
   in
   if env.config.display then
     rhss
   else
-    [Row [Col (string_of_table " ~|~ " " ~|~ " "" "" rhss)]]
+    [Row [Col (string_of_table " ~~|~~ " " ~~|~~ " "" "" rhss)]]
 
 
 (* Definitions *)

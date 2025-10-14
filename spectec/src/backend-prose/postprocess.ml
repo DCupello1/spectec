@@ -69,6 +69,8 @@ let fold_stmt (f: stmt list -> stmt -> stmt list) ss =
   in
   aux ss
 
+let (let*) = Option.bind
+
 (** End of Helpers **)
 
 let unify_either def =
@@ -156,6 +158,17 @@ let replace_name_def x1 x2 def =
   | RuleD (anchor, s, sl) -> RuleD (anchor, r s, List.map r sl)
   | AlgoD _algo -> failwith "unreachable"
 
+let rec extract_simple_var e =
+  match e.it with
+  | VarE x -> Some [x]
+  | IterE (e', (_, [x, {it = VarE x'; _}])) ->
+    let* r = extract_simple_var e' in
+    if List.hd r = x then
+      Some (x' :: r)
+    else
+      None
+  | _ -> None
+
 let remove_simple_binding def =
   match def with
   | RuleD (anchor, s, sl) ->
@@ -174,12 +187,22 @@ let remove_simple_binding def =
           let hd' = IfS (e, remove_simple_binding' [] sl) in
           remove_simple_binding' (hd' :: acc) tl
         (* Base cases *)
-        | CmpS ({it = VarE x1; _}, `EqOp, {it = VarE x2; _}) when Al.Free.IdSet.(mem x1 frees && not (mem x2 frees)) ->
-          let tl' = List.map (replace_name_stmt x2 x1) tl in
-          remove_simple_binding' acc tl'
-        | CmpS ({it = VarE x2; _}, `EqOp, {it = VarE x1; _}) when Al.Free.IdSet.(mem x1 frees && not (mem x2 frees)) ->
-          let tl' = List.map (replace_name_stmt x2 x1) tl in
-          remove_simple_binding' acc tl'
+        | CmpS (e1, `EqOp, e2) ->
+          (match extract_simple_var e1, extract_simple_var e2 with
+          | Some (x1 :: _ as l1), Some (x2 :: _ as l2)
+            when List.length l1 = List.length l2 && Al.Free.IdSet.(mem x1 frees && not (mem x2 frees)) ->
+            let tl' = List.fold_left2 (fun acc x1 x2 ->
+              List.map (replace_name_stmt x2 x1) acc
+            ) tl l1 l2 in
+            remove_simple_binding' acc tl'
+          | Some (x2 :: _ as l2), Some (x1 :: _ as l1)
+            when List.length l1 = List.length l2 && Al.Free.IdSet.(mem x1 frees && not (mem x2 frees)) ->
+            let tl' = List.fold_left2 (fun acc x1 x2 ->
+              List.map (replace_name_stmt x2 x1) acc
+            ) tl l1 l2 in
+            remove_simple_binding' acc tl'
+          | _ -> remove_simple_binding' (hd :: acc) tl
+          )
         | _ -> remove_simple_binding' (hd :: acc) tl
     in
     RuleD (anchor, s, remove_simple_binding' [] sl)
@@ -403,9 +426,110 @@ let prioritize_length_check def =
     RuleD (anchor, s, sl')
   | AlgoD _ -> def
 
+let string_drop_last s =
+  let l = String.length s in
+  String.sub s 0 (l-1)
+
+let rec dedup eq = function
+  | [] -> []
+  | hd :: tl ->
+    if List.exists (eq hd) tl then dedup eq tl else hd :: dedup eq tl
+
+
+let handle_allocxs def =
+  match def with
+  | AlgoD algo ->
+    let name = Al.Al_util.name_of_algo algo in
+    let walk_instr walker i =
+      match i.it with
+      | LetI (e1, e2) ->
+        (match e1.it, e2.it with
+        | IterE (e', (List, _)), CallE (fname, args) when Prose_util.is_allocxs fname && fname <> name ->
+          let fname' = string_drop_last fname in
+          let store, tl = Util.Lib.List.split_hd args in
+          let iters, tl' = List.fold_left_map (fun acc arg ->
+            match arg.it with
+            | ExpA ({it = IterE (arg', (_, xes)); _}) ->
+              let arg' = {arg with it = ExpA arg'} in
+              acc @ xes, arg'
+            | _ -> Util.Error.error arg.at "prose postprocessing" "IterE expected as a non-first argument of allocXs"
+          ) [] tl in
+          let iters' = dedup (fun (x1, _) (x2, _) -> x1 = x2) iters in
+          let args' = store :: tl' in
+          let e2' = {e2 with it = CallE (fname', args')} in
+
+          Al.Al_util.
+          [
+            letI (e1, listE [] ~note:e1.note);
+            forEachI (iters', [
+              letI (e', e2');
+              appendI(e1, e')
+            ])
+          ]
+        | _ -> [i]
+        )
+      | _ -> Al.Walk.base_walker.walk_instr walker i
+    in
+    let walker = {Al.Walk.base_walker with walk_instr} in
+    let algo' = walker.walk_algo walker algo in
+    AlgoD algo'
+  | _ -> def
+
+
+let infer_foreach def =
+  match def with
+  | AlgoD algo ->
+    let walk_instr walker i =
+      match i.it with
+      | LetI (e1, e2) ->
+        (match e1.it, e2.it with
+        | IterE (lhs, (List, bound_xes)), IterE (rhs, (List, xes)) ->
+
+          let open Al.Al_util in
+
+          let inits = List.map (fun (_x, e) ->
+            letI (e, listE [] ~note:e.note)
+          ) bound_xes in
+
+          let appends = List.map (fun (x, e) ->
+            let note = match e.note.it with | Il.Ast.IterT (t, _) -> t | _ -> e.note in
+            appendI (e, varE x ~note)
+          ) bound_xes in
+
+          inits @
+          [
+            forEachI (xes,
+              letI (lhs, rhs) ::
+              appends
+            )
+          ]
+        | _ -> [i]
+        )
+      | _ -> Al.Walk.base_walker.walk_instr walker i
+    in
+    let walker = {Al.Walk.base_walker with walk_instr} in
+    let algo' = walker.walk_algo walker algo in
+    AlgoD algo'
+  | _ -> def
+
+
+let remove_dead_assignment def =
+  let f = Il2al.Transpile.remove_dead_assignment in
+  match def with
+  | AlgoD algo ->
+    let it =
+      match algo.it with
+      | RuleA (atom, anchor, al, il) -> RuleA (atom, anchor, al, f il)
+      | FuncA (id, al, il) -> FuncA (id, al, f il)
+    in
+    AlgoD {algo with it}
+  | _ -> def
+
+
 let postprocess_prose defs =
   List.map (fun def ->
     def
+    (* handle valid prose *)
     |> unify_either
     |> remove_simple_binding
     |> rename_param
@@ -413,4 +537,8 @@ let postprocess_prose defs =
     |> restructure_forall
     |> remove_dead_binding
     |> prioritize_length_check
+    (* handle exec prose *)
+    |> handle_allocxs
+    |> infer_foreach |> infer_foreach
+    |> remove_dead_assignment
   ) defs

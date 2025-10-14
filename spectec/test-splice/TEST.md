@@ -44,12 +44,12 @@ $$
 
 $$
 \begin{array}[t]{@{}lrrl@{}l@{}}
-\mbox{(limits range)} & {\mathit{limits}} & ::= & {}[ {\mathit{u{\kern-0.1em\scriptstyle 64}}} .. {\mathit{u{\kern-0.1em\scriptstyle 64}}} ] \\[0.8ex]
+\mbox{(limits range)} & {\mathit{limits}} & ::= & {}[ {\mathit{u{\kern-0.1em\scriptstyle 64}}}~..~{{\mathit{u{\kern-0.1em\scriptstyle 64}}}^?} ] \\[0.8ex]
 \mbox{(global type)} & {\mathit{globaltype}} & ::= & {\mathsf{mut}^?}~{\mathit{valtype}} \\
 \mbox{(table type)} & {\mathit{tabletype}} & ::= & {\mathit{addrtype}}~{\mathit{limits}}~{\mathit{reftype}} \\
 \mbox{(memory type)} & {\mathit{memtype}} & ::= & {\mathit{addrtype}}~{\mathit{limits}}~\mathsf{page} \\[0.8ex]
 {} \\[-2ex]
-\mbox{(external type)} & {\mathit{externtype}} & ::= & \mathsf{tag}~{\mathit{tagtype}} ~|~ \mathsf{global}~{\mathit{globaltype}} ~|~ \mathsf{mem}~{\mathit{memtype}} ~|~ \mathsf{table}~{\mathit{tabletype}} ~|~ \mathsf{func}~{\mathit{typeuse}} \\
+\mbox{(external type)} & {\mathit{externtype}} & ::= & \mathsf{tag}~{\mathit{tagtype}} ~~|~~ \mathsf{global}~{\mathit{globaltype}} ~~|~~ \mathsf{mem}~{\mathit{memtype}} ~~|~~ \mathsf{table}~{\mathit{tabletype}} ~~|~~ \mathsf{func}~{\mathit{typeuse}} \\
 \end{array}
 $$
 
@@ -59,7 +59,6 @@ $$
 & & | & \mathsf{block}~{\mathit{blocktype}}~{{\mathit{instr}}^\ast} \\
 & & | & \mathsf{loop}~{\mathit{blocktype}}~{{\mathit{instr}}^\ast} \\
 & & | & \mathsf{if}~{\mathit{blocktype}}~{{\mathit{instr}}^\ast}~\mathsf{else}~{{\mathit{instr}}^\ast} \\
-& & | & \dots \\
 \end{array}
 $$
 
@@ -67,11 +66,11 @@ $$
 \begin{array}[t]{@{}l@{}rrl@{}l@{}}
 & {\mathit{instr}} & ::= & \dots \\
 & & | & {\mathit{numtype}}{.}\mathsf{const}~{{\mathit{num}}}_{{\mathit{numtype}}} \\
-& & | & {\mathit{numtype}} {.} {{\mathit{unop}}}_{{\mathit{numtype}}} \\
-& & | & {\mathit{numtype}} {.} {{\mathit{binop}}}_{{\mathit{numtype}}} \\
-& & | & {\mathit{numtype}} {.} {{\mathit{testop}}}_{{\mathit{numtype}}} \\
-& & | & {\mathit{numtype}} {.} {{\mathit{relop}}}_{{\mathit{numtype}}} \\
-& & | & {\mathit{numtype}}_1 {.} {{{\mathit{cvtop}}}_{{\mathit{numtype}}_2, {\mathit{numtype}}_1}}{\mathsf{\_}}{{\mathit{numtype}}_2} \\
+& & | & {\mathit{numtype}}~{.}~{{\mathit{unop}}}_{{\mathit{numtype}}} \\
+& & | & {\mathit{numtype}}~{.}~{{\mathit{binop}}}_{{\mathit{numtype}}} \\
+& & | & {\mathit{numtype}}~{.}~{{\mathit{testop}}}_{{\mathit{numtype}}} \\
+& & | & {\mathit{numtype}}~{.}~{{\mathit{relop}}}_{{\mathit{numtype}}} \\
+& & | & {{\mathit{numtype}}_1~{.}~{{\mathit{cvtop}}}_{{\mathit{numtype}}_2, {\mathit{numtype}}_1}}{\mathsf{\_}}{{\mathit{numtype}}_2} \\
 & & | & \mathsf{local{.}get}~{\mathit{localidx}} \\
 & & | & \mathsf{local{.}set}~{\mathit{localidx}} \\
 & & | & \mathsf{local{.}tee}~{\mathit{localidx}} \\
@@ -87,8 +86,7 @@ $$
 & & | & \mathsf{memory{.}grow}~{\mathit{memidx}} \\
 & & | & \mathsf{memory{.}fill}~{\mathit{memidx}} \\
 & & | & \mathsf{memory{.}copy}~{\mathit{memidx}}~{\mathit{memidx}} \\
-& & | & \mathsf{memory{.}init}~{\mathit{memidx}}~{\mathit{dataidx}} \\
-& & | & \dots \\[0.8ex]
+& & | & \mathsf{memory{.}init}~{\mathit{memidx}}~{\mathit{dataidx}} \\[0.8ex]
 & {\mathit{expr}} & ::= & {{\mathit{instr}}^\ast} \\
 \end{array}
 $$
@@ -184,8 +182,7 @@ $$
 \frac{
 C \vdash {\mathit{bt}} : {t_1^\ast} \rightarrow {t_2^\ast}
  \qquad
-\{ \begin{array}[t]{@{}l@{}}
-\mathsf{labels}~({t_2^\ast}) \}\end{array} \oplus C \vdash {{\mathit{instr}}^\ast} : {t_1^\ast} \rightarrow_{{x^\ast}} {t_2^\ast}
+\{ \mathsf{labels}~({t_2^\ast}) \} \oplus C \vdash {{\mathit{instr}}^\ast} : {t_1^\ast} \rightarrow_{{x^\ast}} {t_2^\ast}
 }{
 C \vdash \mathsf{block}~{\mathit{bt}}~{{\mathit{instr}}^\ast} : {t_1^\ast} \rightarrow {t_2^\ast}
 } \, {[\textsc{\scriptsize T{-}block}]}
@@ -198,8 +195,7 @@ $$
 \frac{
 C \vdash {\mathit{bt}} : {t_1^\ast} \rightarrow {t_2^\ast}
  \qquad
-\{ \begin{array}[t]{@{}l@{}}
-\mathsf{labels}~({t_1^\ast}) \}\end{array} \oplus C \vdash {{\mathit{instr}}^\ast} : {t_1^\ast} \rightarrow_{{x^\ast}} {t_2^\ast}
+\{ \mathsf{labels}~({t_1^\ast}) \} \oplus C \vdash {{\mathit{instr}}^\ast} : {t_1^\ast} \rightarrow_{{x^\ast}} {t_2^\ast}
 }{
 C \vdash \mathsf{loop}~{\mathit{bt}}~{{\mathit{instr}}^\ast} : {t_1^\ast} \rightarrow {t_2^\ast}
 } \, {[\textsc{\scriptsize T{-}loop}]}
@@ -212,11 +208,9 @@ $$
 \frac{
 C \vdash {\mathit{bt}} : {t_1^\ast} \rightarrow {t_2^\ast}
  \qquad
-\{ \begin{array}[t]{@{}l@{}}
-\mathsf{labels}~({t_2^\ast}) \}\end{array} \oplus C \vdash {{\mathit{instr}}_1^\ast} : {t_1^\ast} \rightarrow_{{x_1^\ast}} {t_2^\ast}
+\{ \mathsf{labels}~({t_2^\ast}) \} \oplus C \vdash {{\mathit{instr}}_1^\ast} : {t_1^\ast} \rightarrow_{{x_1^\ast}} {t_2^\ast}
  \qquad
-\{ \begin{array}[t]{@{}l@{}}
-\mathsf{labels}~({t_2^\ast}) \}\end{array} \oplus C \vdash {{\mathit{instr}}_2^\ast} : {t_1^\ast} \rightarrow_{{x_2^\ast}} {t_2^\ast}
+\{ \mathsf{labels}~({t_2^\ast}) \} \oplus C \vdash {{\mathit{instr}}_2^\ast} : {t_1^\ast} \rightarrow_{{x_2^\ast}} {t_2^\ast}
 }{
 C \vdash \mathsf{if}~{\mathit{bt}}~{{\mathit{instr}}_1^\ast}~\mathsf{else}~{{\mathit{instr}}_2^\ast} : {t_1^\ast}~\mathsf{i{\scriptstyle 32}} \rightarrow {t_2^\ast}
 } \, {[\textsc{\scriptsize T{-}if}]}
@@ -294,6 +288,7 @@ warning: syntax `N` was never spliced
 warning: syntax `Pnn` was never spliced
 warning: syntax `T` was never spliced
 warning: syntax `Vnn` was never spliced
+warning: syntax `abbreviated` was never spliced
 warning: syntax `absheaptype/syn` was never spliced
 warning: syntax `absheaptype/sem` was never spliced
 warning: syntax `addr` was never spliced
@@ -326,6 +321,7 @@ warning: syntax `dataidx` was never spliced
 warning: syntax `datainst` was never spliced
 warning: syntax `datamode` was never spliced
 warning: syntax `datatype` was never spliced
+warning: syntax `decl` was never spliced
 warning: syntax `deftype` was never spliced
 warning: syntax `dim` was never spliced
 warning: syntax `elem` was never spliced
@@ -337,6 +333,7 @@ warning: syntax `elemtype` was never spliced
 warning: syntax `exnaddr` was never spliced
 warning: syntax `exninst` was never spliced
 warning: syntax `exp` was never spliced
+warning: syntax `expanded` was never spliced
 warning: syntax `export` was never spliced
 warning: syntax `exportinst` was never spliced
 warning: syntax `externaddr` was never spliced
@@ -348,7 +345,7 @@ warning: syntax `fNmag` was never spliced
 warning: syntax `fieldidx` was never spliced
 warning: syntax `fieldtype` was never spliced
 warning: syntax `fieldval` was never spliced
-warning: syntax `fin` was never spliced
+warning: syntax `final` was never spliced
 warning: syntax `frame` was never spliced
 warning: syntax `free` was never spliced
 warning: syntax `func` was never spliced
@@ -365,7 +362,7 @@ warning: syntax `heaptype` was never spliced
 warning: syntax `hostaddr` was never spliced
 warning: syntax `hostfunc` was never spliced
 warning: syntax `iN` was never spliced
-warning: syntax `idcontext` was never spliced
+warning: syntax `idctxt` was never spliced
 warning: syntax `idx` was never spliced
 warning: syntax `import` was never spliced
 warning: syntax `init` was never spliced
@@ -373,16 +370,16 @@ warning: syntax `instr/parametric` was never spliced
 warning: syntax `instr/br` was never spliced
 warning: syntax `instr/call` was never spliced
 warning: syntax `instr/exn` was never spliced
-warning: syntax `instr/vec` was never spliced
+warning: syntax `instr/table` was never spliced
+warning: syntax `instr/elem` was never spliced
+warning: syntax `instr/data` was never spliced
 warning: syntax `instr/ref` was never spliced
 warning: syntax `instr/func` was never spliced
 warning: syntax `instr/i31` was never spliced
 warning: syntax `instr/struct` was never spliced
 warning: syntax `instr/array` was never spliced
 warning: syntax `instr/extern` was never spliced
-warning: syntax `instr/table` was never spliced
-warning: syntax `instr/elem` was never spliced
-warning: syntax `instr/data` was never spliced
+warning: syntax `instr/vec` was never spliced
 warning: syntax `instr/admin` was never spliced
 warning: syntax `instrtype` was never spliced
 warning: syntax `ishape` was never spliced
@@ -412,15 +409,11 @@ warning: syntax `module` was never spliced
 warning: syntax `moduleinst` was never spliced
 warning: syntax `moduletype` was never spliced
 warning: syntax `mut` was never spliced
-warning: syntax `mut1` was never spliced
-warning: syntax `mut2` was never spliced
 warning: syntax `n` was never spliced
 warning: syntax `name` was never spliced
 warning: syntax `nonfuncs` was never spliced
 warning: syntax `nopt` was never spliced
-warning: syntax `nul` was never spliced
-warning: syntax `nul1` was never spliced
-warning: syntax `nul2` was never spliced
+warning: syntax `null` was never spliced
 warning: syntax `num` was never spliced
 warning: syntax `num_` was never spliced
 warning: syntax `num_` was never spliced
@@ -459,6 +452,7 @@ warning: syntax `sym` was never spliced
 warning: syntax `symdots` was never spliced
 warning: syntax `symsplit/1` was never spliced
 warning: syntax `symsplit/2` was never spliced
+warning: syntax `syntax` was never spliced
 warning: syntax `sz` was never spliced
 warning: syntax `table` was never spliced
 warning: syntax `tableaddr` was never spliced
@@ -555,18 +549,19 @@ warning: grammar `Bheaptype` was never spliced
 warning: grammar `BiN` was never spliced
 warning: grammar `Bimport` was never spliced
 warning: grammar `Bimportsec` was never spliced
+warning: grammar `Binstr/parametric` was never spliced
+warning: grammar `Binstr/block` was never spliced
 warning: grammar `Binstr/control` was never spliced
+warning: grammar `Binstr/local` was never spliced
+warning: grammar `Binstr/global` was never spliced
+warning: grammar `Binstr/table` was never spliced
+warning: grammar `Binstr/memory` was never spliced
 warning: grammar `Binstr/ref` was never spliced
 warning: grammar `Binstr/struct` was never spliced
 warning: grammar `Binstr/array` was never spliced
 warning: grammar `Binstr/cast` was never spliced
 warning: grammar `Binstr/extern` was never spliced
 warning: grammar `Binstr/i31` was never spliced
-warning: grammar `Binstr/parametric` was never spliced
-warning: grammar `Binstr/local` was never spliced
-warning: grammar `Binstr/global` was never spliced
-warning: grammar `Binstr/table` was never spliced
-warning: grammar `Binstr/memory` was never spliced
 warning: grammar `Binstr/num-const` was never spliced
 warning: grammar `Binstr/num-test-i32` was never spliced
 warning: grammar `Binstr/num-rel-i32` was never spliced
@@ -614,7 +609,6 @@ warning: grammar `Binstr/vec-bitmask-i16x8` was never spliced
 warning: grammar `Binstr/vec-narrow-i16x8` was never spliced
 warning: grammar `Binstr/vec-ext-i16x8` was never spliced
 warning: grammar `Binstr/vec-shift-i16x8` was never spliced
-warning: grammar `Binstr/vec-bin-i16x8` was never spliced
 warning: grammar `Binstr/vec-extbin-i16x8` was never spliced
 warning: grammar `Binstr/vec-extun-i32x4` was never spliced
 warning: grammar `Binstr/vec-un-i32x4` was never spliced
@@ -642,7 +636,7 @@ warning: grammar `Binstr/vec-tern-f64x2` was never spliced
 warning: grammar `Binstr/vec-cvt` was never spliced
 warning: grammar `Blabelidx` was never spliced
 warning: grammar `Blaneidx` was never spliced
-warning: grammar `Blimits_` was never spliced
+warning: grammar `Blimits` was never spliced
 warning: grammar `Blist` was never spliced
 warning: grammar `Blocalidx` was never spliced
 warning: grammar `Blocals` was never spliced
@@ -668,6 +662,8 @@ warning: grammar `Bstartsec` was never spliced
 warning: grammar `Bstoragetype` was never spliced
 warning: grammar `Bsubtype` was never spliced
 warning: grammar `Bsym` was never spliced
+warning: grammar `Bsymsplit/1` was never spliced
+warning: grammar `Bsymsplit/2` was never spliced
 warning: grammar `Btable` was never spliced
 warning: grammar `Btableidx` was never spliced
 warning: grammar `Btablesec` was never spliced
@@ -679,7 +675,6 @@ warning: grammar `Btagtype` was never spliced
 warning: grammar `Btype` was never spliced
 warning: grammar `Btypeidx` was never spliced
 warning: grammar `Btypesec` was never spliced
-warning: grammar `Btypewriter` was never spliced
 warning: grammar `Bu32` was never spliced
 warning: grammar `Bu64` was never spliced
 warning: grammar `BuN` was never spliced
@@ -687,15 +682,16 @@ warning: grammar `Bvaltype` was never spliced
 warning: grammar `Bvar` was never spliced
 warning: grammar `Bvectype` was never spliced
 warning: grammar `Bversion` was never spliced
+warning: grammar `Tabbrev` was never spliced
 warning: grammar `Tabsheaptype` was never spliced
-warning: grammar `Taddrtype` was never spliced
-warning: grammar `Taddrtype` was never spliced
+warning: grammar `Taddrtype/base` was never spliced
+warning: grammar `Taddrtype/abbrev` was never spliced
 warning: grammar `Talign_` was never spliced
 warning: grammar `Tannot` was never spliced
 warning: grammar `Tannotid` was never spliced
 warning: grammar `Tblockchar` was never spliced
 warning: grammar `Tblockcomment` was never spliced
-warning: grammar `Tblockinstr_` was never spliced
+warning: grammar `Tblockinstr_/plain` was never spliced
 warning: grammar `Tblockinstr_/abbrev` was never spliced
 warning: grammar `Tblocktype_` was never spliced
 warning: grammar `Tcatch_` was never spliced
@@ -704,26 +700,48 @@ warning: grammar `Tcomment` was never spliced
 warning: grammar `Tcomptype_` was never spliced
 warning: grammar `Tdata_` was never spliced
 warning: grammar `Tdataidx_` was never spliced
+warning: grammar `Tdatamem_/abbrev` was never spliced
 warning: grammar `Tdatastring` was never spliced
+warning: grammar `Tdecl_` was never spliced
+warning: grammar `Tdecldots_` was never spliced
 warning: grammar `Tdigit` was never spliced
-warning: grammar `Telem_` was never spliced
-warning: grammar `Telemexpr_` was never spliced
+warning: grammar `Telem_/plain` was never spliced
+warning: grammar `Telem_/abbrev` was never spliced
+warning: grammar `Telemexpr_/plain` was never spliced
+warning: grammar `Telemexpr_/abbrev` was never spliced
 warning: grammar `Telemidx_` was never spliced
-warning: grammar `Telemlist_` was never spliced
+warning: grammar `Telemlist_/plain` was never spliced
+warning: grammar `Telemlist_/abbrev` was never spliced
+warning: grammar `Telemtable_/abbrev` was never spliced
 warning: grammar `Teof` was never spliced
 warning: grammar `Texport_` was never spliced
+warning: grammar `Texportdots` was never spliced
+warning: grammar `Texportfunc_/abbrev` was never spliced
+warning: grammar `Texportfuncdots_` was never spliced
+warning: grammar `Texportglobal_/abbrev` was never spliced
+warning: grammar `Texportglobaldots_` was never spliced
+warning: grammar `Texportmem_/abbrev` was never spliced
+warning: grammar `Texportmemdots_` was never spliced
+warning: grammar `Texporttable_/abbrev` was never spliced
+warning: grammar `Texporttabledots_` was never spliced
+warning: grammar `Texporttag_/abbrev` was never spliced
+warning: grammar `Texporttagdots_` was never spliced
 warning: grammar `Texpr_` was never spliced
 warning: grammar `Texternidx_` was never spliced
 warning: grammar `Texterntype_` was never spliced
+warning: grammar `Tf32` was never spliced
+warning: grammar `Tf64` was never spliced
 warning: grammar `TfN` was never spliced
+warning: grammar `TfNmag` was never spliced
 warning: grammar `TfNplain` was never spliced
-warning: grammar `Tfield_` was never spliced
+warning: grammar `Tfield_/base` was never spliced
 warning: grammar `Tfield_/abbrev` was never spliced
 warning: grammar `Tfieldidx__` was never spliced
 warning: grammar `Tfieldtype_` was never spliced
-warning: grammar `Tfin` was never spliced
+warning: grammar `Tfinal` was never spliced
 warning: grammar `Tfloat` was never spliced
-warning: grammar `Tfoldedinstr_` was never spliced
+warning: grammar `Tfoldedinstr_/plain` was never spliced
+warning: grammar `Tfoldedinstr_/block` was never spliced
 warning: grammar `Tformat` was never spliced
 warning: grammar `Tfrac` was never spliced
 warning: grammar `Tfunc_` was never spliced
@@ -746,52 +764,65 @@ warning: grammar `TiN` was never spliced
 warning: grammar `Tid` was never spliced
 warning: grammar `Tidchar` was never spliced
 warning: grammar `Tidx_` was never spliced
-warning: grammar `Timport_` was never spliced
+warning: grammar `Timport_/plain` was never spliced
+warning: grammar `Timport_/abbrev-tag` was never spliced
+warning: grammar `Timport_/abbrev-global` was never spliced
+warning: grammar `Timport_/abbrev-mem` was never spliced
+warning: grammar `Timport_/abbrev-table` was never spliced
+warning: grammar `Timport_/abbrev-func` was never spliced
+warning: grammar `Timportdots` was never spliced
 warning: grammar `Tinstr_` was never spliced
-warning: grammar `Tinstrs_` was never spliced
+warning: grammar `Tinstrs_/unfolded` was never spliced
 warning: grammar `Tinstrs_/folded` was never spliced
 warning: grammar `Tkeyword` was never spliced
 warning: grammar `Tlabel_` was never spliced
 warning: grammar `Tlabelidx_` was never spliced
 warning: grammar `Tlaneidx` was never spliced
-warning: grammar `Tlimits_` was never spliced
+warning: grammar `Tlimits` was never spliced
 warning: grammar `Tlinechar` was never spliced
 warning: grammar `Tlinecomment` was never spliced
 warning: grammar `Tlist` was never spliced
-warning: grammar `Tlocal_` was never spliced
+warning: grammar `Tlocal_/plain` was never spliced
+warning: grammar `Tlocal_/abbrev` was never spliced
 warning: grammar `Tlocalidx_` was never spliced
 warning: grammar `Tmant` was never spliced
 warning: grammar `Tmem_` was never spliced
 warning: grammar `Tmemarg_` was never spliced
 warning: grammar `Tmemidx_` was never spliced
 warning: grammar `Tmemtype_` was never spliced
+warning: grammar `Tmemuse_/plain` was never spliced
+warning: grammar `Tmemuse_/abbrev` was never spliced
+warning: grammar `Tmodule/plain` was never spliced
+warning: grammar `Tmodule/abbrev` was never spliced
 warning: grammar `Tname` was never spliced
 warning: grammar `Tnewline` was never spliced
-warning: grammar `Tnul` was never spliced
+warning: grammar `Tnull` was never spliced
 warning: grammar `Tnum` was never spliced
 warning: grammar `Tnumtype` was never spliced
 warning: grammar `Toffset` was never spliced
+warning: grammar `Toffset_/plain` was never spliced
+warning: grammar `Toffset_/abbrev` was never spliced
 warning: grammar `Tpacktype` was never spliced
-warning: grammar `Tparam_` was never spliced
+warning: grammar `Tparam_/base` was never spliced
 warning: grammar `Tparam_/abbrev` was never spliced
 warning: grammar `Tplaininstr_/parametric` was never spliced
 warning: grammar `Tplaininstr_/br` was never spliced
-warning: grammar `Tplaininstr_/call` was never spliced
-warning: grammar `Tplaininstr_/call/abbrev` was never spliced
+warning: grammar `Tplaininstr_/func-plain` was never spliced
+warning: grammar `Tplaininstr_/func-abbrev` was never spliced
 warning: grammar `Tplaininstr_/exn` was never spliced
+warning: grammar `Tplaininstr_/local` was never spliced
+warning: grammar `Tplaininstr_/global` was never spliced
+warning: grammar `Tplaininstr_/table-plain` was never spliced
+warning: grammar `Tplaininstr_/table-abbrev` was never spliced
+warning: grammar `Tplaininstr_/elem` was never spliced
+warning: grammar `Tplaininstr_/memory-plain` was never spliced
+warning: grammar `Tplaininstr_/memory-abbrev` was never spliced
+warning: grammar `Tplaininstr_/data` was never spliced
 warning: grammar `Tplaininstr_/ref` was never spliced
 warning: grammar `Tplaininstr_/i31` was never spliced
 warning: grammar `Tplaininstr_/struct` was never spliced
 warning: grammar `Tplaininstr_/array` was never spliced
 warning: grammar `Tplaininstr_/extern` was never spliced
-warning: grammar `Tplaininstr_/local` was never spliced
-warning: grammar `Tplaininstr_/global` was never spliced
-warning: grammar `Tplaininstr_/table` was never spliced
-warning: grammar `Tplaininstr_/table/abbrev` was never spliced
-warning: grammar `Tplaininstr_/elem` was never spliced
-warning: grammar `Tplaininstr_/memory` was never spliced
-warning: grammar `Tplaininstr_/memory/abbrev` was never spliced
-warning: grammar `Tplaininstr_/data` was never spliced
 warning: grammar `Tplaininstr_/num-const` was never spliced
 warning: grammar `Tplaininstr_/num-test-i32` was never spliced
 warning: grammar `Tplaininstr_/num-test-i64` was never spliced
@@ -869,12 +900,12 @@ warning: grammar `Tplaininstr_/vec-extun-i32x4` was never spliced
 warning: grammar `Tplaininstr_/vec-extbin-i16x8` was never spliced
 warning: grammar `Tplaininstr_/vec-extbin-i32x4` was never spliced
 warning: grammar `Tplaininstr_/vec-extbin-i64x2` was never spliced
-warning: grammar `Trectype_` was never spliced
+warning: grammar `Trectype_/base` was never spliced
 warning: grammar `Trectype_/abbrev` was never spliced
-warning: grammar `Treftype_` was never spliced
+warning: grammar `Treftype_/base` was never spliced
 warning: grammar `Treftype_/abbrev` was never spliced
 warning: grammar `Treserved` was never spliced
-warning: grammar `Tresult_` was never spliced
+warning: grammar `Tresult_/base` was never spliced
 warning: grammar `Tresult_/abbrev` was never spliced
 warning: grammar `TsN` was never spliced
 warning: grammar `TsNplain` was never spliced
@@ -886,18 +917,25 @@ warning: grammar `Tstoragetype_` was never spliced
 warning: grammar `Tstring` was never spliced
 warning: grammar `Tstringchar` was never spliced
 warning: grammar `Tstringelem` was never spliced
-warning: grammar `Tsubtype_` was never spliced
+warning: grammar `Tsubtype_/base` was never spliced
 warning: grammar `Tsubtype_/abbrev` was never spliced
-warning: grammar `Ttable_` was never spliced
+warning: grammar `Tsym` was never spliced
+warning: grammar `Tsymsplit/1` was never spliced
+warning: grammar `Tsymsplit/2` was never spliced
+warning: grammar `Ttable_/plain` was never spliced
+warning: grammar `Ttable_/abbrev` was never spliced
 warning: grammar `Ttableidx_` was never spliced
 warning: grammar `Ttabletype_` was never spliced
+warning: grammar `Ttableuse_/plain` was never spliced
+warning: grammar `Ttableuse_/abbrev` was never spliced
 warning: grammar `Ttag_` was never spliced
 warning: grammar `Ttagidx_` was never spliced
 warning: grammar `Ttagtype_` was never spliced
 warning: grammar `Ttoken` was never spliced
+warning: grammar `Ttype_` was never spliced
 warning: grammar `Ttypedef_` was never spliced
 warning: grammar `Ttypeidx_` was never spliced
-warning: grammar `Ttypeuse_` was never spliced
+warning: grammar `Ttypeuse_/base` was never spliced
 warning: grammar `Ttypeuse_/abbrev` was never spliced
 warning: grammar `Tu32` was never spliced
 warning: grammar `Tu64` was never spliced
@@ -905,6 +943,7 @@ warning: grammar `Tu8` was never spliced
 warning: grammar `TuN` was never spliced
 warning: grammar `TuNplain` was never spliced
 warning: grammar `Tvaltype_` was never spliced
+warning: grammar `Tvar` was never spliced
 warning: grammar `Tvectype` was never spliced
 warning: rule `Blocktype_ok/valtype` was never spliced
 warning: rule `Blocktype_ok/typeidx` was never spliced
@@ -919,16 +958,16 @@ warning: rule `Comptype_sub/struct` was never spliced
 warning: rule `Comptype_sub/array` was never spliced
 warning: rule `Comptype_sub/func` was never spliced
 warning: rule `Data_ok` was never spliced
-warning: rule `Datamode_ok/active` was never spliced
 warning: rule `Datamode_ok/passive` was never spliced
+warning: rule `Datamode_ok/active` was never spliced
 warning: rule `Defaultable` was never spliced
 warning: rule `Deftype_ok` was never spliced
 warning: rule `Deftype_sub/refl` was never spliced
 warning: rule `Deftype_sub/super` was never spliced
 warning: rule `Elem_ok` was never spliced
-warning: rule `Elemmode_ok/active` was never spliced
 warning: rule `Elemmode_ok/passive` was never spliced
 warning: rule `Elemmode_ok/declare` was never spliced
+warning: rule `Elemmode_ok/active` was never spliced
 warning: rule `Eval_expr` was never spliced
 warning: rule `Expand` was never spliced
 warning: rule `Expand_use/deftype` was never spliced
@@ -988,6 +1027,7 @@ warning: rule `Heaptype_sub/nofunc` was never spliced
 warning: rule `Heaptype_sub/noexn` was never spliced
 warning: rule `Heaptype_sub/noextern` was never spliced
 warning: rule `Heaptype_sub/bot` was never spliced
+warning: rule `Idctxt_ok` was never spliced
 warning: rule `Import_ok` was never spliced
 warning: rule `Instr_const/const` was never spliced
 warning: rule `Instr_const/vconst` was never spliced
@@ -1022,12 +1062,6 @@ warning: rule `Instr_ok/return_call_indirect` was never spliced
 warning: rule `Instr_ok/throw` was never spliced
 warning: rule `Instr_ok/throw_ref` was never spliced
 warning: rule `Instr_ok/try_table` was never spliced
-warning: rule `Instr_ok/const` was never spliced
-warning: rule `Instr_ok/unop` was never spliced
-warning: rule `Instr_ok/binop` was never spliced
-warning: rule `Instr_ok/testop` was never spliced
-warning: rule `Instr_ok/relop` was never spliced
-warning: rule `Instr_ok/cvtop` was never spliced
 warning: rule `Instr_ok/ref.null` was never spliced
 warning: rule `Instr_ok/ref.func` was never spliced
 warning: rule `Instr_ok/ref.i31` was never spliced
@@ -1055,28 +1089,6 @@ warning: rule `Instr_ok/array.init_elem` was never spliced
 warning: rule `Instr_ok/array.init_data` was never spliced
 warning: rule `Instr_ok/extern.convert_any` was never spliced
 warning: rule `Instr_ok/any.convert_extern` was never spliced
-warning: rule `Instr_ok/vconst` was never spliced
-warning: rule `Instr_ok/vvunop` was never spliced
-warning: rule `Instr_ok/vvbinop` was never spliced
-warning: rule `Instr_ok/vvternop` was never spliced
-warning: rule `Instr_ok/vvtestop` was never spliced
-warning: rule `Instr_ok/vunop` was never spliced
-warning: rule `Instr_ok/vbinop` was never spliced
-warning: rule `Instr_ok/vternop` was never spliced
-warning: rule `Instr_ok/vtestop` was never spliced
-warning: rule `Instr_ok/vrelop` was never spliced
-warning: rule `Instr_ok/vshiftop` was never spliced
-warning: rule `Instr_ok/vbitmask` was never spliced
-warning: rule `Instr_ok/vswizzlop` was never spliced
-warning: rule `Instr_ok/vshuffle` was never spliced
-warning: rule `Instr_ok/vsplat` was never spliced
-warning: rule `Instr_ok/vextract_lane` was never spliced
-warning: rule `Instr_ok/vreplace_lane` was never spliced
-warning: rule `Instr_ok/vextunop` was never spliced
-warning: rule `Instr_ok/vextbinop` was never spliced
-warning: rule `Instr_ok/vextternop` was never spliced
-warning: rule `Instr_ok/vnarrow` was never spliced
-warning: rule `Instr_ok/vcvtop` was never spliced
 warning: rule `Instr_ok/local.get` was never spliced
 warning: rule `Instr_ok/local.set` was never spliced
 warning: rule `Instr_ok/local.tee` was never spliced
@@ -1106,6 +1118,34 @@ warning: rule `Instr_ok/vload-zero` was never spliced
 warning: rule `Instr_ok/vload_lane` was never spliced
 warning: rule `Instr_ok/vstore` was never spliced
 warning: rule `Instr_ok/vstore_lane` was never spliced
+warning: rule `Instr_ok/const` was never spliced
+warning: rule `Instr_ok/unop` was never spliced
+warning: rule `Instr_ok/binop` was never spliced
+warning: rule `Instr_ok/testop` was never spliced
+warning: rule `Instr_ok/relop` was never spliced
+warning: rule `Instr_ok/cvtop` was never spliced
+warning: rule `Instr_ok/vconst` was never spliced
+warning: rule `Instr_ok/vvunop` was never spliced
+warning: rule `Instr_ok/vvbinop` was never spliced
+warning: rule `Instr_ok/vvternop` was never spliced
+warning: rule `Instr_ok/vvtestop` was never spliced
+warning: rule `Instr_ok/vunop` was never spliced
+warning: rule `Instr_ok/vbinop` was never spliced
+warning: rule `Instr_ok/vternop` was never spliced
+warning: rule `Instr_ok/vtestop` was never spliced
+warning: rule `Instr_ok/vrelop` was never spliced
+warning: rule `Instr_ok/vshiftop` was never spliced
+warning: rule `Instr_ok/vbitmask` was never spliced
+warning: rule `Instr_ok/vswizzlop` was never spliced
+warning: rule `Instr_ok/vshuffle` was never spliced
+warning: rule `Instr_ok/vsplat` was never spliced
+warning: rule `Instr_ok/vextract_lane` was never spliced
+warning: rule `Instr_ok/vreplace_lane` was never spliced
+warning: rule `Instr_ok/vextunop` was never spliced
+warning: rule `Instr_ok/vextbinop` was never spliced
+warning: rule `Instr_ok/vextternop` was never spliced
+warning: rule `Instr_ok/vnarrow` was never spliced
+warning: rule `Instr_ok/vcvtop` was never spliced
 warning: rule `Instrs_ok/empty` was spliced more than once
 warning: rule `Instrs_ok/sub` was never spliced
 warning: rule `Instrs_ok/frame` was spliced more than once
@@ -1156,13 +1196,6 @@ warning: rule `Step/ctxt-instrs` was never spliced
 warning: rule `Step/ctxt-label` was never spliced
 warning: rule `Step/ctxt-frame` was never spliced
 warning: rule `Step/throw` was never spliced
-warning: rule `Step/struct.new` was never spliced
-warning: rule `Step/struct.set-null` was never spliced
-warning: rule `Step/struct.set-struct` was never spliced
-warning: rule `Step/array.new_fixed` was never spliced
-warning: rule `Step/array.set-null` was never spliced
-warning: rule `Step/array.set-oob` was never spliced
-warning: rule `Step/array.set-array` was never spliced
 warning: rule `Step/local.set` was never spliced
 warning: rule `Step/global.set` was never spliced
 warning: rule `Step/table.set-oob` was never spliced
@@ -1181,6 +1214,13 @@ warning: rule `Step/vstore_lane-val` was never spliced
 warning: rule `Step/memory.grow-succeed` was never spliced
 warning: rule `Step/memory.grow-fail` was never spliced
 warning: rule `Step/data.drop` was never spliced
+warning: rule `Step/struct.new` was never spliced
+warning: rule `Step/struct.set-null` was never spliced
+warning: rule `Step/struct.set-struct` was never spliced
+warning: rule `Step/array.new_fixed` was never spliced
+warning: rule `Step/array.set-null` was never spliced
+warning: rule `Step/array.set-oob` was never spliced
+warning: rule `Step/array.set-array` was never spliced
 warning: rule `Step_pure/unreachable` was never spliced
 warning: rule `Step_pure/nop` was never spliced
 warning: rule `Step_pure/drop` was never spliced
@@ -1210,14 +1250,7 @@ warning: rule `Step_pure/handler-vals` was never spliced
 warning: rule `Step_pure/trap-instrs` was never spliced
 warning: rule `Step_pure/trap-label` was never spliced
 warning: rule `Step_pure/trap-frame` was never spliced
-warning: rule `Step_pure/unop-val` was never spliced
-warning: rule `Step_pure/unop-trap` was never spliced
-warning: rule `Step_pure/binop-val` was never spliced
-warning: rule `Step_pure/binop-trap` was never spliced
-warning: rule `Step_pure/testop` was never spliced
-warning: rule `Step_pure/relop` was never spliced
-warning: rule `Step_pure/cvtop-val` was never spliced
-warning: rule `Step_pure/cvtop-trap` was never spliced
+warning: rule `Step_pure/local.tee` was never spliced
 warning: rule `Step_pure/ref.i31` was never spliced
 warning: rule `Step_pure/ref.is_null-true` was never spliced
 warning: rule `Step_pure/ref.is_null-false` was never spliced
@@ -1233,6 +1266,14 @@ warning: rule `Step_pure/extern.convert_any-null` was never spliced
 warning: rule `Step_pure/extern.convert_any-addr` was never spliced
 warning: rule `Step_pure/any.convert_extern-null` was never spliced
 warning: rule `Step_pure/any.convert_extern-addr` was never spliced
+warning: rule `Step_pure/unop-val` was never spliced
+warning: rule `Step_pure/unop-trap` was never spliced
+warning: rule `Step_pure/binop-val` was never spliced
+warning: rule `Step_pure/binop-trap` was never spliced
+warning: rule `Step_pure/testop` was never spliced
+warning: rule `Step_pure/relop` was never spliced
+warning: rule `Step_pure/cvtop-val` was never spliced
+warning: rule `Step_pure/cvtop-trap` was never spliced
 warning: rule `Step_pure/vvunop` was never spliced
 warning: rule `Step_pure/vvbinop` was never spliced
 warning: rule `Step_pure/vvternop` was never spliced
@@ -1258,7 +1299,6 @@ warning: rule `Step_pure/vextbinop` was never spliced
 warning: rule `Step_pure/vextternop` was never spliced
 warning: rule `Step_pure/vnarrow` was never spliced
 warning: rule `Step_pure/vcvtop` was never spliced
-warning: rule `Step_pure/local.tee` was never spliced
 warning: rule `Step_read/br_on_cast-succeed` was never spliced
 warning: rule `Step_read/br_on_cast-fail` was never spliced
 warning: rule `Step_read/br_on_cast_fail-succeed` was never spliced
@@ -1282,46 +1322,6 @@ warning: rule `Step_read/throw_ref-handler-catch_all` was never spliced
 warning: rule `Step_read/throw_ref-handler-catch_all_ref` was never spliced
 warning: rule `Step_read/throw_ref-handler-next` was never spliced
 warning: rule `Step_read/try_table` was never spliced
-warning: rule `Step_read/ref.null-idx` was never spliced
-warning: rule `Step_read/ref.func` was never spliced
-warning: rule `Step_read/ref.test-true` was never spliced
-warning: rule `Step_read/ref.test-false` was never spliced
-warning: rule `Step_read/ref.cast-succeed` was never spliced
-warning: rule `Step_read/ref.cast-fail` was never spliced
-warning: rule `Step_read/struct.new_default` was never spliced
-warning: rule `Step_read/struct.get-null` was never spliced
-warning: rule `Step_read/struct.get-struct` was never spliced
-warning: rule `Step_read/array.new_default` was never spliced
-warning: rule `Step_read/array.new_elem-oob` was never spliced
-warning: rule `Step_read/array.new_elem-alloc` was never spliced
-warning: rule `Step_read/array.new_data-oob` was never spliced
-warning: rule `Step_read/array.new_data-num` was never spliced
-warning: rule `Step_read/array.get-null` was never spliced
-warning: rule `Step_read/array.get-oob` was never spliced
-warning: rule `Step_read/array.get-array` was never spliced
-warning: rule `Step_read/array.len-null` was never spliced
-warning: rule `Step_read/array.len-array` was never spliced
-warning: rule `Step_read/array.fill-null` was never spliced
-warning: rule `Step_read/array.fill-oob` was never spliced
-warning: rule `Step_read/array.fill-zero` was never spliced
-warning: rule `Step_read/array.fill-succ` was never spliced
-warning: rule `Step_read/array.copy-null1` was never spliced
-warning: rule `Step_read/array.copy-null2` was never spliced
-warning: rule `Step_read/array.copy-oob1` was never spliced
-warning: rule `Step_read/array.copy-oob2` was never spliced
-warning: rule `Step_read/array.copy-zero` was never spliced
-warning: rule `Step_read/array.copy-le` was never spliced
-warning: rule `Step_read/array.copy-gt` was never spliced
-warning: rule `Step_read/array.init_elem-null` was never spliced
-warning: rule `Step_read/array.init_elem-oob1` was never spliced
-warning: rule `Step_read/array.init_elem-oob2` was never spliced
-warning: rule `Step_read/array.init_elem-zero` was never spliced
-warning: rule `Step_read/array.init_elem-succ` was never spliced
-warning: rule `Step_read/array.init_data-null` was never spliced
-warning: rule `Step_read/array.init_data-oob1` was never spliced
-warning: rule `Step_read/array.init_data-oob2` was never spliced
-warning: rule `Step_read/array.init_data-zero` was never spliced
-warning: rule `Step_read/array.init_data-num` was never spliced
 warning: rule `Step_read/local.get` was never spliced
 warning: rule `Step_read/global.get` was never spliced
 warning: rule `Step_read/table.get-oob` was never spliced
@@ -1362,6 +1362,46 @@ warning: rule `Step_read/memory.copy-gt` was never spliced
 warning: rule `Step_read/memory.init-oob` was never spliced
 warning: rule `Step_read/memory.init-zero` was never spliced
 warning: rule `Step_read/memory.init-succ` was never spliced
+warning: rule `Step_read/ref.null-idx` was never spliced
+warning: rule `Step_read/ref.func` was never spliced
+warning: rule `Step_read/ref.test-true` was never spliced
+warning: rule `Step_read/ref.test-false` was never spliced
+warning: rule `Step_read/ref.cast-succeed` was never spliced
+warning: rule `Step_read/ref.cast-fail` was never spliced
+warning: rule `Step_read/struct.new_default` was never spliced
+warning: rule `Step_read/struct.get-null` was never spliced
+warning: rule `Step_read/struct.get-struct` was never spliced
+warning: rule `Step_read/array.new_default` was never spliced
+warning: rule `Step_read/array.new_elem-oob` was never spliced
+warning: rule `Step_read/array.new_elem-alloc` was never spliced
+warning: rule `Step_read/array.new_data-oob` was never spliced
+warning: rule `Step_read/array.new_data-num` was never spliced
+warning: rule `Step_read/array.get-null` was never spliced
+warning: rule `Step_read/array.get-oob` was never spliced
+warning: rule `Step_read/array.get-array` was never spliced
+warning: rule `Step_read/array.len-null` was never spliced
+warning: rule `Step_read/array.len-array` was never spliced
+warning: rule `Step_read/array.fill-null` was never spliced
+warning: rule `Step_read/array.fill-oob` was never spliced
+warning: rule `Step_read/array.fill-zero` was never spliced
+warning: rule `Step_read/array.fill-succ` was never spliced
+warning: rule `Step_read/array.copy-null1` was never spliced
+warning: rule `Step_read/array.copy-null2` was never spliced
+warning: rule `Step_read/array.copy-oob1` was never spliced
+warning: rule `Step_read/array.copy-oob2` was never spliced
+warning: rule `Step_read/array.copy-zero` was never spliced
+warning: rule `Step_read/array.copy-le` was never spliced
+warning: rule `Step_read/array.copy-gt` was never spliced
+warning: rule `Step_read/array.init_elem-null` was never spliced
+warning: rule `Step_read/array.init_elem-oob1` was never spliced
+warning: rule `Step_read/array.init_elem-oob2` was never spliced
+warning: rule `Step_read/array.init_elem-zero` was never spliced
+warning: rule `Step_read/array.init_elem-succ` was never spliced
+warning: rule `Step_read/array.init_data-null` was never spliced
+warning: rule `Step_read/array.init_data-oob1` was never spliced
+warning: rule `Step_read/array.init_data-oob2` was never spliced
+warning: rule `Step_read/array.init_data-zero` was never spliced
+warning: rule `Step_read/array.init_data-num` was never spliced
 warning: rule `Steps/refl` was never spliced
 warning: rule `Steps/trans` was never spliced
 warning: rule `Storagetype_ok/val` was never spliced
@@ -1455,6 +1495,7 @@ warning: definition `blocktype_` was never spliced
 warning: definition `bool` was never spliced
 warning: definition `canon_` was never spliced
 warning: definition `cbytes_` was never spliced
+warning: definition `ceilz` was never spliced
 warning: definition `clos_deftype` was never spliced
 warning: definition `clos_deftypes` was never spliced
 warning: definition `clos_externtype` was never spliced
@@ -1462,7 +1503,9 @@ warning: definition `clos_moduletype` was never spliced
 warning: definition `clos_tagtype` was never spliced
 warning: definition `clos_valtype` was never spliced
 warning: definition `concat_` was never spliced
+warning: definition `concat_idctxt` was never spliced
 warning: definition `concatn_` was never spliced
+warning: definition `concatopt_` was never spliced
 warning: definition `const` was never spliced
 warning: definition `cont` was never spliced
 warning: definition `convert__` was never spliced
@@ -1473,16 +1516,20 @@ warning: definition `cvtop__` was never spliced
 warning: definition `data` was never spliced
 warning: definition `dataidx_funcs` was never spliced
 warning: definition `datainst` was never spliced
+warning: definition `datasd` was never spliced
 warning: definition `demote__` was never spliced
 warning: definition `diffrt` was never spliced
 warning: definition `dim` was never spliced
 warning: definition `disjoint_` was never spliced
+warning: definition `dots` was never spliced
 warning: definition `elem` was never spliced
 warning: definition `eleminst` was never spliced
+warning: definition `elemsd` was never spliced
 warning: definition `evalglobals` was never spliced
 warning: definition `exninst` was never spliced
 warning: definition `expanddt` was never spliced
 warning: definition `expon` was never spliced
+warning: definition `exportsd` was never spliced
 warning: definition `extend__` was never spliced
 warning: definition `fabs_` was never spliced
 warning: definition `fadd_` was never spliced
@@ -1577,6 +1624,7 @@ warning: definition `fsub_` was never spliced
 warning: definition `ftrunc_` was never spliced
 warning: definition `funcidx_module` was never spliced
 warning: definition `funcidx_nonfuncs` was never spliced
+warning: definition `funcsd` was never spliced
 warning: definition `funcsxa` was never spliced
 warning: definition `funcsxt` was never spliced
 warning: definition `funcsxx` was never spliced
@@ -1588,6 +1636,7 @@ warning: definition `fvunop_` was never spliced
 warning: definition `fzero` was never spliced
 warning: definition `global` was never spliced
 warning: definition `globalinst` was never spliced
+warning: definition `globalsd` was never spliced
 warning: definition `globalsxa` was never spliced
 warning: definition `globalsxt` was never spliced
 warning: definition `globalsxx` was never spliced
@@ -1617,6 +1666,7 @@ warning: definition `ile_` was never spliced
 warning: definition `ilt_` was never spliced
 warning: definition `imax_` was never spliced
 warning: definition `imin_` was never spliced
+warning: definition `importsd` was never spliced
 warning: definition `imul_` was never spliced
 warning: definition `ine_` was never spliced
 warning: definition `ineg_` was never spliced
@@ -1656,6 +1706,7 @@ warning: definition `irem_` was never spliced
 warning: definition `irev_` was never spliced
 warning: definition `irotl_` was never spliced
 warning: definition `irotr_` was never spliced
+warning: definition `is_packtype` was never spliced
 warning: definition `ishl_` was never spliced
 warning: definition `ishr_` was never spliced
 warning: definition `isize` was never spliced
@@ -1698,6 +1749,7 @@ warning: definition `lunpacknum_` was never spliced
 warning: definition `mem` was never spliced
 warning: definition `memarg0` was never spliced
 warning: definition `meminst` was never spliced
+warning: definition `memsd` was never spliced
 warning: definition `memsxa` was never spliced
 warning: definition `memsxt` was never spliced
 warning: definition `memsxx` was never spliced
@@ -1709,6 +1761,7 @@ warning: definition `narrow__` was never spliced
 warning: definition `nbytes_` was never spliced
 warning: definition `nunpack` was never spliced
 warning: definition `opt_` was never spliced
+warning: definition `ordered` was never spliced
 warning: definition `packfield_` was never spliced
 warning: definition `prod` was never spliced
 warning: definition `promote__` was never spliced
@@ -1737,6 +1790,7 @@ warning: definition `signif` was never spliced
 warning: definition `sizenn` was never spliced
 warning: definition `sizenn1` was never spliced
 warning: definition `sizenn2` was never spliced
+warning: definition `startsd` was never spliced
 warning: definition `store` was never spliced
 warning: definition `structinst` was never spliced
 warning: definition `subst_addrtype` was never spliced
@@ -1773,12 +1827,14 @@ warning: definition `subst_vectype` was never spliced
 warning: definition `sum` was never spliced
 warning: definition `sx` was never spliced
 warning: definition `tableinst` was never spliced
+warning: definition `tablesd` was never spliced
 warning: definition `tablesxa` was never spliced
 warning: definition `tablesxt` was never spliced
 warning: definition `tablesxx` was never spliced
 warning: definition `tag` was never spliced
 warning: definition `tagaddr` was never spliced
 warning: definition `taginst` was never spliced
+warning: definition `tagsd` was never spliced
 warning: definition `tagsxa` was never spliced
 warning: definition `tagsxt` was never spliced
 warning: definition `tagsxx` was never spliced
@@ -1787,6 +1843,7 @@ warning: definition `trunc__` was never spliced
 warning: definition `trunc_sat__` was never spliced
 warning: definition `truncz` was never spliced
 warning: definition `type` was never spliced
+warning: definition `typesd` was never spliced
 warning: definition `unop_` was never spliced
 warning: definition `unpack` was never spliced
 warning: definition `unpackfield_` was never spliced
@@ -1924,6 +1981,7 @@ warning: rule prose `Heaptype_sub/refl` was never spliced
 warning: rule prose `Heaptype_sub/struct` was never spliced
 warning: rule prose `Heaptype_sub/trans` was never spliced
 warning: rule prose `Heaptype_sub/typeidx` was never spliced
+warning: rule prose `Idctxt_ok` was never spliced
 warning: rule prose `Import_ok` was never spliced
 warning: rule prose `Instr_const` was never spliced
 warning: rule prose `Instr_const/any.convert_extern` was never spliced
@@ -2316,7 +2374,9 @@ warning: definition prose `clos_moduletype` was never spliced
 warning: definition prose `clos_tagtype` was never spliced
 warning: definition prose `clos_valtype` was never spliced
 warning: definition prose `concat_` was never spliced
+warning: definition prose `concat_idctxt` was never spliced
 warning: definition prose `concatn_` was never spliced
+warning: definition prose `concatopt_` was never spliced
 warning: definition prose `const` was never spliced
 warning: definition prose `cont` was never spliced
 warning: definition prose `cpacknum_` was never spliced
@@ -2326,16 +2386,19 @@ warning: definition prose `cvtop__` was never spliced
 warning: definition prose `data` was never spliced
 warning: definition prose `dataidx_funcs` was never spliced
 warning: definition prose `datainst` was never spliced
+warning: definition prose `datasd` was never spliced
 warning: definition prose `default_` was never spliced
 warning: definition prose `diffrt` was never spliced
 warning: definition prose `dim` was never spliced
 warning: definition prose `disjoint_` was never spliced
 warning: definition prose `elem` was never spliced
 warning: definition prose `eleminst` was never spliced
+warning: definition prose `elemsd` was never spliced
 warning: definition prose `evalglobals` was never spliced
 warning: definition prose `exninst` was never spliced
 warning: definition prose `expanddt` was never spliced
 warning: definition prose `expon` was never spliced
+warning: definition prose `exportsd` was never spliced
 warning: definition prose `fnat` was never spliced
 warning: definition prose `fone` was never spliced
 warning: definition prose `frame` was never spliced
@@ -2403,6 +2466,7 @@ warning: definition prose `func` was never spliced
 warning: definition prose `funcidx_module` was never spliced
 warning: definition prose `funcidx_nonfuncs` was never spliced
 warning: definition prose `funcinst` was never spliced
+warning: definition prose `funcsd` was never spliced
 warning: definition prose `funcsxa` was never spliced
 warning: definition prose `funcsxt` was never spliced
 warning: definition prose `funcsxx` was never spliced
@@ -2414,6 +2478,7 @@ warning: definition prose `fvunop_` was never spliced
 warning: definition prose `fzero` was never spliced
 warning: definition prose `global` was never spliced
 warning: definition prose `globalinst` was never spliced
+warning: definition prose `globalsd` was never spliced
 warning: definition prose `globalsxa` was never spliced
 warning: definition prose `globalsxt` was never spliced
 warning: definition prose `globalsxx` was never spliced
@@ -2434,6 +2499,7 @@ warning: definition prose `ile_` was never spliced
 warning: definition prose `ilt_` was never spliced
 warning: definition prose `imax_` was never spliced
 warning: definition prose `imin_` was never spliced
+warning: definition prose `importsd` was never spliced
 warning: definition prose `imul_` was never spliced
 warning: definition prose `ine_` was never spliced
 warning: definition prose `ineg_` was never spliced
@@ -2452,6 +2518,7 @@ warning: definition prose `inv_signed_` was never spliced
 warning: definition prose `invoke` was never spliced
 warning: definition prose `irelaxed_swizzle_lane_` was never spliced
 warning: definition prose `irem_` was never spliced
+warning: definition prose `is_packtype` was never spliced
 warning: definition prose `isize` was never spliced
 warning: definition prose `isub_` was never spliced
 warning: definition prose `isub_sat_` was never spliced
@@ -2490,6 +2557,7 @@ warning: definition prose `lunpacknum_` was never spliced
 warning: definition prose `mem` was never spliced
 warning: definition prose `memarg0` was never spliced
 warning: definition prose `meminst` was never spliced
+warning: definition prose `memsd` was never spliced
 warning: definition prose `memsxa` was never spliced
 warning: definition prose `memsxt` was never spliced
 warning: definition prose `memsxx` was never spliced
@@ -2499,6 +2567,7 @@ warning: definition prose `minus_recs` was never spliced
 warning: definition prose `moduleinst` was never spliced
 warning: definition prose `nunpack` was never spliced
 warning: definition prose `opt_` was never spliced
+warning: definition prose `ordered` was never spliced
 warning: definition prose `packfield_` was never spliced
 warning: definition prose `prod` was never spliced
 warning: definition prose `psize` was never spliced
@@ -2524,6 +2593,7 @@ warning: definition prose `size` was never spliced
 warning: definition prose `sizenn` was never spliced
 warning: definition prose `sizenn1` was never spliced
 warning: definition prose `sizenn2` was never spliced
+warning: definition prose `startsd` was never spliced
 warning: definition prose `store` was never spliced
 warning: definition prose `structinst` was never spliced
 warning: definition prose `subst_addrtype` was never spliced
@@ -2561,17 +2631,20 @@ warning: definition prose `sum` was never spliced
 warning: definition prose `sx` was never spliced
 warning: definition prose `table` was never spliced
 warning: definition prose `tableinst` was never spliced
+warning: definition prose `tablesd` was never spliced
 warning: definition prose `tablesxa` was never spliced
 warning: definition prose `tablesxt` was never spliced
 warning: definition prose `tablesxx` was never spliced
 warning: definition prose `tag` was never spliced
 warning: definition prose `tagaddr` was never spliced
 warning: definition prose `taginst` was never spliced
+warning: definition prose `tagsd` was never spliced
 warning: definition prose `tagsxa` was never spliced
 warning: definition prose `tagsxt` was never spliced
 warning: definition prose `tagsxx` was never spliced
 warning: definition prose `testop_` was never spliced
 warning: definition prose `type` was never spliced
+warning: definition prose `typesd` was never spliced
 warning: definition prose `unop_` was never spliced
 warning: definition prose `unpack` was never spliced
 warning: definition prose `unpackfield_` was never spliced

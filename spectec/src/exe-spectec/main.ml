@@ -24,6 +24,7 @@ type pass =
   | Uncaseremoval
   | Naming
   | Undep
+  | TypeFamilyRemoval
 
 (* This list declares the intended order of passes.
 
@@ -32,7 +33,7 @@ passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
 let _skip_passes = [ Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ Else; Totalize; Sideconditions; Uncaseremoval; Undep; Sub; Naming ]
+let all_passes = [ TypeFamilyRemoval; Else; Totalize; Sideconditions; Uncaseremoval; Undep; Sub; Naming ]
 
 type mil_pass =
   | MIL_Sub
@@ -92,6 +93,7 @@ let pass_flag = function
   | Uncaseremoval -> "uncase-elimination"
   | Naming -> "unique-naming"
   | Undep -> "remove-dependent-types"
+  | TypeFamilyRemoval -> "typefamily-removal"
 
 let pass_desc = function
   | Else -> "Eliminate the otherwise premise in relations"
@@ -102,6 +104,7 @@ let pass_desc = function
   | Uncaseremoval -> "Eliminate the uncase expression"
   | Naming -> "Improves names and makes them unique"
   | Undep -> "Transform dependent types into types with well-formedness predicates"
+  | TypeFamilyRemoval -> "Transform Type families into sum types"
 
 let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
   | Else -> Middlend.Else.transform
@@ -112,6 +115,7 @@ let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
   | Uncaseremoval -> Middlend.Uncaseremoval.transform
   | Naming -> Middlend.Naming.transform
   | Undep -> Middlend.Undep.transform
+  | TypeFamilyRemoval -> Middlend.Typefamilyremoval.transform
 
 (* MIL passes *)
 module PSMIL = Set.Make(struct type t = mil_pass let compare = compare; end)

@@ -179,7 +179,7 @@ and check_type ty v expr =
     boolV (ty = "val")
   (* numtype *)
   | CaseV (nt, []) when List.mem nt inn_types ->
-    boolV (ty = "Inn" || ty = "Jnn" || ty = "numtype" || ty = "valtype" || ty = "consttype")
+    boolV (ty = "Inn" || ty = "Jnn" || ty = "numtype" || ty = "valtype" || ty = "consttype" || ty = "addrtype")
   | CaseV (nt, []) when List.mem nt fnn_types ->
     boolV (ty = "Fnn" || ty = "numtype" || ty = "valtype" || ty = "consttype")
   | CaseV (vt, []) when List.mem vt vnn_types ->
@@ -227,7 +227,7 @@ and eval_expr env expr =
       | Some n -> numV n
       | None -> fail_expr expr ("conversion not defined for " ^ string_of_value (NumV n1))
       )
-    | _ -> fail_expr expr "type mismatch for conversion operation"
+    | v -> fail_expr expr ("type mismatch for conversion operation on " ^ string_of_value v)
     )
   | UnE (op, e1) ->
     (match op, eval_expr env e1 with
@@ -237,7 +237,7 @@ and eval_expr env expr =
       | Some n -> numV n
       | None -> fail_expr expr ("unary operation `" ^ Num.string_of_unop op' ^ "` not defined for " ^ string_of_value (NumV n1))
       )
-    | _ -> fail_expr expr "type mismatch for unary operation"
+    | _, v -> fail_expr expr ("type mismatch for unary operation on " ^ string_of_value v)
     )
   | BinE (op, e1, e2) ->
     (match op, eval_expr env e1, eval_expr env e2 with
@@ -253,7 +253,7 @@ and eval_expr env expr =
       | Some b -> boolV b
       | None -> fail_expr expr ("comparison operation `" ^ Num.string_of_cmpop op' ^ "` not defined for " ^ string_of_value (NumV n1) ^ ", " ^ string_of_value (NumV n2))
       )
-    | _ -> fail_expr expr "type mismatch for binary operation"
+    | _, v1, v2 -> fail_expr expr ("type mismatch for binary operation on " ^ string_of_value v1 ^ " and " ^ string_of_value v2)
     )
   (* Set Operation *)
   | MemE (e1, e2) ->
@@ -349,8 +349,7 @@ and eval_expr env expr =
   | OptE opt -> Option.map (eval_expr env) opt |> optV
   | TupE el -> List.map (eval_expr env) el |> tupV
   (* Context *)
-  | GetCurContextE None -> WasmContext.get_top_context ()
-  | GetCurContextE (Some { it = Atom a; _ }) when List.mem a context_names ->
+  | GetCurContextE { it = Atom a; _ } when List.mem a context_names ->
     WasmContext.get_current_context a
   | ChooseE e ->
     let a = eval_expr env e |> unwrap_listv_to_array in

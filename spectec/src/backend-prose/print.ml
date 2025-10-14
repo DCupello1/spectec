@@ -114,8 +114,7 @@ and string_of_expr expr =
     sprintf "%s is contained in %s" (string_of_expr e1) (string_of_expr e2)
   | LenE e -> sprintf "|%s|" (string_of_expr e)
   | GetCurStateE -> "the current state"
-  | GetCurContextE None -> "the topmost control frame"
-  | GetCurContextE (Some a) -> sprintf "the topmost %s" (string_of_atom a)
+  | GetCurContextE a -> sprintf "the topmost %s" (string_of_atom a)
   | ListE el -> "[" ^ string_of_exprs ", " el ^ "]"
   | LiftE e -> string_of_expr e
   | AccE (e, p) -> sprintf "%s%s" (string_of_expr e) (string_of_path p)
@@ -334,6 +333,10 @@ let rec string_of_instr' depth instr =
   | AppendI (e1, e2) ->
     sprintf "%s Append %s to the %s." (make_index depth)
       (string_of_expr e2) (string_of_expr e1)
+  | ForEachI (xes, il) ->
+    sprintf "%s For each %s, do:%s" (make_index depth)
+      (xes |> List.map (fun (x, e) -> x ^ " in " ^ string_of_expr e) |> String.concat " and ")
+      (string_of_instrs' (depth + 1) il)
   | YetI s -> sprintf "%s YetI: %s." (make_index depth) s
 
 and string_of_instrs' depth instrs =
@@ -441,7 +444,7 @@ let rec raw_string_of_single_stmt stmt =
       (string_of_expr_with_type e1)
       (string_of_expr e2)
   | RelS (s, es) ->
-    let args = List.map string_of_expr_with_type es in
+    let args = List.map string_of_expr es in
     Prose_util.apply_prose_hint s args
   | YetS s -> indent () ^ " Yet: " ^ s
   | IfS _ | ForallS _ | EitherS _ | BinS _ -> assert false

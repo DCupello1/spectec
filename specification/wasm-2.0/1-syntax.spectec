@@ -150,9 +150,9 @@ syntax resulttype hint(desc "result type") =
 syntax packtype hint(desc "packed type") = I8 | I16
 syntax lanetype hint(desc "lane type") hint(prefix "LANETYPE_") = numtype | packtype
 
-syntax Pnn hint(show I#n) hint(prefix "PNN_") = packtype
-syntax Jnn hint(show I#n) hint(prefix "JNN_") = Inn | Pnn
-syntax Lnn hint(show I#n) hint(prefix "LNN_") = lanetype
+syntax Pnn hint(show I#n) = packtype
+syntax Jnn hint(show I#n) = Inn | Pnn
+syntax Lnn hint(show I#n) = Inn | Fnn | Pnn
 
 
 ;; External types
@@ -161,7 +161,7 @@ syntax mutopt = | MUT
 syntax mut = mutopt?
 
 syntax limits hint(desc "limits") =
-  `[u32 .. u32]
+  `[u32 .. u32?]
 
 syntax globaltype hint(desc "global type") =
   mut valtype
@@ -251,7 +251,8 @@ def $inv_fsize(32) = F32
 def $inv_fsize(64) = F64
 def $inv_jsize(8)  = I8
 def $inv_jsize(16) = I16
-def $inv_jsize(n)  = $inv_isize(n)
+def $inv_jsize(32) = I32 ;; HACK! should use $inv_isize
+def $inv_jsize(64) = I64 ;; HACK! should use $inv_isize
 
 
 syntax num_(numtype)

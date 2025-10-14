@@ -25,8 +25,6 @@ let error_instr category instr' =
 
 (* Constant *)
 
-let default_table_max = 4294967295L
-let default_memory_max = 65536L
 let version = ref 3
 
 
@@ -211,14 +209,8 @@ let al_to_blocktype: value -> blocktype = function
   | CaseV ("_RESULT", [ vt_opt ]) -> ValBlockType (al_to_opt al_to_valtype vt_opt)
   | v -> error_value "blocktype" v
 
-let al_to_limits (default: int64): value -> limits = function
-  | CaseV ("[", [ min; max ]) ->
-    let max' =
-      match al_to_nat64 max with
-      | i64 when default = i64 -> None
-      | _ -> Some (al_to_nat64 max)
-    in
-    { min = al_to_nat64 min; max = max' }
+let al_to_limits: value -> limits = function
+  | CaseV ("[", [ min; max ]) -> { min = al_to_nat64 min; max = al_to_opt al_to_nat64 max }
   | v -> error_value "limits" v
 
 
@@ -227,11 +219,11 @@ let al_to_globaltype: value -> globaltype = function
   | v -> error_value "globaltype" v
 
 let al_to_tabletype: value -> tabletype = function
-  | TupV [ at; limits; rt ] | CaseV (_, [ at; limits; rt ]) -> TableT (al_to_addrtype at, al_to_limits default_table_max limits, al_to_reftype rt)
+  | TupV [ at; limits; rt ] | CaseV (_, [ at; limits; rt ]) -> TableT (al_to_addrtype at, al_to_limits limits, al_to_reftype rt)
   | v -> error_value "tabletype" v
 
 let al_to_memorytype: value -> memorytype = function
-  | CaseV ("PAGE", [ at; limits ]) -> MemoryT (al_to_addrtype at, al_to_limits default_memory_max limits)
+  | CaseV ("PAGE", [ at; limits ]) -> MemoryT (al_to_addrtype at, al_to_limits limits)
   | v -> error_value "memorytype" v
 
 let al_to_tagtype: value -> tagtype = function
@@ -802,11 +794,11 @@ and al_to_instr': value -> Ast.instr' = function
     BrOnCastFail (al_to_idx idx, al_to_reftype rt1, al_to_reftype rt2)
   | CaseV ("RETURN", []) -> Return
   | CaseV ("CALL", [ idx ]) -> Call (al_to_idx idx)
-  | CaseV ("CALL_REF", [ OptV (Some (typeuse)) ]) -> CallRef (al_to_idx_of_typeuse typeuse)
+  | CaseV ("CALL_REF", [ typeuse ]) -> CallRef (al_to_idx_of_typeuse typeuse)
   | CaseV ("CALL_INDIRECT", [ idx1; typeuse2 ]) ->
     CallIndirect (al_to_idx idx1, al_to_idx_of_typeuse typeuse2)
   | CaseV ("RETURN_CALL", [ idx ]) -> ReturnCall (al_to_idx idx)
-  | CaseV ("RETURN_CALL_REF", [ OptV (Some typeuse) ]) -> ReturnCallRef (al_to_idx_of_typeuse typeuse)
+  | CaseV ("RETURN_CALL_REF", [ typeuse ]) -> ReturnCallRef (al_to_idx_of_typeuse typeuse)
   | CaseV ("RETURN_CALL_INDIRECT", [ idx1; typeuse2 ]) ->
     ReturnCallIndirect (al_to_idx idx1, al_to_idx_of_typeuse typeuse2)
   | CaseV ("THROW", [ idx ]) -> Throw (al_to_idx idx)
@@ -1206,14 +1198,8 @@ let al_of_blocktype = function
     else
       CaseV ("_RESULT", [ al_of_opt al_of_valtype vt_opt ])
 
-let al_of_limits default limits =
-  let max =
-    match limits.max with
-    | Some v -> al_of_nat64 v
-    | None -> al_of_nat64 default
-  in
-
-  CaseV ("[", [ al_of_nat64 limits.min; max ]) (* TODO: Something better tan this is needed *)
+let al_of_limits limits =
+  CaseV ("[", [ al_of_nat64 limits.min; al_of_opt al_of_nat64 limits.max ]) (* TODO: Something better tan this is needed *)
 
 let al_of_tagtype = function
   | TagT tu -> al_of_typeuse tu
@@ -1224,16 +1210,16 @@ let al_of_globaltype = function
 let al_of_tabletype = function
   | TableT (at, limits, rt) ->
     if !version <= 2 then
-      CaseV ("", [                    al_of_limits default_table_max limits; al_of_reftype rt ])
+      CaseV ("", [                    al_of_limits limits; al_of_reftype rt ])
     else
-      CaseV ("", [ al_of_addrtype at; al_of_limits default_table_max limits; al_of_reftype rt ])
+      CaseV ("", [ al_of_addrtype at; al_of_limits limits; al_of_reftype rt ])
 
 let al_of_memorytype = function
   | MemoryT (at, limits) ->
     if !version <= 2 then
-      CaseV ("PAGE", [                    al_of_limits default_memory_max limits ])
+      CaseV ("PAGE", [                    al_of_limits limits ])
     else
-      CaseV ("PAGE", [ al_of_addrtype at; al_of_limits default_memory_max limits ])
+      CaseV ("PAGE", [ al_of_addrtype at; al_of_limits limits ])
 
 (* Construct value *)
 
@@ -1834,12 +1820,12 @@ let rec al_of_instr instr =
     CaseV ("BR_ON_CAST_FAIL", [ al_of_idx idx; al_of_reftype rt1; al_of_reftype rt2 ])
   | Return -> nullary "RETURN"
   | Call idx -> CaseV ("CALL", [ al_of_idx idx ])
-  | CallRef idx -> CaseV ("CALL_REF", [ optV (Some (al_of_typeuse_of_idx idx)) ])
+  | CallRef idx -> CaseV ("CALL_REF", [ al_of_typeuse_of_idx idx ])
   | CallIndirect (idx1, idx2) ->
     let args = (if !version = 1 then [] else [ al_of_idx idx1 ]) @ [ al_of_typeuse_of_idx idx2 ] in
     CaseV ("CALL_INDIRECT", args)
   | ReturnCall idx -> CaseV ("RETURN_CALL", [ al_of_idx idx ])
-  | ReturnCallRef idx -> CaseV ("RETURN_CALL_REF", [ optV (Some (al_of_idx idx)) ])
+  | ReturnCallRef idx -> CaseV ("RETURN_CALL_REF", [ al_of_idx idx ])
   | ReturnCallIndirect (idx1, idx2) ->
     CaseV ("RETURN_CALL_INDIRECT", [ al_of_idx idx1; al_of_typeuse_of_idx idx2 ])
   | Throw idx -> CaseV ("THROW", [ al_of_idx idx ])

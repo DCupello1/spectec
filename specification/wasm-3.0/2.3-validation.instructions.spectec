@@ -26,7 +26,6 @@ rule Instr_ok/drop:
   C |- DROP : t -> eps
   -- Valtype_ok: C |- t : OK
 
-
 rule Instr_ok/select-expl:
   C |- SELECT t : t t I32 -> t
   -- Valtype_ok: C |- t : OK
@@ -198,27 +197,6 @@ rule Catch_ok/catch_all_ref:
   -- Resulttype_sub: C |- (REF EXN) <: C.LABELS[l]
 
 
-;; Numeric instructions
-
-rule Instr_ok/const:
-  C |- CONST nt c_nt : eps -> nt
-
-rule Instr_ok/unop:
-  C |- UNOP nt unop_nt : nt -> nt
-
-rule Instr_ok/binop:
-  C |- BINOP nt binop_nt : nt nt -> nt
-
-rule Instr_ok/testop:
-  C |- TESTOP nt testop_nt : nt -> I32
-
-rule Instr_ok/relop:
-  C |- RELOP nt relop_nt : nt nt -> I32
-
-rule Instr_ok/cvtop:
-  C |- CVTOP nt_1 nt_2 cvtop : nt_2 -> nt_1
-
-
 ;; Reference instructions
 
 rule Instr_ok/ref.null:
@@ -267,18 +245,21 @@ rule Instr_ok/i31.get:
 
 rule Instr_ok/struct.new:
   C |- STRUCT.NEW x : $unpack(zt)* -> (REF (_IDX x))
-  -- Expand: C.TYPES[x] ~~ STRUCT (mut zt)*
+  -- Expand: C.TYPES[x] ~~ STRUCT (mut? zt)*
 
 rule Instr_ok/struct.new_default:
   C |- STRUCT.NEW_DEFAULT x : eps -> (REF (_IDX x))
-  -- Expand: C.TYPES[x] ~~ STRUCT (mut zt)*
+  -- Expand: C.TYPES[x] ~~ STRUCT (mut? zt)*
   -- (Defaultable: |- $unpack(zt) DEFAULTABLE)*
+
+def $is_packtype(storagetype) : bool             hint(show %1 = $unpack(%1)) hint(prose "%1 is a packed type")
+def $is_packtype(zt) = zt = $unpack(zt)
 
 rule Instr_ok/struct.get:
   C |- STRUCT.GET sx? x i : (REF NULL (_IDX x)) -> $unpack(zt)
   -- Expand: C.TYPES[x] ~~ STRUCT ft*
-  -- if ft*[i] = mut zt
-  -- if sx? = eps <=> zt = $unpack(zt)
+  -- if ft*[i] = mut? zt
+  -- if sx? = eps <=> $is_packtype(zt)
 
 rule Instr_ok/struct.set:
   C |- STRUCT.SET x i : (REF NULL (_IDX x)) $unpack(zt) -> eps
@@ -290,32 +271,32 @@ rule Instr_ok/struct.set:
 
 rule Instr_ok/array.new:
   C |- ARRAY.NEW x : $unpack(zt) I32 -> (REF (_IDX x))
-  -- Expand: C.TYPES[x] ~~ ARRAY (mut zt)
+  -- Expand: C.TYPES[x] ~~ ARRAY (mut? zt)
 
 rule Instr_ok/array.new_default:
   C |- ARRAY.NEW_DEFAULT x : I32 -> (REF (_IDX x))
-  -- Expand: C.TYPES[x] ~~ ARRAY (mut zt)
+  -- Expand: C.TYPES[x] ~~ ARRAY (mut? zt)
   -- Defaultable: |- $unpack(zt) DEFAULTABLE
 
 rule Instr_ok/array.new_fixed:
   C |- ARRAY.NEW_FIXED x n : $unpack(zt)^n -> (REF (_IDX x))
-  -- Expand: C.TYPES[x] ~~ ARRAY (mut zt)
+  -- Expand: C.TYPES[x] ~~ ARRAY (mut? zt)
 
 rule Instr_ok/array.new_elem:
   C |- ARRAY.NEW_ELEM x y : I32 I32 -> (REF (_IDX x))
-  -- Expand: C.TYPES[x] ~~ ARRAY (mut rt)
+  -- Expand: C.TYPES[x] ~~ ARRAY (mut? rt)
   -- Reftype_sub: C |- C.ELEMS[y] <: rt
 
 rule Instr_ok/array.new_data:
   C |- ARRAY.NEW_DATA x y : I32 I32 -> (REF (_IDX x))
-  -- Expand: C.TYPES[x] ~~ ARRAY (mut zt)
+  -- Expand: C.TYPES[x] ~~ ARRAY (mut? zt)
   -- if $unpack(zt) = numtype \/ $unpack(zt) = vectype
   -- if C.DATAS[y] = OK
 
 rule Instr_ok/array.get:
   C |- ARRAY.GET sx? x : (REF NULL (_IDX x)) I32 -> $unpack(zt)
-  -- Expand: C.TYPES[x] ~~ ARRAY (mut zt)
-  -- if sx? = eps <=> zt = $unpack(zt)
+  -- Expand: C.TYPES[x] ~~ ARRAY (mut? zt)
+  -- if sx? = eps <=> $is_packtype(zt)
 
 rule Instr_ok/array.set:
   C |- ARRAY.SET x : (REF NULL (_IDX x)) I32 $unpack(zt) -> eps
@@ -331,7 +312,7 @@ rule Instr_ok/array.fill:
 rule Instr_ok/array.copy:
   C |- ARRAY.COPY x_1 x_2 : (REF NULL (_IDX x_1)) I32 (REF NULL (_IDX x_2)) I32 I32 -> eps
   -- Expand: C.TYPES[x_1] ~~ ARRAY (MUT zt_1)
-  -- Expand: C.TYPES[x_2] ~~ ARRAY (mut zt_2)
+  -- Expand: C.TYPES[x_2] ~~ ARRAY (mut? zt_2)
   -- Storagetype_sub: C |- zt_2 <: zt_1
 
 rule Instr_ok/array.init_elem:
@@ -349,84 +330,12 @@ rule Instr_ok/array.init_data:
 ;; External reference instructions
 
 rule Instr_ok/extern.convert_any:
-  C |- EXTERN.CONVERT_ANY : (REF nul1 ANY) -> (REF nul2 EXTERN)
-  -- if nul1 = nul2
+  C |- EXTERN.CONVERT_ANY : (REF null_1? ANY) -> (REF null_2? EXTERN)
+  -- if null_1? = null_2?
 
 rule Instr_ok/any.convert_extern:
-  C |- ANY.CONVERT_EXTERN : (REF nul1 EXTERN) -> (REF nul2 ANY)
-  -- if nul1 = nul2
-
-
-;; Vector instructions
-
-rule Instr_ok/vconst:
-  C |- VCONST V128 c : eps -> V128
-
-rule Instr_ok/vvunop:
-  C |- VVUNOP V128 vvunop : V128 -> V128
-
-rule Instr_ok/vvbinop:
-  C |- VVBINOP V128 vvbinop : V128 V128 -> V128
-
-rule Instr_ok/vvternop:
-  C |- VVTERNOP V128 vvternop : V128 V128 V128 -> V128
-
-rule Instr_ok/vvtestop:
-  C |- VVTESTOP V128 vvtestop : V128 -> I32
-
-rule Instr_ok/vunop:
-  C |- VUNOP sh vunop : V128 -> V128
-
-rule Instr_ok/vbinop:
-  C |- VBINOP sh vbinop : V128 V128 -> V128
-
-rule Instr_ok/vternop:
-  C |- VTERNOP sh vternop : V128 V128 V128 -> V128
-
-rule Instr_ok/vtestop:
-  C |- VTESTOP sh vtestop : V128 -> I32
-
-rule Instr_ok/vrelop:
-  C |- VRELOP sh vrelop : V128 V128 -> V128
-
-rule Instr_ok/vshiftop:
-  C |- VSHIFTOP sh vshiftop : V128 I32 -> V128
-
-rule Instr_ok/vbitmask:
-  C |- VBITMASK sh : V128 -> I32
-
-rule Instr_ok/vswizzlop:
-  C |- VSWIZZLOP sh vswizzlop : V128 V128 -> V128
-
-rule Instr_ok/vshuffle:
-  C |- VSHUFFLE sh i* : V128 V128 -> V128
-  -- (if $(i < 2*$dim(sh)))*
-
-rule Instr_ok/vsplat:
-  C |- VSPLAT sh : $unpackshape(sh) -> V128
-
-rule Instr_ok/vextract_lane:
-  C |- VEXTRACT_LANE sh sx? i : V128 -> $unpackshape(sh)
-  -- if i < $dim(sh)
-
-rule Instr_ok/vreplace_lane:
-  C |- VREPLACE_LANE sh i : V128 $unpackshape(sh) -> V128
-  -- if i < $dim(sh)
-
-rule Instr_ok/vextunop:
-  C |- VEXTUNOP sh_1 sh_2 vextunop : V128 -> V128
-
-rule Instr_ok/vextbinop:
-  C |- VEXTBINOP sh_1 sh_2 vextbinop : V128 V128 -> V128
-
-rule Instr_ok/vextternop:
-  C |- VEXTTERNOP sh_1 sh_2 vextternop : V128 V128 V128 -> V128
-
-rule Instr_ok/vnarrow:
-  C |- VNARROW sh_1 sh_2 sx : V128 V128 -> V128
-
-rule Instr_ok/vcvtop:
-  C |- VCVTOP sh_1 sh_2 vcvtop : V128 -> V128
+  C |- ANY.CONVERT_EXTERN : (REF null_1? EXTERN) -> (REF null_2? ANY)
+  -- if null_1? = null_2?
 
 
 ;; Local instructions
@@ -448,7 +357,7 @@ rule Instr_ok/local.tee:
 
 rule Instr_ok/global.get:
   C |- GLOBAL.GET x : eps -> t
-  -- if C.GLOBALS[x] = mut t
+  -- if C.GLOBALS[x] = mut? t
 
 rule Instr_ok/global.set:
   C |- GLOBAL.SET x : t -> eps
@@ -596,6 +505,99 @@ rule Instr_ok/vstore_lane:
   -- if C.MEMS[x] = at lim PAGE
   -- if $(2^(memarg.ALIGN) <= N/8)
   -- if $(i < 128/N)
+
+
+;; Numeric instructions
+
+rule Instr_ok/const:
+  C |- CONST nt c_nt : eps -> nt
+
+rule Instr_ok/unop:
+  C |- UNOP nt unop_nt : nt -> nt
+
+rule Instr_ok/binop:
+  C |- BINOP nt binop_nt : nt nt -> nt
+
+rule Instr_ok/testop:
+  C |- TESTOP nt testop_nt : nt -> I32
+
+rule Instr_ok/relop:
+  C |- RELOP nt relop_nt : nt nt -> I32
+
+rule Instr_ok/cvtop:
+  C |- CVTOP nt_1 nt_2 cvtop : nt_2 -> nt_1
+
+
+;; Vector instructions
+
+rule Instr_ok/vconst:
+  C |- VCONST V128 c : eps -> V128
+
+rule Instr_ok/vvunop:
+  C |- VVUNOP V128 vvunop : V128 -> V128
+
+rule Instr_ok/vvbinop:
+  C |- VVBINOP V128 vvbinop : V128 V128 -> V128
+
+rule Instr_ok/vvternop:
+  C |- VVTERNOP V128 vvternop : V128 V128 V128 -> V128
+
+rule Instr_ok/vvtestop:
+  C |- VVTESTOP V128 vvtestop : V128 -> I32
+
+rule Instr_ok/vunop:
+  C |- VUNOP sh vunop : V128 -> V128
+
+rule Instr_ok/vbinop:
+  C |- VBINOP sh vbinop : V128 V128 -> V128
+
+rule Instr_ok/vternop:
+  C |- VTERNOP sh vternop : V128 V128 V128 -> V128
+
+rule Instr_ok/vtestop:
+  C |- VTESTOP sh vtestop : V128 -> I32
+
+rule Instr_ok/vrelop:
+  C |- VRELOP sh vrelop : V128 V128 -> V128
+
+rule Instr_ok/vshiftop:
+  C |- VSHIFTOP sh vshiftop : V128 I32 -> V128
+
+rule Instr_ok/vbitmask:
+  C |- VBITMASK sh : V128 -> I32
+
+rule Instr_ok/vswizzlop:
+  C |- VSWIZZLOP sh vswizzlop : V128 V128 -> V128
+
+rule Instr_ok/vshuffle:
+  C |- VSHUFFLE sh i* : V128 V128 -> V128
+  -- (if $(i < 2*$dim(sh)))*
+
+rule Instr_ok/vsplat:
+  C |- VSPLAT sh : $unpackshape(sh) -> V128
+
+rule Instr_ok/vextract_lane:
+  C |- VEXTRACT_LANE sh sx? i : V128 -> $unpackshape(sh)
+  -- if i < $dim(sh)
+
+rule Instr_ok/vreplace_lane:
+  C |- VREPLACE_LANE sh i : V128 $unpackshape(sh) -> V128
+  -- if i < $dim(sh)
+
+rule Instr_ok/vextunop:
+  C |- VEXTUNOP sh_1 sh_2 vextunop : V128 -> V128
+
+rule Instr_ok/vextbinop:
+  C |- VEXTBINOP sh_1 sh_2 vextbinop : V128 V128 -> V128
+
+rule Instr_ok/vextternop:
+  C |- VEXTTERNOP sh_1 sh_2 vextternop : V128 V128 V128 -> V128
+
+rule Instr_ok/vnarrow:
+  C |- VNARROW sh_1 sh_2 sx : V128 V128 -> V128
+
+rule Instr_ok/vcvtop:
+  C |- VCVTOP sh_1 sh_2 vcvtop : V128 -> V128
 
 
 ;; Instruction sequences
