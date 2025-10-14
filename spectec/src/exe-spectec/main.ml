@@ -33,7 +33,7 @@ passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
 let _skip_passes = [ Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ TypeFamilyRemoval; Else; Totalize; Sideconditions; Uncaseremoval; Undep; Sub; Naming ]
+let all_passes = [ Else; TypeFamilyRemoval; Totalize; Sideconditions; Uncaseremoval; Undep; Sub; Naming ]
 
 type mil_pass =
   | MIL_Sub
@@ -238,6 +238,7 @@ let () =
     | Rocq ->
       enable_pass Sideconditions; enable_pass Totalize; enable_pass Else;
       enable_pass Uncaseremoval; enable_pass Undep;
+      enable_pass TypeFamilyRemoval;
       enable_mil_pass MIL_Sub;
       enable_mil_pass MIL_Simpl
     | _ when !print_al || !print_al_o <> "" ->
