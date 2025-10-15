@@ -232,7 +232,7 @@ let rec transform_prem env prem =
   | LetPr (e1, e2, ids) -> LetPr (transform_exp env e1, transform_exp env e2, ids)
   | ElsePr -> ElsePr
   | IterPr (prem1, (iter, id_exp_pairs)) -> IterPr (transform_prem env prem1, 
-      (transform_iter env iter, List.map (fun (id, exp) -> (id, transform_exp env exp)) id_exp_pairs)
+      (transform_iter env iter, List.map (fun (id, exp) -> (transform_var_id env.il_env id, transform_exp env exp)) id_exp_pairs)
     )
   | NegPr p -> NegPr p
   ) $ prem.at
@@ -260,7 +260,7 @@ let transform_rule env rel_id prefix rule =
   | RuleD (id, binds, m, exp, prems) -> 
     RuleD (transform_rule_id env.il_env prefix id rel_id $ id.at, 
     List.map (transform_bind env) binds, 
-    transform_mixop env.il_env id m, 
+    m, 
     transform_exp env exp, 
     List.map (transform_prem env) prems
   )

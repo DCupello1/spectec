@@ -79,7 +79,7 @@ and get_all_case_instances_from_typ env (typ: typ): exp' list  =
 let collect_sub_matches env: (id * exp) list list ref * (module Iter.Arg) =
   let module Arg = 
     struct
-      include Iter.Skip 
+      include Iter.Skip
       let acc = ref []
       let visited = ref ExpSet.empty
       let visit_exp (exp : exp) = 
@@ -119,7 +119,7 @@ let transform_clause _id env clause =
       let new_args = Il.Subst.subst_args subst args in
       let new_prems = Il.Subst.subst_list Il.Subst.subst_prem subst prems in
       let new_exp = Il.Subst.subst_exp subst exp in
-      DefD (new_binds, new_args, new_exp, new_prems) $ clause.at
+      DefD (new_binds, List.map (Il.Eval.reduce_arg env) new_args, new_exp, new_prems) $ clause.at
     ) subst_list
   
 let _remove_overlapping_clauses env clauses = 

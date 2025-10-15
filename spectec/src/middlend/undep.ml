@@ -105,35 +105,9 @@ and reduce_inst_alias env args inst base_typ =
     ) 
   | _ -> base_typ
 
-let _get_case_typs t = 
-  match t.it with
-  | TupT typs -> typs
-  | _ -> [(VarE ("_" $ t.at) $$ t.at % t, t)]
-
-let _iter_name i = 
-  match i with
-  | Opt -> "opt"
-  | List | List1 | ListN _ -> "list"
-
 let bind_wf_set env id =
   if id <> "" && id <> "_" then
   env.wf_set <- StringSet.add id env.wf_set
-
-let _make_arg p = 
-  (match p.it with
-  | ExpP (id, typ) -> ExpA (VarE id $$ id.at % typ) 
-  | TypP id -> TypA (VarT (id, []) $ id.at) (* TODO unsure this makes sense*)
-  | DefP (id, _, _) -> DefA id 
-  | GramP (_, _) -> assert false (* Avoid this *)
-  ) $ p.at
-
-let _make_bind p = 
-  (match p.it with 
-  | ExpP (id, typ) -> ExpB (id, typ)
-  | TypP id -> TypB id
-  | DefP (id, params, typ) -> DefB (id, params, typ)
-  | GramP _ -> assert false (* Avoid this *)
-  ) $ p.at
 
 let is_type_arg arg = 
   match arg.it with

@@ -239,6 +239,8 @@ let () =
       enable_pass Sideconditions; enable_pass Totalize; enable_pass Else;
       enable_pass Uncaseremoval; enable_pass Undep;
       enable_pass TypeFamilyRemoval;
+      enable_pass Sub;
+      enable_pass Naming;
       enable_mil_pass MIL_Sub;
       enable_mil_pass MIL_Simpl
     | _ when !print_al || !print_al_o <> "" ->

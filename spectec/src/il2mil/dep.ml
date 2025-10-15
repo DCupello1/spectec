@@ -21,7 +21,6 @@ and transform_type env t =
   | T_dotapp (p_id, term) -> T_dotapp (p_id, t_func term)
   | T_app ({it = T_ident id; typ = T_arrowtype ts}, args) when args <> [] && Mil.Env.mem_typ env id ->
     let args_filtered = List.filter (fun t -> t.typ = T_type_basic T_anytype) args in
-    List.iter (fun t -> print_endline (Mil.Print.string_of_term (transform_term env t))) args_filtered;
     let typ_filtered = T_arrowtype (List.filter (fun t -> t = T_type_basic T_anytype) ts) in 
     if args_filtered = [] then T_ident id else T_app (T_ident id $@ typ_filtered, args_filtered)
   | T_app (t', terms) -> 

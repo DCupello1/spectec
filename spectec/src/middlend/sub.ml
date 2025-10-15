@@ -103,13 +103,14 @@ let rec t_exp env exp =
   let exp' = t_exp2 env exp in
   match exp'.it with
   | SubE (e, sub_ty, sup_ty) ->
-(Printf.eprintf "[sub @ %s] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty);
+(
+(* Printf.eprintf "[sub @ %s] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty); *)
     begin match var_of_typ sub_ty, var_of_typ sup_ty with
     | Some (sub, args_sub), Some (sup, args_sup) ->
       env.pairs <- S.add (sub, sup) env.pairs;
       { exp' with it = CallE (injection_name sub sup, args_sub @ args_sup @ [ExpA e $ e.at])}
     | _, _ ->
-Printf.eprintf "[sub @ %s REMAINS] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty);
+(* Printf.eprintf "[sub @ %s REMAINS] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty); *)
      exp'
     end
 )
@@ -321,6 +322,9 @@ let rec rename_params s = function
     (GramP (id', t) $ at) ::
       rename_params (Il.Subst.add_gramid s id (VarG (id', []) $ id.at)) params
 
+let lookup_arg_typ typcases m = 
+  List.find_map (fun (m', (_, arg_typ, _), _) -> if Il.Eq.eq_mixop m m' then Some arg_typ else None) typcases
+
 let insert_injections env (def : def) : def list =
   add_type_info env def;
   let pairs = ready_pairs env in
@@ -328,30 +332,35 @@ let insert_injections env (def : def) : def list =
   List.map (fun (sub, sup) ->
     let name = injection_name sub sup in
     let (params_sub, real_id_sub, args_sub, cases_sub) = lookup env sub in
-    let (params_sup, _, _, _) = lookup env sup in
+    let (params_sup, _, _, cases_sub2) = lookup env sup in
     let params_sup' = rename_params Il.Subst.empty params_sup in
     let sub_ty = VarT (sub, List.map arg_of_param params_sub) $ no_region in
     let sup_ty = VarT (sup, List.map arg_of_param params_sup') $ no_region in
     let real_ty = VarT (real_id_sub, args_sub) $ no_region in
-    let clauses = List.map (fun (a, (_binds, arg_typ, _prems), _hints) ->
-      match arg_typ.it with
-      | TupT ts ->
+    let clauses = List.map (fun (m, (_binds, arg_typ, _prems), _hints) ->
+      let arg_typ2 = lookup_arg_typ cases_sub2 m in
+      match arg_typ.it, arg_typ2 with
+      | TupT ts, Some {it = TupT ts'; _} ->
         let binds = List.mapi (fun i (_, arg_typ_i) -> ExpB ("x" ^ string_of_int i $ no_region, arg_typ_i) $ no_region) ts in
-        let xes = List.map (fun bind ->
+        let xes is_lhs = List.map2 (fun bind (_, arg_typ_i2) ->
           match bind.it with
-          | ExpB (x, arg_typ_i) -> VarE x $$ no_region % arg_typ_i
-          | TypB _ | DefB _ | GramB _ -> assert false) binds
+          | ExpB (x, arg_typ_i) -> 
+            let base_exp = VarE x $$ no_region % arg_typ_i in
+            if is_lhs || Il.Eq.eq_typ arg_typ_i arg_typ_i2
+            then base_exp
+            else SubE (base_exp, arg_typ_i, arg_typ_i2) $$ no_region % arg_typ_i2
+          | TypB _ | DefB _ | GramB _ -> assert false) binds ts'
         in
-        let xe = TupE xes $$ no_region % arg_typ in
+        let xe is_lhs = TupE (xes is_lhs) $$ no_region % arg_typ in
         DefD (binds,
-          [ExpA (CaseE (a, xe) $$ no_region % real_ty) $ no_region],
-          CaseE (a, xe) $$ no_region % sup_ty, []) $ no_region
+          [ExpA (CaseE (m, xe true) $$ no_region % real_ty) $ no_region],
+          t_exp env (CaseE (m, xe false) $$ no_region % sup_ty), []) $ no_region
       | _ ->
         let x = "x" $ no_region in
         let xe = VarE x $$ no_region % arg_typ in
         DefD ([ExpB (x, arg_typ) $ x.at],
-          [ExpA (CaseE (a, xe) $$ no_region % real_ty) $ no_region],
-          CaseE (a, xe) $$ no_region % sup_ty, []) $ no_region
+          [ExpA (CaseE (m, xe) $$ no_region % real_ty) $ no_region],
+          CaseE (m, xe) $$ no_region % sup_ty, []) $ no_region
       ) cases_sub in
     DecD (name, params_sub @ params_sup' @ [ExpP ("_" $ no_region, sub_ty) $ no_region], sup_ty, clauses) $ no_region
   ) pairs
@@ -360,7 +369,6 @@ let insert_injections env (def : def) : def list =
 let transform (defs : script) =
   let env = new_env () in
   let defs' = List.map (t_def env) defs in
-  let defs'' = List.concat_map (insert_injections env) defs' in
+  let defs'' =  List.concat_map (insert_injections env) defs' in
   S.iter (fun (sub, sup) -> error sup.at ("left-over subtype coercion `" ^ sub.it ^ "` <: `" ^ sup.it ^ "`")) env.pairs;
-  defs''
-
+  Submono.transform defs''

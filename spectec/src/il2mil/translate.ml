@@ -756,6 +756,4 @@ let transform (reserved_ids : StringSet.t) (il : script) =
   
   List.filter is_not_hintdef il |>
   List.concat_map (transform_def partial_map wf_map) |>
-  Naming.transform prefix_map wf_map |>
-  Wf.transform wf_map |>
-  Dep.transform
+  Naming.transform prefix_map wf_map
