@@ -116,6 +116,7 @@ let _iter_name i =
   | List | List1 | ListN _ -> "list"
 
 let bind_wf_set env id =
+  if id <> "" && id <> "_" then
   env.wf_set <- StringSet.add id env.wf_set
 
 let _make_arg p = 
@@ -264,6 +265,21 @@ let transform_inst env inst =
     ) $ deftyp.at
   )) $ inst.at
 
+let needs_wfness env def = 
+  match def.it with
+  | TypD (_, _, [{it = InstD (binds, _, deftyp); _}]) ->
+    let prems_list = match deftyp.it with
+    | StructT typfields -> List.map (fun (_, (_, _, prems), _) -> prems) typfields
+    | VariantT typcases -> List.map (fun (_, (_, _, prems), _) -> prems) typcases
+    | _ -> []
+    in
+    List.exists (fun b -> match b.it with
+      | ExpB (id, _) -> StringSet.mem id.it env.wf_set
+      | _ -> false 
+    ) binds ||
+    List.exists (fun prems -> prems <> []) prems_list
+  | _ -> false
+
 let rec get_wf_pred env (exp, t) = 
   let get_id exp =
     match exp.it with
@@ -411,8 +427,13 @@ let transform_prod env prod =
 
 let is_not_exp_param param =
   match param.it with
-    | ExpP _ -> false
-    | _ -> true
+  | ExpP _ -> false
+  | _ -> true
+
+let get_def_id def = 
+  match def.it with 
+  | TypD (id, _, _) -> id
+  | _ -> "" $ def.at
 
 let rec transform_def env def = 
   match def.it with
@@ -428,9 +449,12 @@ let rec transform_def env def =
   | DecD (id, params, typ, clauses) -> (DecD (id, List.map (transform_param env) params, transform_typ env typ, List.map (transform_clause env) clauses) $ def.at, [])
   | GramD (id, params, typ, prods) -> (GramD (id, List.map (transform_param env) params, transform_typ env typ, List.map (transform_prod env) prods) $ def.at, [])
   | RecD defs -> 
+    if List.exists (needs_wfness env) defs 
+      then List.iter (fun d -> bind_wf_set env (get_def_id d).it) defs; 
+
     let defs', wf_relations = List.map (transform_def env) defs |> List.split in
     let rec_defs = RecD defs' $ def.at in
-    (rec_defs, List.concat wf_relations)
+    (rec_defs, [RecD (List.concat wf_relations) $ def.at])
   | HintD hintdef -> (HintD hintdef $ def.at, [])
   
 let transform (il : script): script =
