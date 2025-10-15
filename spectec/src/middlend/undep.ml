@@ -289,6 +289,7 @@ let rec get_wf_pred env (exp, t) =
       error exp.at ("Abnormal bind - does not have correct exp: " ^ Il.Print.string_of_exp exp)
   in
   let t' = reduce_type_aliasing env.il_env t in
+  let exp' = {exp with note = t'} in 
   match t'.it with
     | VarT (id, args) when StringSet.mem id.it env.wf_set ->
       let new_mixop = [] :: List.init (List.length args + 1) (fun _ -> []) in
@@ -297,16 +298,17 @@ let rec get_wf_pred env (exp, t) =
         | _ -> None
       ) args in
       let tupt = TupT (List.map (fun e -> (VarE ("" $ id.at) $$ id.at % e.note), e.note) exp_args) $ id.at in
-      let tuple_exp = TupE (exp_args @ [exp]) $$ id.at % tupt in
+      let tuple_exp = TupE (exp_args @ [exp']) $$ id.at % tupt in
       [RulePr (wf_pred_prefix ^ id.it $ id.at, new_mixop, tuple_exp) $ id.at]
     | IterT (typ, iter) ->
-      let name = get_id exp in
+      let name = get_id exp' in
       let name' = remove_last_char name.it $ name.at in 
       let prems = get_wf_pred env (VarE name' $$ name.at % typ, typ) in
-      List.map (fun prem -> IterPr (prem, (iter, [(name', exp)])) $ name.at) prems
+      List.map (fun prem -> IterPr (prem, (iter, [(name', exp')])) $ name.at) prems
     | TupT exp_typ_pairs -> 
       let prems = 
-        List.mapi (fun idx (_, t) -> get_wf_pred env (ProjE (exp, idx) $$ exp.at % t, t)) exp_typ_pairs |> 
+        List.mapi (fun idx (_, typ) -> 
+          get_wf_pred env (ProjE (exp', idx) $$ exp.at % typ, typ)) exp_typ_pairs |> 
         List.concat 
       in
       prems
