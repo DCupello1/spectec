@@ -42,15 +42,18 @@ end)
 The environment consist of:
   * Which constructors the type has (and their non-aliased concrete type)
   * Which SubE type pairs have been observed, but not yet generated
+  * Flag that allows the SubE type pairs set to be modified.
 *)
 type env =
   { mutable typ : (param list * id * arg list * typcase list) M.t;
-    mutable pairs : S.t
+    mutable pairs : S.t;
+    mutable pairs_mutable : bool
   }
 
 let new_env () : env =
   { typ = M.empty;
     pairs = S.empty;
+    pairs_mutable = true
   }
 
 let lookup (env : env) (id : id) : param list * id * arg list * typcase list =
@@ -107,7 +110,8 @@ let rec t_exp env exp =
 (* Printf.eprintf "[sub @ %s] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty); *)
     begin match var_of_typ sub_ty, var_of_typ sup_ty with
     | Some (sub, args_sub), Some (sup, args_sup) ->
-      env.pairs <- S.add (sub, sup) env.pairs;
+      if env.pairs_mutable then
+        env.pairs <- S.add (sub, sup) env.pairs;
       { exp' with it = CallE (injection_name sub sup, args_sub @ args_sup @ [ExpA e $ e.at])}
     | _, _ ->
 (* Printf.eprintf "[sub @ %s REMAINS] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty); *)
@@ -369,6 +373,7 @@ let insert_injections env (def : def) : def list =
 let transform (defs : script) =
   let env = new_env () in
   let defs' = List.map (t_def env) defs in
+  env.pairs_mutable <- false;
   let defs'' =  List.concat_map (insert_injections env) defs' in
   S.iter (fun (sub, sup) -> error sup.at ("left-over subtype coercion `" ^ sub.it ^ "` <: `" ^ sup.it ^ "`")) env.pairs;
   Submono.transform defs''
