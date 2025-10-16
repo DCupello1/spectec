@@ -1,7 +1,6 @@
 open Il.Ast
 open Util.Source
 open Util.Error
-open Il
 
 module StringSet = Set.Make(String)
 
@@ -31,79 +30,6 @@ let remove_last_char s =
   let len = String.length s in
   if len = 0 then s
   else String.sub s 0 (len - 1)
-
-let generate_var at ids id =
-  let start = 0 in
-  let fresh_prefix = "var" in
-  let max = 100 in
-  let rec go c =
-    if max <= c then error at "Reached max variable generation" else
-    let name = fresh_prefix ^ "_" ^ Int.to_string c in 
-    if (List.mem name ids) 
-      then go (c + 1) 
-      else name
-  in
-  match id with
-  | "" | "_" -> go start
-  | _ -> id
-
-let improve_ids_binders generate_binds at exp_typ_pairs =
-  let get_id_from_exp e = 
-    match e.it with
-    | VarE id -> Some id.it
-    | _ -> None
-  in
-  let rec improve_ids_helper ids bs = 
-    match bs with
-    | [] -> ([], [])
-    | ({it = VarE b_id; _}, t) :: bs' -> 
-      let new_name = generate_var at ids b_id.it in 
-      let (binds, pairs) = improve_ids_helper (new_name :: ids) bs' in
-      let new_pairs = (VarE (new_name $ b_id.at) $$ b_id.at % t, t) :: pairs in 
-      if (not generate_binds) && new_name = b_id.it
-        then (binds, new_pairs)
-        else ((ExpB (new_name $ b_id.at, t) $ at) :: binds, new_pairs)
-    | ({it = TupE exps; at = exp_at; _}, {it = TupT exp_typ_pairs'; at = typ_at; _}) :: bs'  when List.length exps = List.length exp_typ_pairs' -> 
-      let typs = List.map snd exp_typ_pairs' in
-      let (binds, pairs) = improve_ids_helper ids (List.combine exps typs) in
-      let new_ids = List.filter_map get_id_from_exp (List.map fst pairs) in 
-      let (binds', pairs') = improve_ids_helper (new_ids @ ids) bs' in
-      let tupt = TupT pairs $ typ_at in
-      let tupe = TupE (List.map fst pairs) $$ exp_at % tupt in 
-      (binds' @ binds, (tupe, tupt) :: pairs')
-    | b :: bs' -> 
-      let (binds, pairs) = improve_ids_helper ids bs' in
-      (binds, b :: pairs)
-  in
-  improve_ids_helper [] exp_typ_pairs
-
-let check_normal_type_creation (inst : inst) : bool = 
-  match inst.it with
-  | InstD (_, args, _) -> List.for_all (fun arg -> 
-    match arg.it with 
-    (* Args in normal types can really only be variable expressions or type params *)
-    | ExpA {it = VarE _; _} | TypA _ -> true
-    | _ -> false  
-    ) args 
-
-let rec reduce_type_aliasing env t =
-  match t.it with
-  | VarT(id, args) -> 
-    (match Env.find_opt_typ env id with 
-    | Some (_, [inst]) when check_normal_type_creation inst -> reduce_inst_alias env args inst t
-    | _ -> t
-    )
-  | _ -> t
-
-and reduce_inst_alias env args inst base_typ = 
-  match inst.it with
-  | InstD (_, args', {it = AliasT typ; _}) ->
-    let subst_opt = Eval.match_list Eval.match_arg env Subst.empty args args' in
-    (match subst_opt with
-    | Some subst -> reduce_type_aliasing env (Subst.subst_typ subst typ)
-    | None -> reduce_type_aliasing env typ
-    ) 
-  | _ -> base_typ
 
 let bind_wf_set env id =
   if id <> "" && id <> "_" then
@@ -262,7 +188,7 @@ let rec get_wf_pred env (exp, t) =
       (* This should never happen as long as the code doesn't change *)
       error exp.at ("Abnormal bind - does not have correct exp: " ^ Il.Print.string_of_exp exp)
   in
-  let t' = reduce_type_aliasing env.il_env t in
+  let t' = Utils.reduce_type_aliasing env.il_env t in
   let exp' = {exp with note = t'} in 
   match t'.it with
     | VarT (id, args) when StringSet.mem id.it env.wf_set ->
@@ -317,7 +243,7 @@ let create_well_formed_predicate id env inst =
         | TupT tups -> tups
         | _ -> [(VarE ("_" $ id.at) $$ id.at % case_typ, case_typ)] 
       in 
-      let extra_binds, t_pairs = improve_ids_binders false id.at exp_typ_pairs in
+      let extra_binds, t_pairs = Utils.improve_ids_binders false id.at exp_typ_pairs in
       let new_binds = case_binds @ extra_binds in 
       let exp = TupE (List.map fst t_pairs) $$ at % (TupT t_pairs $ at) in 
       let case_exp = CaseE (m, exp) $$ at % user_typ in
@@ -356,7 +282,7 @@ let create_well_formed_predicate id env inst =
       ([wrapped], tups, prems)
     ) typfields) in
 
-    let (rule_binds, pairs') = improve_ids_binders true at pairs in
+    let (rule_binds, pairs') = Utils.improve_ids_binders true at pairs in
     let new_prems = (List.filter_map get_exp_typ rule_binds |> List.concat_map (get_wf_pred env)) @ rule_prems in
     let str_exp = StrE (List.map2 (fun a ((e, t), wrapped) -> 
       let tupt = TupT [(e, t)] $ at in

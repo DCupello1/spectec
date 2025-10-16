@@ -119,18 +119,16 @@ let transform_clause _id env clause =
       let new_args = Il.Subst.subst_args subst args in
       let new_prems = Il.Subst.subst_list Il.Subst.subst_prem subst prems in
       let new_exp = Il.Subst.subst_exp subst exp in
+      (* Reduction is done here to remove subtyping expressions *)
       DefD (new_binds, List.map (Il.Eval.reduce_arg env) new_args, new_exp, new_prems) $ clause.at
     ) subst_list
   
-let _remove_overlapping_clauses env clauses = 
+let remove_overlapping_clauses env clauses = 
   Lib.List.nub (fun clause clause' -> match clause.it, clause'.it with
   | DefD (_, args, exp, _), DefD (_, args', exp', _) -> 
-    (* Reduction is done here to remove subtyping expressions *)
-    let reduced_args = List.map (Eval.reduce_arg env) args in
-    let reduced_args' = List.map (Eval.reduce_arg env) args' in
     let reduced_exp = Eval.reduce_exp env exp in 
     let reduced_exp' = Eval.reduce_exp env exp' in 
-    Eq.eq_list Eq.eq_arg reduced_args reduced_args' && Eq.eq_exp reduced_exp reduced_exp'
+    Eq.eq_list Eq.eq_arg args args' && Eq.eq_exp reduced_exp reduced_exp'
   ) clauses
 
 let rec transform_def env def = 
@@ -138,7 +136,7 @@ let rec transform_def env def =
   | RecD defs -> RecD (List.map (transform_def env) defs)
   | DecD (id, params, typ, []) -> 
     DecD (id, params, typ, [])
-  | DecD (id, params, typ, clauses) -> DecD (id, params, typ, List.concat_map (transform_clause id env) clauses |> (_remove_overlapping_clauses env))
+  | DecD (id, params, typ, clauses) -> DecD (id, params, typ, List.concat_map (transform_clause id env) clauses |> (remove_overlapping_clauses env))
   | d -> d
   ) $ def.at
 

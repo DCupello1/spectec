@@ -2,6 +2,7 @@
   (name middlend)
   (libraries util il)
   (modules
+    utils
     sub
     totalize
     unthe
