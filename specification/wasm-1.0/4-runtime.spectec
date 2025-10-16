@@ -45,18 +45,18 @@ var res : result
 
 ;; Instances
 
-syntax funcinst hint(desc "function instance") =
-  { TYPE functype hint(prefix "FUNC_"),
-    MODULE moduleinst hint(prefix "FUNC_"),
+syntax funcinst hint(desc "function instance") hint(prefix "FInst_") =
+  { TYPE functype ,
+    MODULE moduleinst,
     CODE func }
-syntax globalinst hint(desc "global instance") =
-  { TYPE globaltype hint(prefix "GLOB_"),
+syntax globalinst hint(desc "global instance") hint(prefix "GInst_") =
+  { TYPE globaltype,
     VALUE val }
-syntax tableinst hint(desc "table instance") =
-  { TYPE tabletype hint(prefix "TAB_"),
+syntax tableinst hint(desc "table instance") hint(prefix "TInst_") =
+  { TYPE tabletype,
     REFS (funcaddr?)* }
-syntax meminst hint(desc "memory instance") =
-  { TYPE memtype hint(prefix "MEM_"),
+syntax meminst hint(desc "memory instance") hint(prefix "MInst_") =
+  { TYPE memtype,
     BYTES byte* }
 syntax exportinst hint(desc "export instance") =
   { NAME name,
@@ -86,9 +86,9 @@ syntax store hint(desc "store") =
     TABLES tableinst*,
     MEMS meminst* }
 
-syntax frame hint(desc "frame") =
+syntax frame hint(desc "frame") hint(prefix "F_") =
   { LOCALS val*,
-    MODULE moduleinst hint(prefix "F_")}
+    MODULE moduleinst }
 
 syntax state hint(desc "state") = store; frame
 syntax config hint(desc "configuration") = state; admininstr*

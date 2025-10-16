@@ -165,7 +165,7 @@ and transform_exp env e =
   | ListE entries -> ListE (List.map t_func entries)
   | LiftE e1 -> LiftE (t_func e1)
   | MemE (e1, e2) -> MemE (t_func e1, t_func e2)
-  | LenE e1 -> LenE e1
+  | LenE e1 -> LenE (t_func e1)
   | CatE (e1, e2) -> CatE (t_func e1, t_func e2)
   | IdxE (e1, e2) -> IdxE (t_func e1, t_func e2)
   | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)
@@ -234,7 +234,7 @@ let rec transform_prem env prem =
   | IterPr (prem1, (iter, id_exp_pairs)) -> IterPr (transform_prem env prem1, 
       (transform_iter env iter, List.map (fun (id, exp) -> (transform_var_id env.il_env id, transform_exp env exp)) id_exp_pairs)
     )
-  | NegPr p -> NegPr p
+  | NegPr p -> NegPr (transform_prem env p)
   ) $ prem.at
 
 let transform_inst env id prefix inst = 
@@ -315,13 +315,13 @@ let get_text_exp = function
   | {it = El.Ast.TextE s; _} -> s
   | {at; _}  -> error at "malformed prefix hint"
 
-let string_of_prefix = function
+let list_of_prefix = function
   | {it = El.Ast.TextE s; _} -> [s]
-  | {it = El.Ast.ListE exps; _} -> List.map get_text_exp exps 
-  | {at; _} -> error at "malformed prefix hint"
+  | {it = El.Ast.SeqE exps; _} -> List.map get_text_exp exps 
+  | ({at; _} as e) -> error at ("malformed prefix hint: " ^ El.Print.string_of_exp e)
 
 let register_prefix map id el_exp =
-  map := StringMap.add id.it (string_of_prefix el_exp) !map
+  map := StringMap.add id.it (list_of_prefix el_exp) !map
 
 let has_prefix_hint (hint : hint) = hint.hintid.it = "prefix"
 

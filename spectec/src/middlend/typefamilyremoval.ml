@@ -700,8 +700,46 @@ let rec transform_type_family def =
   | d -> [d]
   ) |> List.map (fun d -> d $ def.at)
 
+(* 
+This small portion makes sure that prefix hints still work as intended for the generated
+types. It does so by removing the hint from the type family and taking the list of prefixes.
+It gives each prefix to the corresponding instance, creating a hint def for each in the process.
+*)
+let has_prefix_hint (hint : hint) = hint.hintid.it = "prefix"
+
+let is_family_typ_id env id = 
+  match (Env.find_opt_typ env id) with
+  | Some (_, insts) -> check_type_family insts
+  | _ -> false
+
+let collect_prefix_hints env def = 
+  let wrap_prefix p at = 
+    El.Ast.TextE p $ at
+  in
+  match def.it with
+  | HintD {it = TypH (id, hints); at = hintat; _} when is_family_typ_id env id ->
+    (match (List.find_opt has_prefix_hint hints) with
+      | Some h -> 
+        let (_, insts) = Env.find_typ env id in
+        let prefix_list = Naming.list_of_prefix h.hintexp in
+        if (List.length prefix_list <> List.length insts) then error def.at "Type family number of prefixes does not match number of instances" else 
+        List.filter_map (fun (prefix, inst) -> 
+          if prefix = "" then None else
+          (match inst.it with
+          | InstD (_, _, {it = AliasT {it = VarT (id', _); _}; _}) -> 
+            Some (HintD (TypH (id', [{h with hintexp = wrap_prefix prefix hintat}]) $ hintat) $ def.at)
+          | _ -> None
+          ) 
+        ) (List.combine prefix_list insts)
+        
+      | _ -> [def]
+    )
+  | _ -> [def]
+
+(* Main transformation function *)
 let transform (il : script): script = 
   let il_transformed = List.concat_map create_types_from_instances il in
   let env = Env.env_of_script il_transformed in 
   List.map (transform_def env) il_transformed |>
-  List.concat_map transform_type_family
+  List.concat_map (collect_prefix_hints env) |>
+  List.concat_map transform_type_family 
