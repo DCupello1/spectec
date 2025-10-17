@@ -112,7 +112,7 @@ let rec t_exp env exp =
     | Some (sub, args_sub), Some (sup, args_sup) ->
       if env.pairs_mutable then
         env.pairs <- S.add (sub, sup) env.pairs;
-      { exp' with it = CallE (injection_name sub sup, args_sub @ args_sup @ [ExpA e $ e.at])}
+      { exp' with it = CallE (injection_name sub sup, args_sub @ args_sup @ [ExpA (t_exp env e) $ e.at])}
     | _, _ ->
 (* Printf.eprintf "[sub @ %s REMAINS] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty); *)
      exp'
@@ -164,8 +164,8 @@ and t_exp' env = function
   | ProjE (e, i) -> ProjE (t_exp env e, i)
   | UncaseE (e, mixop) -> UncaseE (t_exp env e, mixop)
   | OptE None -> OptE None
-  | OptE (Some exp) -> OptE (Some exp)
-  | TheE exp -> TheE exp
+  | OptE (Some exp) -> OptE (Some (t_exp env exp))
+  | TheE exp -> TheE (t_exp env exp)
   | ListE es -> ListE (List.map (t_exp env) es)
   | CatE (exp1, exp2) -> CatE (t_exp env exp1, t_exp env exp2)
   | MemE (exp1, exp2) -> MemE (t_exp env exp1, t_exp env exp2)

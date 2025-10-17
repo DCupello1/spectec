@@ -103,6 +103,12 @@ let check_inst_atom a inst =
     List.exists (fun (a', _, _) -> Eq.eq_atom a a') typfields
   | _ -> false
   
+let rec check_iteration_naming e iterexp = 
+  match e.it, iterexp with
+  | VarE id, (_, [(id', _)]) -> Eq.eq_id id id'
+  | IterE (e, ((_, [(_, {it = VarE id; _})]) as i)), (_, [(id', _)]) -> Eq.eq_id id id' && check_iteration_naming e i
+  | _ -> false 
+
 let rec transform_iter env i =
   match i with 
   | ListN (exp, id_opt) -> ListN (transform_exp env exp, id_opt)
@@ -169,6 +175,10 @@ and transform_exp env e =
     let a' = Option.value (apply_prefix_atom env a id e.at) ~default:t_a in
     DotE (t_func e1, a')
   
+  (* Special case for iteration naming - just use the variable it is iterating on *)
+  | IterE (e, ((_, [(_, {it = VarE id''; _})]) as iterexp)) when check_iteration_naming e iterexp -> 
+    VarE (transform_var_id env.il_env id'')
+  
   (* Boilerplate Traversal *)
   | UnE (unop, optyp, e1) -> UnE (unop, optyp, t_func e1)
   | BinE (binop, optyp, e1, e2) -> BinE (binop, optyp, t_func e1, t_func e2)
@@ -187,8 +197,6 @@ and transform_exp env e =
   | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)
   | UpdE (e1, p, e2) -> UpdE (t_func e1, transform_path env p, t_func e2)
   | ExtE (e1, p, e2) -> ExtE (t_func e1, transform_path env p, t_func e2)
-  | IterE ({it = VarE id; _}, (_, [(id', {it = VarE id''; _})])) when id.it = id'.it -> 
-    VarE (transform_var_id env.il_env id'')
   | IterE (e1, (iter, id_exp_pairs)) -> IterE (t_func e1, (transform_iter env iter, List.map (fun (id', exp) -> (transform_var_id env.il_env id', t_func exp)) id_exp_pairs))
   | CvtE (e1, nt1, nt2) -> CvtE (t_func e1, nt1, nt2)
   | SubE (e1, t1, t2) -> SubE (t_func e1, transform_typ env t1, transform_typ env t2)

@@ -81,7 +81,7 @@ and transform_exp env e =
   | ListE entries -> ListE (List.map t_func entries)
   | LiftE e1 -> LiftE (t_func e1)
   | MemE (e1, e2) -> MemE (t_func e1, t_func e2)
-  | LenE e1 -> LenE e1
+  | LenE e1 -> LenE (t_func e1)
   | CatE (e1, e2) -> CatE (t_func e1, t_func e2)
   | IdxE (e1, e2) -> IdxE (t_func e1, t_func e2)
   | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)

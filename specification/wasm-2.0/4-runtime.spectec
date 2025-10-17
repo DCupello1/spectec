@@ -57,23 +57,23 @@ var res : result
 
 ;; Instances
 
-syntax funcinst hint(desc "function instance") hint(prefix "FUNC_") =
+syntax funcinst hint(desc "function instance") hint(prefix "FINST_") =
   { TYPE functype ,
     MODULE moduleinst,
     CODE func }
-syntax globalinst hint(desc "global instance") hint(prefix "GLOB_") =
+syntax globalinst hint(desc "global instance") hint(prefix "GINST_") =
   { TYPE globaltype,
     VALUE val }
-syntax tableinst hint(desc "table instance") hint(prefix "TAB_") =
+syntax tableinst hint(desc "table instance") hint(prefix "TINST_") =
   { TYPE tabletype,
     REFS ref* }
-syntax meminst hint(desc "memory instance") hint(prefix "MEM_") =
+syntax meminst hint(desc "memory instance") hint(prefix "MINST_") =
   { TYPE memtype,
     BYTES byte* }
-syntax eleminst hint(desc "element instance") hint(prefix "ELEM_") =
+syntax eleminst hint(desc "element instance") hint(prefix "EINST_") =
   { TYPE elemtype,
     REFS ref* }
-syntax datainst hint(desc "data instance") hint(prefix "DATA_") =
+syntax datainst hint(desc "data instance") hint(prefix "DINST_") =
   { BYTES byte* }
 syntax exportinst hint(desc "export instance") =
   { NAME name,
