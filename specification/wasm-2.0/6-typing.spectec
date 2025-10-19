@@ -134,8 +134,8 @@ rule Externtype_sub/mem:
 ;; Instructions
 ;;
 
-relation Instr_ok: context |- instr : functype   hint(show "T") hint(prefix "instr_ok_")
-relation Instrs_ok: context |- instr* : functype hint(show "T*") hint(prefix "instrs_ok_")
+relation Instr_ok: context |- instr : functype   hint(show "T")  hint(prefix "INSTR_OK_")
+relation Instrs_ok: context |- instr* : functype hint(show "T*") hint(prefix "INSTRS_OK_")
 relation Expr_ok: context |- expr : resulttype   hint(show "T-expr")
 
 

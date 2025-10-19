@@ -121,13 +121,13 @@ var x33 : s33 hint(show x)
 
 ;; Value types
 
-syntax numtype hint(desc "number type") =
+syntax numtype hint(desc "number type") hint(prefix "NUMTYPE_") =
   | I32 | I64 | F32 | F64
 
-syntax vectype hint(desc "vector type") =
+syntax vectype hint(desc "vector type") hint(prefix "VECTYPE_") =
   | V128
 
-syntax consttype hint(desc "literal type") hint(prefix "const_") =
+syntax consttype hint(desc "literal type") hint(prefix "CONST_") =
   | numtype | vectype
 
 syntax reftype hint(desc "reference type") =
