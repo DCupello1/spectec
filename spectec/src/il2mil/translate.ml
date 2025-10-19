@@ -5,7 +5,6 @@ open Mil.Ast
 open Mil.Utils
 open Util
 open Source
-open Wf
 
 module StringMap = Map.Make(String)
 
@@ -581,8 +580,6 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
   (match def.it with
   | TypD (id, _, [({it = InstD (binds, _, deftyp);_} as inst)]) 
       when Tfamily.check_normal_type_creation inst -> 
-    if needs_well_formed_predicate inst then 
-      wf_map := StringMap.add id.it (NormalType (get_inductive_case_prems deftyp)) !wf_map;
     [transform_deftyp id binds deftyp]
   | TypD _ -> 
     assert false

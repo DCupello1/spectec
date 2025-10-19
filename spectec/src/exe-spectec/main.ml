@@ -120,7 +120,7 @@ let run_pass : pass -> Il.Ast.script -> Il.Ast.script = function
 (* MIL passes *)
 module PSMIL = Set.Make(struct type t = mil_pass let compare = compare; end)
 let selected_mil_passes = ref (PSMIL.empty)
-let enable_mil_pass pass = selected_mil_passes := PSMIL.add pass !selected_mil_passes
+let _enable_mil_pass pass = selected_mil_passes := PSMIL.add pass !selected_mil_passes
 
 (* MIL pass metadata *)
 
@@ -236,13 +236,14 @@ let () =
     | Prose _ | Splice _ | Interpreter _ ->
       enable_pass Sideconditions;
     | Rocq ->
-      enable_pass Sideconditions; enable_pass Totalize; enable_pass Else;
-      enable_pass Uncaseremoval; enable_pass Undep;
+      enable_pass Sideconditions; 
+      enable_pass Totalize; 
+      enable_pass Else;
+      enable_pass Uncaseremoval; 
+      enable_pass Undep;
       enable_pass TypeFamilyRemoval;
       enable_pass Sub;
       enable_pass Naming;
-      enable_mil_pass MIL_Sub;
-      enable_mil_pass MIL_Simpl
     | _ when !print_al || !print_al_o <> "" ->
       enable_pass Sideconditions;
     | _ -> ()

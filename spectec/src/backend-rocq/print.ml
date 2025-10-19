@@ -3,6 +3,8 @@ open Mil.Ast
 open Mil
 open Util.Source
 
+module StringSet = Set.Make(String)
+
 let square_parens s = "[" ^ s ^ "]"
 let parens s = "(" ^ s ^ ")"
 let curly_parens s = "{" ^ s ^ "}"
@@ -22,6 +24,7 @@ let check_trivial_append env typ =
 let is_inductive (d : mil_def) = 
   match d.it with
   | (InductiveRelationD _ | InductiveD _) -> true
+  | TypeAliasD _ -> true
   | _ -> false
     
 let is_prop (t: mil_typ) = 
@@ -44,8 +47,8 @@ let comment_desc_def (def: mil_def): string =
   | LemmaD _ -> "Lemma Definition"
   | UnsupportedD _ -> ""
 
-let rec string_of_type term = string_of_term false (term $@ Utils.anytype')
-and string_of_term is_match (term : term) =
+let rec string_of_type alias_set term = string_of_term alias_set false (term $@ Utils.anytype')
+and string_of_term alias_set is_match (term : term) =
   match term.it with
   | T_exp_basic (T_bool b) -> string_of_bool b
   | T_exp_basic (T_nat n) -> Z.to_string n
@@ -106,52 +109,53 @@ and string_of_term is_match (term : term) =
   | T_type_basic T_opt -> "option"
   | T_type_basic T_anytype -> "Type"
   | T_type_basic T_prop -> "Prop"
+  | T_ident id when StringSet.mem id alias_set -> string_of_type alias_set (Env.reduce_typealias !env_ref term.it)
   | T_ident id -> id
   | T_list [] -> "[]"
-  | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (prefixed_id, term) -> Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term is_match term) fields)) ^ " |}"
-  | T_list entries -> square_parens (String.concat "; " (List.map (string_of_term is_match) entries))
+  | T_record_fields (fields) -> "{| " ^ (String.concat "; " (List.map (fun (prefixed_id, term) -> Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term alias_set is_match term) fields)) ^ " |}"
+  | T_list entries -> square_parens (String.concat "; " (List.map (string_of_term alias_set is_match) entries))
   | T_caseapp (prefixed_id, args) when is_match -> 
-    parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
+    parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term alias_set is_match) args)
   | T_caseapp (prefixed_id, args) ->
     let typ_id = Utils.get_id term.typ in 
     let num_new_args = Env.count_case_binders !env_ref typ_id in 
     let new_args = List.init num_new_args (fun _ -> T_ident "_" $@ T_type_basic T_anytype ) @ args in
     let put_parens s = if new_args = [] then s else parens s in  
-    put_parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) new_args)
-  | T_dotapp (prefixed_id, arg) -> parens (Print.string_of_prefixed_ident prefixed_id ^ " " ^ string_of_term is_match arg)  
-  | T_app (base_term, []) -> (string_of_term is_match base_term)
-  | T_app (base_term, args) -> parens ((string_of_term is_match base_term) ^ Mil.Print.string_of_list_prefix " " " " (string_of_term is_match) args)
-  | T_app_infix (infix_op, term1, term2) -> parens (string_of_term is_match term1 ^ string_of_term is_match infix_op ^ string_of_term is_match term2)
-  | T_tuple types -> parens (String.concat ", " (List.map (string_of_term is_match) types))
-  | T_record_update (t1, prefixed_id, t3) -> parens (string_of_term is_match t1 ^ " <| " ^ Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term is_match t3 ^ " |>")
-  | T_arrowtype terms -> parens (String.concat " -> " (List.map string_of_type terms))
-  | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders bs ^ " => " ^ string_of_term is_match term)
-  | T_cast (term, _, typ) -> parens (string_of_term is_match term ^ " :> " ^ string_of_type typ)
+    put_parens (Print.string_of_prefixed_ident prefixed_id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term alias_set is_match) new_args)
+  | T_dotapp (prefixed_id, arg) -> parens (Print.string_of_prefixed_ident prefixed_id ^ " " ^ string_of_term alias_set is_match arg)  
+  | T_app (base_term, []) -> (string_of_term alias_set is_match base_term)
+  | T_app (base_term, args) -> parens ((string_of_term alias_set is_match base_term) ^ Mil.Print.string_of_list_prefix " " " " (string_of_term alias_set is_match) args)
+  | T_app_infix (infix_op, term1, term2) -> parens (string_of_term alias_set is_match term1 ^ string_of_term alias_set is_match infix_op ^ string_of_term alias_set is_match term2)
+  | T_tuple types -> parens (String.concat ", " (List.map (string_of_term alias_set is_match) types))
+  | T_record_update (t1, prefixed_id, t3) -> parens (string_of_term alias_set is_match t1 ^ " <| " ^ Print.string_of_prefixed_ident prefixed_id ^ " := " ^ string_of_term alias_set is_match t3 ^ " |>")
+  | T_arrowtype terms -> parens (String.concat " -> " (List.map (string_of_type alias_set) terms))
+  | T_lambda (bs, term) -> parens ("fun" ^ string_of_binders alias_set bs ^ " => " ^ string_of_term alias_set is_match term)
+  | T_cast (term, _, typ) -> parens (string_of_term alias_set is_match term ^ " :> " ^ string_of_type alias_set typ)
   | T_tupletype [] -> "unit"
-  | T_tupletype (t :: ts) -> List.fold_left (fun acc tup_typ -> parens ("prod " ^ acc ^ " " ^ (string_of_type tup_typ))) (string_of_type t) ts 
+  | T_tupletype (t :: ts) -> List.fold_left (fun acc tup_typ -> parens ("prod " ^ acc ^ " " ^ (string_of_type alias_set tup_typ))) (string_of_type alias_set t) ts 
   | T_default -> "default_val"
   | T_unsupported str -> comment_parens ("Unsupported term: " ^ str)
 
-and string_of_binder (id, term) = 
-  parens (id ^ " : " ^ string_of_type term)
+and string_of_binder alias_set (id, term) = 
+  parens (id ^ " : " ^ string_of_type alias_set term)
 
-and string_of_binders (binds : binder list) = 
-  Mil.Print.string_of_list_prefix " " " " string_of_binder binds
+and string_of_binders alias_set (binds : binder list) = 
+  Mil.Print.string_of_list_prefix " " " " (string_of_binder alias_set) binds
 
 let string_of_binders_ids (binds : binder list) = 
   Mil.Print.string_of_list_prefix " " " " (fun (id, _) -> id) binds
 
-let string_of_list_type (id : ident) (args : binder list) =
-  "Definition " ^ "list__" ^ id ^ string_of_binders args ^ " := " ^ parens ("list " ^ parens (id ^ string_of_binders_ids args))
+let string_of_list_type alias_set (id : ident) (args : binder list) =
+  "Definition " ^ "list__" ^ id ^ string_of_binders alias_set args ^ " := " ^ parens ("list " ^ parens (id ^ string_of_binders_ids args))
   
-let string_of_option_type (id : ident) (args : binder list) =
-  "Definition " ^ "option__" ^ id ^ string_of_binders args ^  " := " ^ parens ("option " ^ parens (id ^ string_of_binders_ids args))
+let string_of_option_type alias_set (id : ident) (args : binder list) =
+  "Definition " ^ "option__" ^ id ^ string_of_binders alias_set args ^  " := " ^ parens ("option " ^ parens (id ^ string_of_binders_ids args))
 
 let string_of_match_binders (binds : binder list) =
   String.concat ", " (List.map (fun (id, _) -> id) binds)
 
-let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder list) =
-  let binders = string_of_binders args in 
+let string_of_eqtype_proof (cant_do_equality: bool) alias_set (id : ident) (args : binder list) =
+  let binders = string_of_binders alias_set args in 
   let binder_ids = string_of_binders_ids args in
   (* Decidable equality proof *)
   (* e.g.
@@ -187,52 +191,51 @@ let string_of_eqtype_proof (cant_do_equality: bool) (id : ident) (args : binder 
   "HB.instance Definition _" ^ binders ^ " := hasDecEq.Build " ^ parens (id ^ binder_ids) ^ " " ^ parens ("eq" ^ id ^ "P" ^ binder_ids) ^ ".\n" ^
   "Hint Resolve " ^ id ^ "_eq_dec : eq_dec_db" 
 
-let string_of_relation_args (args : relation_args) = 
-  Mil.Print.string_of_list_prefix " " " -> " string_of_type args
+let string_of_relation_args alias_set (args : relation_args) = 
+  Mil.Print.string_of_list_prefix " " " -> " (string_of_type alias_set) args
     
-let rec string_of_premise (prem : premise) =
+let rec string_of_premise alias_set (prem : premise) =
   match prem with
-  | P_if term -> string_of_term false term
-  | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term false) terms)
-  | P_neg p -> parens ("~" ^ string_of_premise p)
+  | P_if term -> string_of_term alias_set false term
+  | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term alias_set false) terms)
+  | P_neg p -> parens ("~" ^ string_of_premise alias_set p)
   | P_else -> "otherwise" (* Will be removed by an else pass *)
   | P_list_forall (iterator, p, (v, v_t), v_iter_term) -> 
-    let binder = string_of_binder (v, v_t) in
+    let binder = string_of_binder alias_set (v, v_t) in
     let option_conversion = if iterator = I_option then "option_to_list " else "" in
-    "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ parens (option_conversion ^ string_of_term false v_iter_term)
+    "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise alias_set p) ^ " " ^ parens (option_conversion ^ string_of_term alias_set false v_iter_term)
   | P_list_forall2 (iterator, p, (v, v_t), (s, s_t), v_iter_term, s_iter_term) -> 
-    let binder = string_of_binder (v, v_t) in
-    let binder2 = string_of_binder (s, s_t) in
+    let binder = string_of_binder alias_set (v, v_t) in
+    let binder2 = string_of_binder alias_set (s, s_t) in
     let option_conversion = if iterator = I_option then "option_to_list " else "" in
-    "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise p) ^ " " ^ 
-    parens (option_conversion ^ string_of_term false v_iter_term) ^ " " ^ 
-    parens (option_conversion ^ string_of_term false s_iter_term)
+    "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise alias_set p) ^ " " ^ 
+    parens (option_conversion ^ string_of_term alias_set false v_iter_term) ^ " " ^ 
+    parens (option_conversion ^ string_of_term alias_set false s_iter_term)
   | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
-let rec string_of_function_body f =
+let rec string_of_function_body alias_set f =
   match f with 
-  | F_term term -> string_of_term false term
+  | F_term term -> string_of_term alias_set false term
   | F_premises (_ ,[]) -> "True"
-  | F_premises (bs, prems) -> Mil.Print.string_of_list "forall " ", " " " string_of_binder bs ^ String.concat "/\\" (List.map string_of_premise prems)
-  | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term false bool_term ^ " then " ^ parens (string_of_function_body fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body fb2)
-  | F_let (var_term, term, fb) -> "let " ^ string_of_term false var_term ^ " := " ^ string_of_term false term ^ " in\n\t\t\t" ^ string_of_function_body fb
-  | F_match term -> string_of_term false term (* Todo extend this *)
+  | F_premises (bs, prems) -> Mil.Print.string_of_list "forall " ", " " " (string_of_binder alias_set) bs ^ String.concat "/\\" (List.map (string_of_premise alias_set) prems)
+  | F_if_else (bool_term, fb1, fb2) -> "if " ^ string_of_term alias_set false bool_term ^ " then " ^ parens (string_of_function_body alias_set fb1) ^ " else\n\t\t\t" ^ parens (string_of_function_body alias_set fb2)
+  | F_let (var_term, term, fb) -> "let " ^ string_of_term alias_set false var_term ^ " := " ^ string_of_term alias_set false term ^ " in\n\t\t\t" ^ string_of_function_body alias_set fb
+  | F_match term -> string_of_term alias_set false term (* Todo extend this *)
   | F_default -> "default_val" 
 
-let string_of_typealias (id : ident) (binds : binder list) (typ : mil_typ) = 
-  "Definition " ^ id ^ string_of_binders binds ^ " : Type := " ^ string_of_type typ
-  ^ ".\n\n" ^ string_of_eqtype_proof false id binds
+let string_of_typealias alias_set (id : ident) (binds : binder list) (typ : mil_typ) = 
+  "Definition " ^ id ^ string_of_binders alias_set binds ^ " : Type := " ^ string_of_type alias_set typ
 
 (* TODO improve rendering for dependent records *)
-let string_of_record (id: ident) (binds : binder list) (entries : record_entry list) = 
+let string_of_record (alias_set : StringSet.t) (id: ident) (binds : binder list) (entries : record_entry list) = 
   let constructor_name = "MK" ^ id in
-  let inhabitance_binders = string_of_binders binds in 
+  let inhabitance_binders = string_of_binders alias_set binds in 
   let binders = string_of_binders_ids binds in 
 
   (* Standard Record definition *)
   "Record " ^ id ^ inhabitance_binders ^ " := " ^ constructor_name ^ "\n{\t" ^ 
   String.concat "\n;\t" (List.map (fun (record_id, typ) -> 
-    Print.string_of_prefixed_ident record_id ^ " : " ^ string_of_type typ) entries) ^ "\n}.\n\n" ^
+    Print.string_of_prefixed_ident record_id ^ " : " ^ string_of_type alias_set typ) entries) ^ "\n}.\n\n" ^
 
   (* Inhabitance proof for default values *)
   "Global Instance Inhabited_" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^ " := \n" ^
@@ -253,20 +256,11 @@ let string_of_record (id: ident) (binds : binder list) (entries : record_entry l
   (* Setter proof *)
   "#[export] Instance eta__" ^ id ^ " : Settable _ := settable! " ^ constructor_name ^ " <" ^ 
   String.concat ";" (List.map (fun (record_id, _) -> Print.string_of_prefixed_ident record_id) entries) ^ ">"
-  ^ ".\n\n" ^ string_of_eqtype_proof false id [] 
+  ^ ".\n\n" ^ string_of_eqtype_proof false alias_set id [] 
 
-let string_of_inductive_def (id : ident) (args : binder list) (entries : inductive_type_entry list) = 
-  let cant_do_equality = 
-    (List.exists (fun (_, t) -> t = Utils.anytype') args) ||
-    (List.exists (fun (_, binds) -> List.exists (fun (_, t) -> Utils.has_parameters t) binds) entries)
-  in 
-  
-  "Inductive " ^ id ^ string_of_binders args ^ " : Type :=\n\t" ^
-  String.concat "\n\t" (List.map (fun (case_id, binds) ->
-    "| " ^ Print.string_of_prefixed_ident case_id ^ string_of_binders binds ^ " : " ^ id ^ string_of_binders_ids args   
-  )  entries) ^ ".\n\n" ^
+let inhabitance_proof alias_set (id : ident) (args : binder list) (entries : inductive_type_entry list) = 
   (* Inhabitance proof for default values *)
-  let inhabitance_binders = string_of_binders args in 
+  let inhabitance_binders = string_of_binders alias_set args in 
   let binders = string_of_binders_ids args in 
   "Global Instance Inhabited__" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^
   (match entries with
@@ -274,37 +268,50 @@ let string_of_inductive_def (id : ident) (args : binder list) (entries : inducti
             "\tAdmitted"
     | (case_id, binds) :: _ -> " := { default_val := " ^ Print.string_of_prefixed_ident case_id ^ binders ^ 
       Mil.Print.string_of_list_prefix " " " " (fun _ -> "default_val" ) binds ^ " }")
-  ^
-    
-  (* Eq proof *)
-  ".\n\n" ^ string_of_eqtype_proof cant_do_equality id args
 
-let string_of_definition (prefix : string) (id : ident) (binders : binder list) (return_type : return_type) (clauses : clause_entry list) = 
-  prefix ^ id ^ string_of_binders binders ^ " : " ^ string_of_type return_type ^ " :=\n" ^
-  "\tmatch " ^ string_of_match_binders binders ^ " return " ^ string_of_type return_type ^ " with\n\t\t" ^
+let cant_do_equality args entries = 
+  (List.exists (fun (_, t) -> t = Utils.anytype') args) ||
+  (List.exists (fun (_, binds) -> List.exists (fun (_, t) -> Utils.has_parameters t) binds) entries)
+  
+
+let string_of_inductive_def alias_set is_recursive prefix (id : ident) (args : binder list) (entries : inductive_type_entry list) = 
+  
+  prefix ^ id ^ string_of_binders alias_set args ^ " : Type :=\n\t" ^
+  String.concat "\n\t" (List.map (fun (case_id, binds) ->
+    "| " ^ Print.string_of_prefixed_ident case_id ^ string_of_binders alias_set binds ^ " : " ^ id ^ string_of_binders_ids args   
+  )  entries) ^ 
+  if is_recursive then "" else 
+  (* Inhabitance proof*)
+  ".\n\n" ^ inhabitance_proof alias_set id args entries ^
+  (* Eq proof *)
+  ".\n\n" ^ string_of_eqtype_proof (cant_do_equality args entries) alias_set id args
+
+let string_of_definition alias_set (prefix : string) (id : ident) (binders : binder list) (return_type : return_type) (clauses : clause_entry list) = 
+  prefix ^ id ^ string_of_binders alias_set binders ^ " : " ^ string_of_type alias_set return_type ^ " :=\n" ^
+  "\tmatch " ^ string_of_match_binders binders ^ " return " ^ string_of_type alias_set return_type ^ " with\n\t\t" ^
   String.concat "\n\t\t" (List.map (fun (match_terms, fb) -> 
-    "| " ^ Print.string_of_list_prefix "" ", " (string_of_term true) match_terms ^ " => " ^ string_of_function_body fb) clauses) ^
+    "| " ^ Print.string_of_list_prefix "" ", " (string_of_term alias_set true) match_terms ^ " => " ^ string_of_function_body alias_set fb) clauses) ^
   "\n\tend"
 
-let string_of_inductive_relation (prefix : string) (id : ident) (args : relation_args) (relations : relation_type_entry list) = 
-  prefix ^ id ^ ":" ^ string_of_relation_args args ^ " -> Prop :=\n\t" ^
+let string_of_inductive_relation alias_set (prefix : string) (id : ident) (args : relation_args) (relations : relation_type_entry list) = 
+  prefix ^ id ^ ":" ^ string_of_relation_args alias_set args ^ " -> Prop :=\n\t" ^
   String.concat "\n\t" (List.map (fun ((case_id, binds), premises, end_terms) ->
-    let string_prems = Mil.Print.string_of_list "\n\t\t" " ->\n\t\t" " ->\n\t\t" string_of_premise premises in
-    let forall_quantifiers = Mil.Print.string_of_list "forall " ", " " " string_of_binder binds in
-    "| " ^ case_id ^ " : " ^ forall_quantifiers ^ string_prems ^ id ^ " " ^ String.concat " " (List.map (string_of_term false) end_terms)
+    let string_prems = Mil.Print.string_of_list "\n\t\t" " ->\n\t\t" " ->\n\t\t" (string_of_premise alias_set) premises in
+    let forall_quantifiers = Mil.Print.string_of_list "forall " ", " " " (string_of_binder alias_set) binds in
+    "| " ^ case_id ^ " : " ^ forall_quantifiers ^ string_prems ^ id ^ " " ^ String.concat " " (List.map (string_of_term alias_set false) end_terms)
   ) relations)
 
-let string_of_axiom (id : ident) (binds : binder list) (r_type: return_type) =
-  "Axiom " ^ id ^ " : forall" ^ string_of_binders binds ^ ", " ^ string_of_type r_type
+let string_of_axiom alias_set (id : ident) (binds : binder list) (r_type: return_type) =
+  "Axiom " ^ id ^ " : " ^ Mil.Print.string_of_list "forall " ", " " " (string_of_binder alias_set) binds ^ string_of_type alias_set r_type
 
-let string_of_family_types (id : ident) (bs: binder list) (entries : family_type_entry list) = 
-  "Inductive " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs ^ " : Type :=\n\t| " ^
+let string_of_family_types alias_set (id : ident) (bs: binder list) (entries : family_type_entry list) = 
+  "Inductive " ^ id ^ Mil.Print.string_of_list_prefix " " " " (string_of_binder alias_set) bs ^ " : Type :=\n\t| " ^
   String.concat "\n\t| " (List.map (fun (id', b) -> 
-    id' ^ " " ^ string_of_binder b ^ " : " ^ id ^ Mil.Print.string_of_list_prefix " " " " string_of_binder bs) 
+    id' ^ " " ^ string_of_binder alias_set b ^ " : " ^ id ^ Mil.Print.string_of_list_prefix " " " " (string_of_binder alias_set) bs) 
   entries) ^ ".\n\n" ^
 
   (* Inhabitance proof for default values *)
-  let inhabitance_binders = string_of_binders bs in 
+  let inhabitance_binders = string_of_binders alias_set bs in 
   let binders = string_of_binders_ids bs in 
   "Global Instance Inhabited__" ^ id ^ inhabitance_binders ^ " : Inhabited " ^ parens (id ^ binders) ^
   (match entries with
@@ -313,43 +320,74 @@ let string_of_family_types (id : ident) (bs: binder list) (entries : family_type
     | (case_id, _) :: _ -> " := { default_val := " ^ case_id ^ binders ^ " default_val }")
     
 
-let string_of_coercion (func_name : func_name) (typ1 : mil_typ) (typ2 : mil_typ) =
-  "Global Instance " ^ func_name ^ "_coerce : Coercion " ^ string_of_type typ1 ^ " " ^ string_of_type typ2 ^ " := { coerce := " ^ func_name ^ " }"
+let string_of_coercion alias_set (func_name : func_name) (typ1 : mil_typ) (typ2 : mil_typ) =
+  "Global Instance " ^ func_name ^ "_coerce : Coercion " ^ string_of_type alias_set typ1 ^ " " ^ string_of_type alias_set typ2 ^ " := { coerce := " ^ func_name ^ " }"
 
-let string_of_lemma (id : ident) (binders : binder list) (premises : premise list) = 
-  "Lemma " ^ id ^ ":" ^ Print.string_of_list " forall " ", " " " string_of_binder binders ^
-  Print.string_of_list_prefix "\n\t\t" " ->\n\t\t" string_of_premise premises ^ ".\n" ^
+let string_of_lemma alias_set (id : ident) (binders : binder list) (premises : premise list) = 
+  "Lemma " ^ id ^ ":" ^ Print.string_of_list " forall " ", " " " (string_of_binder alias_set) binders ^
+  Print.string_of_list_prefix "\n\t\t" " ->\n\t\t" (string_of_premise alias_set) premises ^ ".\n" ^
   "Proof. Admitted"
 
-let rec string_of_def (has_endline : bool) (recursive : bool) (def : mil_def) = 
-  let end_newline = if has_endline then ".\n\n" else "" in 
-  let start = comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region def.at) ^ "\n" in
+let gen_extra_information alias_set def = 
   match def.it with
-  | TypeAliasD (id, binds, typ) -> start ^ string_of_typealias id binds typ ^ end_newline
-  | RecordD (id, bs, entries) -> start ^ string_of_record id bs entries ^ end_newline
-  | InductiveD (id, args, entries) -> start ^ string_of_inductive_def id args entries ^ end_newline
+  | InductiveD (id, args, entries) -> 
+    Some (inhabitance_proof alias_set id args entries ^ ".\n\n" ^
+    string_of_eqtype_proof (cant_do_equality args entries) alias_set id args)
+  | TypeAliasD (id, args, term) -> 
+    Some (string_of_typealias alias_set id args term)
+  | _ -> None
+
+let get_type_alias_id def = 
+  match def.it with
+  | TypeAliasD (id, _, _) -> Some id
+  | _ -> None
+
+let is_not_type_alias def =
+  match def.it with
+  | TypeAliasD _ -> false
+  | _ -> true
+
+let rec string_of_def (has_endline : bool) (recursive : bool) (alias_set : StringSet.t) (def : mil_def) = 
+  let end_newline = if has_endline then ".\n\n" else "" in 
+  let start = if recursive then "" else comment_parens (comment_desc_def def ^ " at: " ^ Util.Source.string_of_region def.at) ^ "\n" in
+  match def.it with
+  | TypeAliasD (id, binds, typ) -> if recursive then "" else start ^ string_of_typealias alias_set id binds typ ^ end_newline
+  | RecordD (id, bs, entries) -> start ^ string_of_record alias_set id bs entries ^ end_newline
+  | InductiveD (id, args, entries) -> 
+    let prefix = if recursive then "" else "Inductive " in
+    start ^ string_of_inductive_def alias_set recursive prefix id args entries ^ end_newline
+  | DefinitionD (id, binds, typ, clauses) -> 
+    let prefix = if recursive then "Fixpoint " else "Definition " in
+    start ^ string_of_definition alias_set prefix id binds typ clauses ^ end_newline
+  | GlobalDeclarationD (id, rt, (_, f_b)) -> 
+    start ^ "Definition " ^ id ^ " : " ^ string_of_type alias_set rt ^ " := " ^ string_of_function_body alias_set f_b ^ end_newline
+  | InductiveRelationD (id, args, relations) -> 
+    let prefix = if recursive then "" else "Inductive " in
+    start ^ string_of_inductive_relation alias_set prefix id args relations ^ end_newline
+  | AxiomD (id, binds, r_type) -> 
+    start ^ string_of_axiom alias_set id binds r_type ^ end_newline
+  | InductiveFamilyD (id, bs, entries) -> 
+    start ^ string_of_family_types alias_set id bs entries  ^ end_newline
+  | CoercionD (func_name, typ1, typ2) -> 
+    start ^ string_of_coercion alias_set func_name typ1 typ2 ^ end_newline
+  | LemmaD (id, binders, prems) ->
+    start ^ string_of_lemma alias_set id binders prems ^ end_newline
+  | UnsupportedD _str -> "" (* TODO maybe introduce later if people want it. need to escape "\(*\)" *)
+  
+  (* Mutual recursion - special handling for rocq *)
   | MutualRecD defs -> start ^ (match defs with
     | [] -> ""
-    | [d] -> string_of_def true (not (is_inductive d)) d
-    | d :: defs when (List.for_all is_inductive defs) -> let prefix = "\n\nwith\n\n" in
-      string_of_def false false d ^ prefix ^ String.concat prefix (List.map (string_of_def false true) defs) ^ end_newline
-    | _ -> String.concat "" (List.map (string_of_def true true) defs)
+    | [d] -> string_of_def true (not (is_inductive d)) StringSet.empty d
+    | defs when (List.for_all is_inductive defs) -> 
+      let prefix = "\n\nwith\n\n" in
+      let startprefix = "Inductive " in
+      let aliases = StringSet.union alias_set (List.filter_map get_type_alias_id defs |> StringSet.of_list) in 
+      let extra_info = String.concat ".\n\n" (List.filter_map (gen_extra_information alias_set) defs) in
+      startprefix ^ 
+      String.concat prefix (List.filter is_not_type_alias defs |> List.map (string_of_def false true aliases)) ^ ".\n\n" ^ 
+      extra_info ^ if extra_info = "" then "" else end_newline
+    | _ -> String.concat "" (List.map (string_of_def true true StringSet.empty) defs)
     )
-  | DefinitionD (id, binds, typ, clauses) -> let prefix = if recursive then "Fixpoint " else "Definition " in
-    start ^ string_of_definition prefix id binds typ clauses ^ end_newline
-  | GlobalDeclarationD (id, rt, (_, f_b)) -> 
-    start ^ "Definition " ^ id ^ " : " ^ string_of_type rt ^ " := " ^ string_of_function_body f_b ^ end_newline
-  | InductiveRelationD (id, args, relations) -> let prefix = if recursive then "" else "Inductive " in
-    start ^ string_of_inductive_relation prefix id args relations ^ end_newline
-  | AxiomD (id, binds, r_type) -> 
-    start ^ string_of_axiom id binds r_type ^ end_newline
-  | InductiveFamilyD (id, bs, entries) -> 
-    start ^ string_of_family_types id bs entries  ^ end_newline
-  | CoercionD (func_name, typ1, typ2) -> 
-    start ^ string_of_coercion func_name typ1 typ2 ^ end_newline
-  | LemmaD (id, binders, prems) ->
-    start ^ string_of_lemma id binders prems ^ end_newline
-  | UnsupportedD _str -> "" (* TODO maybe introduce later if people want it. need to escape "\(*\)" *)
 
 let exported_string = 
   "(* Imported Code *)\n" ^
@@ -470,4 +508,4 @@ let string_of_script (mil : mil_script) =
   env_ref := Env.env_of_script mil;
   exported_string ^ 
   "(* Generated Code *)\n" ^
-  String.concat "" (List.map (string_of_def true false) mil)
+  String.concat "" (List.map (string_of_def true false StringSet.empty) mil)

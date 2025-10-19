@@ -241,7 +241,7 @@ and t_prems env = List.map (t_prem env)
 
 let t_clause' env = function
  | DefD (binds, lhs, rhs, prems) ->
-   DefD (t_binds env binds, (*DO NOT intro calls on LHS: t_args env*) lhs, t_exp env rhs, t_prems env prems)
+   DefD (t_binds env binds, t_args env lhs, t_exp env rhs, t_prems env prems)
 
 let t_clause env (clause : clause) = { clause with it = t_clause' env clause.it }
 
@@ -249,7 +249,7 @@ let t_clauses env = List.map (t_clause env)
 
 let t_inst' env = function
  | InstD (binds, args, deftyp) ->
-   InstD (t_binds env binds, (*DO NOT intro calls on LHS: t_args env*) args, t_deftyp env deftyp)
+   InstD (t_binds env binds, t_args env args, t_deftyp env deftyp)
 
 let t_inst env (inst : inst) = { inst with it = t_inst' env inst.it }
 
@@ -376,4 +376,4 @@ let transform (defs : script) =
   env.pairs_mutable <- false;
   let defs'' =  List.concat_map (insert_injections env) defs' in
   S.iter (fun (sub, sup) -> error sup.at ("left-over subtype coercion `" ^ sub.it ^ "` <: `" ^ sup.it ^ "`")) env.pairs;
-  Submono.transform defs''
+  defs''  
