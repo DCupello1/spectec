@@ -48,11 +48,9 @@ let rec transform_premise env p =
   | P_neg p' -> P_neg (transform_premise env p')
   | P_rule (id, terms) -> P_rule (id, List.map (transform_term env) terms)
   | P_else -> P_else
-  | P_list_forall (iter, p', (id, t), t') -> P_list_forall (iter, transform_premise env p', (id, transform_type env t), transform_term env t')
-  | P_list_forall2 (iter, p', (id1, t1), (id2, t2), t1', t2') ->
-    P_list_forall2 (iter, transform_premise env p', 
-    (id1, transform_type env t1), (id2, transform_type env t2),
-    transform_term env t1', transform_term env t2')
+  | P_list_forall (iter, p', binds) -> 
+    let binds' = List.map (fun ((id, t),term) -> ((id, transform_type env t), transform_term env term)) binds in
+    P_list_forall (iter, transform_premise env p', binds')
   | p' -> p'
 
 let rec transform_fb env f =

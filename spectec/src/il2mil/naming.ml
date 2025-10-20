@@ -114,9 +114,9 @@ let rec transform_premise prefix_map p =
   | P_neg p' -> P_neg (transform_premise prefix_map p')
   | P_rule (id, terms) -> P_rule (id, List.map (transform_term prefix_map) terms)
   | P_else -> P_else
-  | P_list_forall (iter, p', (v, v_t), v_iter_term) -> P_list_forall (iter, transform_premise prefix_map p', (v, transform_type prefix_map v_t), transform_term prefix_map v_iter_term)
-  | P_list_forall2 (iter, p', (v, v_t), (s, s_t), v_iter_term, s_iter_term) ->
-    P_list_forall2 (iter, transform_premise prefix_map p', (v, transform_type prefix_map v_t), (s, transform_type prefix_map s_t), transform_term prefix_map v_iter_term, transform_term prefix_map s_iter_term)
+  | P_list_forall (iter, p', binds) -> 
+    let binds' = List.map (fun ((id, t),term) -> ((id, transform_type prefix_map t), transform_term prefix_map term)) binds in
+    P_list_forall (iter, transform_premise prefix_map p', binds')
   | p' -> p'
 
 let rec transform_fb prefix_map f =

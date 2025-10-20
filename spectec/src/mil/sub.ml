@@ -41,7 +41,7 @@ and get_subE_prem (premise : premise) =
   | P_rule (_, terms) -> List.concat_map get_subE_term terms
   | P_neg p -> get_subE_prem p
   | P_if term -> get_subE_term term
-  | P_list_forall (_, p, _, _) | P_list_forall2 (_, p, _, _, _, _) -> get_subE_prem p
+  | P_list_forall (_, p, _) -> get_subE_prem p
   | _ -> []
 
 and get_subE_fb (fb : function_body) = 

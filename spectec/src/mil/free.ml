@@ -123,8 +123,9 @@ and free_premise p =
   | P_if t -> free_term t
   | P_neg p' -> free_premise p'
   | P_rule (id, terms) -> free_relid id + free_list free_term terms
-  | P_list_forall (_, p, b1, v_iter) -> free_binder b1 + (free_premise p - bound_binder b1) + free_term v_iter
-  | P_list_forall2 (_, p, b1, b2, v_iter, s_iter) -> free_binder b1 + free_binder b2 + (free_premise p - bound_binder b1 - bound_binder b2) + free_term v_iter + free_term s_iter
+  | P_list_forall (_, p, binds) -> 
+    let binders, iter_vars = List.split binds in 
+    free_list free_binder binders + (free_premise p - bound_list bound_binder binders) + free_list free_term iter_vars
   | _ -> empty
 
 (* Function body will be removed later *)

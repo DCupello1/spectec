@@ -63,9 +63,9 @@ let rec transform_premise env p =
   | P_neg p' -> P_neg (transform_premise env p')
   | P_rule (id, terms) -> P_rule (id, List.map (transform_term env) terms)
   | P_else -> P_else
-  | P_list_forall (iter, p', (v, v_t), v_iter_term) -> P_list_forall (iter, transform_premise env p', (v, transform_type env v_t), transform_term env v_iter_term)
-  | P_list_forall2 (iter, p', (v, v_t), (s, s_t), v_iter_term, s_iter_term) ->
-    P_list_forall2 (iter, transform_premise env p', (v, transform_type env v_t), (s, transform_type env s_t), transform_term env v_iter_term, transform_term env s_iter_term)
+  | P_list_forall (iter, p', binds) -> 
+    let binds' = List.map (fun ((id, t),term) -> ((id, transform_type env t), transform_term env term)) binds in
+    P_list_forall (iter, transform_premise env p', binds')
   | p' -> p'
 
 let rec transform_fb env f =
@@ -87,11 +87,11 @@ let rec get_wf_pred env var t =
   | T_app ({it = T_type_basic T_opt; _}, [t']) ->
     let inner_var = T_ident bind_name $@ t'.it in
     let prem_opt = get_wf_pred env inner_var t'.it in
-    Option.map (fun p -> P_list_forall (I_option, p, (bind_name, t'.it), var)) prem_opt
+    Option.map (fun p -> P_list_forall (I_option, p, [(bind_name, t'.it), var])) prem_opt
   | T_app ({it = T_type_basic T_list; _}, [t']) ->
     let inner_var = T_ident bind_name $@ t'.it in
     let prem_opt = get_wf_pred env inner_var t'.it in
-    Option.map (fun p -> P_list_forall (I_list, p, (bind_name, t'.it), var)) prem_opt
+    Option.map (fun p -> P_list_forall (I_list, p, [(bind_name, t'.it), var])) prem_opt
   | _ -> None
 
 let create_well_formed_inductive_predicate env id dep_binders entries at prems =

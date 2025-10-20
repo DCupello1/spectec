@@ -149,7 +149,7 @@ and transform_exp exp_type (exp : exp) =
       let succtyp = T_arrowtype [T_type_basic T_nat; T_type_basic T_nat] in
       T_app (T_exp_basic T_succ $@ succtyp, [get_succ (m - 1)]) $@ T_type_basic T_nat
     ) in (get_succ (Z.to_int n)).it $@ exp_typ
-  | SubE (e, _typ1, typ2) when exp_type = MATCH  -> (transform_exp exp_type e).it $@ (transform_type' exp_type typ2)
+  | SubE (e, _typ1, typ2) when exp_type = MATCH -> (transform_exp exp_type e).it $@ (transform_type' exp_type typ2)
   | VarE id -> T_ident id.it $@ exp_typ
   | BoolE b -> T_exp_basic (T_bool b) $@ exp_typ
   | NumE (`Nat n) -> T_exp_basic (T_nat n) $@ exp_typ
@@ -336,7 +336,9 @@ and transform_param (p : param) =
   | ExpP (id, typ) -> 
     (id.it, transform_type' NORMAL typ)
   | TypP id -> id.it, anytype'
-  | DefP _ -> ("", T_unsupported ("Higher order func: " ^ string_of_param p))
+  | DefP (id, params, typ) -> 
+    let arrow_type = T_arrowtype (List.map (fun p' -> snd (transform_param p')) params @ [transform_type' NORMAL typ]) in 
+    id.it, arrow_type
   | GramP _ -> ("", T_unsupported ("Grammar param: " ^ string_of_param p))
 
 (* PATH Functions *)
@@ -431,16 +433,12 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
   | LetPr (exp1, exp2, _) -> 
     let eqtyp = T_arrowtype [transform_type' exp_type exp1.note; transform_type' exp_type exp2.note; T_type_basic T_bool] in
     P_if (T_app_infix (T_exp_basic T_eq $@ eqtyp, transform_exp exp_type exp1, transform_exp exp_type exp2) $@ T_type_basic T_bool)
-  | IterPr (p', (iter, [(v, v_exp)])) ->
-    let v_mil_typ = transform_type' exp_type v_exp.note in 
-    P_list_forall (transform_iter iter, transform_premise is_rel_prem p', (v.it, remove_iter_from_type v_mil_typ), transform_exp exp_type v_exp)
-  | IterPr (p', (iter, [(v, v_exp); (s, s_exp)])) ->
-    let v_mil_typ = transform_type' exp_type v_exp.note in
-    let s_mil_typ = transform_type' exp_type s_exp.note in 
-    P_list_forall2 (transform_iter iter, transform_premise is_rel_prem p', (v.it, remove_iter_from_type v_mil_typ), 
-      (s.it, remove_iter_from_type s_mil_typ), transform_exp exp_type v_exp, 
-      transform_exp exp_type s_exp)
-  | IterPr _ -> P_unsupported (string_of_prem p) (* TODO could potentially extend this further if necessary *)
+  | IterPr (p', (iter, id_exp_pairs)) ->
+    let iter_binds = List.map (fun (v, v_exp) ->
+      let v_mil_typ = transform_type' exp_type v_exp.note in
+      (v.it, remove_iter_from_type v_mil_typ), transform_exp exp_type v_exp
+    ) id_exp_pairs in 
+    P_list_forall (transform_iter iter, transform_premise is_rel_prem p', iter_binds)
   | RulePr (id, _mixop, exp) -> P_rule (id.it, transform_tuple_exp (transform_exp exp_type) exp)
   | NegPr p' -> P_neg (transform_premise is_rel_prem p')
 

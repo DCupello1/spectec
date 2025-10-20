@@ -91,8 +91,8 @@ and string_of_term alias_set is_match (term : term) =
   | T_exp_basic T_succ -> "S"
   | T_exp_basic (T_map I_list) -> "List.map"
   | T_exp_basic (T_map I_option) -> "option_map"
-  | T_exp_basic (T_zipwith I_list) -> "list_zipwith"
-  | T_exp_basic (T_zipwith I_option) -> "option_zipwith" 
+  | T_exp_basic (T_zipwith I_list) -> "list_zipWith"
+  | T_exp_basic (T_zipwith I_option) -> "option_zipWith" 
   | T_exp_basic T_listmember -> "List.In"
   | T_exp_basic T_listupdate -> "list_update_func"
   | T_exp_basic T_listrepeat -> "List.repeat"
@@ -200,17 +200,27 @@ let rec string_of_premise alias_set (prem : premise) =
   | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term alias_set false) terms)
   | P_neg p -> parens ("~" ^ string_of_premise alias_set p)
   | P_else -> "otherwise" (* Will be removed by an else pass *)
-  | P_list_forall (iterator, p, (v, v_t), v_iter_term) -> 
+  | P_list_forall (iterator, p, [(v, v_t), v_iter_term]) -> 
     let binder = string_of_binder alias_set (v, v_t) in
     let option_conversion = if iterator = I_option then "option_to_list " else "" in
     "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise alias_set p) ^ " " ^ parens (option_conversion ^ string_of_term alias_set false v_iter_term)
-  | P_list_forall2 (iterator, p, (v, v_t), (s, s_t), v_iter_term, s_iter_term) -> 
+  | P_list_forall (iterator, p, [(v, v_t), v_iter_term; (s, s_t), s_iter_term]) -> 
     let binder = string_of_binder alias_set (v, v_t) in
     let binder2 = string_of_binder alias_set (s, s_t) in
     let option_conversion = if iterator = I_option then "option_to_list " else "" in
     "List.Forall2 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " => " ^ string_of_premise alias_set p) ^ " " ^ 
     parens (option_conversion ^ string_of_term alias_set false v_iter_term) ^ " " ^ 
     parens (option_conversion ^ string_of_term alias_set false s_iter_term)
+  | P_list_forall (iterator, p, [(v, v_t), v_iter_term; (s, s_t), s_iter_term; (k, k_t), k_iter_term]) -> 
+    let binder = string_of_binder alias_set (v, v_t) in
+    let binder2 = string_of_binder alias_set (s, s_t) in
+    let binder3 = string_of_binder alias_set (k, k_t) in
+    let option_conversion = if iterator = I_option then "option_to_list " else "" in
+    "List_Forall3 " ^ parens ("fun " ^ binder ^ " " ^ binder2 ^ " " ^ binder3 ^ " => " ^ string_of_premise alias_set p) ^ " " ^ 
+    parens (option_conversion ^ string_of_term alias_set false v_iter_term) ^ " " ^ 
+    parens (option_conversion ^ string_of_term alias_set false s_iter_term) ^ " " ^ 
+    parens (option_conversion ^ string_of_term alias_set false k_iter_term)
+  | P_list_forall _ -> ("Unsupported premise: " ^ Print.string_of_premise prem)
   | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body alias_set f =
@@ -452,6 +462,10 @@ let exported_string =
 	"\tend.\n\n" ^
   "Definition list_extend {α: Type} (l: list α) (y: α): list α :=\n" ^
   "\ty :: l.\n\n" ^
+  "Inductive List_Forall3 {A B C: Type} (R : A -> B -> C -> Prop): list A -> list B -> list C -> Prop :=\n" ^
+  "\t| Forall3_nil : List_Forall3 R nil nil nil\n" ^ 
+  "\t| Forall3_cons : forall x y z l l' l'',\n"^
+  "\t\tR x y z -> List_Forall3 R l l' l'' -> List_Forall3 R (x :: l) (y :: l') (z :: l'').\n\n" ^
   "Class Append (α: Type) := _append : α -> α -> α.\n\n" ^
   "Infix \"@@\" := _append (right associativity, at level 60) : wasm_scope.\n\n" ^
   "Global Instance Append_List_ {α: Type}: Append (list α) := { _append l1 l2 := List.app l1 l2 }.\n\n" ^

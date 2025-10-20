@@ -123,20 +123,13 @@ let rec string_of_premise p =
   | P_neg prem -> "~" ^ string_of_premise prem
   | P_rule (ident, terms) -> parens (ident ^ string_of_list_prefix " " " " string_of_term terms)
   | P_else -> "otherwise"
-  | P_list_forall (I_list, p, (v, v_t), v_iter_term) -> 
-    let binder = string_of_binder (v, v_t) in
-    "List.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ string_of_term v_iter_term
-  | P_list_forall (I_option, p, (v, v_t), v_iter_term) -> 
-    let binder = string_of_binder (v, v_t) in
-    "Option.Forall " ^ parens ( "fun " ^ binder ^ " => " ^ string_of_premise p) ^ " " ^ string_of_term v_iter_term
-  | P_list_forall2 (I_list, p, (v, v_t), (s, s_t), v_iter_term, s_iter_term) -> 
-    let binder = string_of_binder (v, v_t) in
-    let binder2 = string_of_binder (s, s_t) in
-    "List.Forall2 " ^ parens ( "fun " ^ binder ^ " " ^ binder2 ^  " => " ^ string_of_premise p) ^ " " ^ string_of_term v_iter_term ^ " " ^ string_of_term s_iter_term
-  | P_list_forall2 (I_option, p, (v, v_t), (s, s_t), v_iter_term, s_iter_term) -> 
-    let binder = string_of_binder (v, v_t) in
-    let binder2 = string_of_binder (s, s_t) in
-    "Option.Forall2 " ^ parens ( "fun " ^ binder ^ " " ^ binder2 ^  " => " ^ string_of_premise p) ^ " " ^ string_of_term v_iter_term ^ " " ^ string_of_term s_iter_term
+  | P_list_forall (_, _, []) -> assert false
+  | P_list_forall (iterator, p, iteration_terms) -> 
+    let prefix = if iterator = I_option then "Option.Forall " else "List.Forall " in  
+    let binds, iter_vars = List.split iteration_terms in 
+    let terms = string_of_list_prefix " " " " string_of_term iter_vars in
+    let binders = string_of_list_prefix " " " " string_of_binder binds in
+    prefix ^ parens ( "fun" ^ binders ^ " => " ^ string_of_premise p) ^ terms
   | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body f =
