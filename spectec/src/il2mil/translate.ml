@@ -118,7 +118,10 @@ and get_typ_from_arg exp_type a =
   match a.it with
   | ExpA exp -> transform_type' exp_type exp.note
   | TypA typ -> transform_type' exp_type typ 
-  | DefA _ | GramA _ -> assert false (* TODO Extend later *)
+  | DefA id -> 
+    let (params, typ, _) = Il.Env.find_def !env_ref id in
+    T_arrowtype (List.map (fun p' -> snd (transform_param p')) params @ [transform_type' NORMAL typ])
+  | GramA _ -> assert false (* TODO Extend later *)
   
 and transform_typ_args exp_type (typ : typ) =
   match typ.it with
@@ -257,10 +260,12 @@ and transform_exp exp_type (exp : exp) =
     let opt_typ = T_app (transform_itertyp Opt, [transform_exp exp_type exp]) in
     let opttolisttyp = T_arrowtype [opt_typ; exp_typ] in
     T_app (T_exp_basic T_opttolist $@ opttolisttyp, [transform_exp exp_type exp]) $@ exp_typ
-  | MemE (e1, e2) -> 
+  | MemE (e1, e2) when exp_type = RELATION -> 
     let memtyp = T_arrowtype [transform_type' exp_type e1.note; transform_type' exp_type e2.note; exp_typ] in
     T_app (T_exp_basic (T_listmember) $@ memtyp, [transform_exp exp_type e1; transform_exp exp_type e2]) $@ exp_typ
-
+  | MemE (e1, e2) -> 
+    let memtyp = T_arrowtype [transform_type' exp_type e1.note; transform_type' exp_type e2.note; exp_typ] in
+    T_app_infix (T_exp_basic (T_listmember) $@ memtyp, transform_exp exp_type e1, transform_exp exp_type e2) $@ exp_typ
 
 and transform_tuple_exp (transform_func : exp -> term) (exp : exp) = 
   match exp.it with
@@ -335,7 +340,7 @@ and transform_param (p : param) =
   match p.it with
   | ExpP (id, typ) -> 
     (id.it, transform_type' NORMAL typ)
-  | TypP id -> id.it, anytype'
+  | TypP id -> id.it, T_type_basic T_eqanytype
   | DefP (id, params, typ) -> 
     let arrow_type = T_arrowtype (List.map (fun p' -> snd (transform_param p')) params @ [transform_type' NORMAL typ]) in 
     id.it, arrow_type
@@ -350,6 +355,7 @@ and transform_list_path (p : path) =
 
 and transform_path_start' (p : path) name_term is_extend end_term = 
   let paths = List.rev (p :: transform_list_path p) in
+  print_endline (String.concat " " (List.map Il.Print.string_of_path paths));
   (transform_path' paths (name_term.typ) p.at 0 (Some name_term) is_extend end_term)
 
 and transform_path' (paths : path list) typ at n name is_extend end_term = 
@@ -417,7 +423,7 @@ and transform_path' (paths : path list) typ at n name is_extend end_term =
     let lambda_typ = T_arrowtype [new_name_typ; new_typ] in
     T_app (T_exp_basic T_sliceupdate $@ anytype',
       [list_name n; transform_exp NORMAL e1; transform_exp NORMAL e2; T_lambda ([(new_name, new_name_typ)], path_term) $@ lambda_typ]) *)
-    T_unsupported (Il.Print.string_of_path p);
+    T_unsupported (Il.Print.string_of_path p)
   (* Catch all error if we encounter empty list or RootP *)
   | _ -> error at "Paths should not be empty"
 

@@ -21,6 +21,7 @@ type basic_type =
   | T_list
   | T_opt
   | T_anytype (* Generic type for type parameters and types themselves *)
+  | T_eqanytype
   | T_prop (* Generic type for propositions *)
 
 type basic_term = 

@@ -82,6 +82,7 @@ let string_of_basic_type_term t =
   | T_list -> "list"
   | T_opt -> "option"
   | T_anytype -> "Type"
+  | T_eqanytype -> "eqType"
   | T_prop -> "Proposition"
 
 let string_of_prefixed_ident (prefixes, id) = String.concat "" (prefixes @ [id])
@@ -123,7 +124,7 @@ let rec string_of_premise p =
   | P_neg prem -> "~" ^ string_of_premise prem
   | P_rule (ident, terms) -> parens (ident ^ string_of_list_prefix " " " " string_of_term terms)
   | P_else -> "otherwise"
-  | P_list_forall (_, _, []) -> assert false
+  | P_list_forall (_, p', []) -> string_of_premise p'
   | P_list_forall (iterator, p, iteration_terms) -> 
     let prefix = if iterator = I_option then "Option.Forall " else "List.Forall " in  
     let binds, iter_vars = List.split iteration_terms in 

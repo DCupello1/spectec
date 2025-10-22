@@ -93,7 +93,8 @@ and string_of_term alias_set is_match (term : term) =
   | T_exp_basic (T_map I_option) -> "option_map"
   | T_exp_basic (T_zipwith I_list) -> "list_zipWith"
   | T_exp_basic (T_zipwith I_option) -> "option_zipWith" 
-  | T_exp_basic T_listmember -> "List.In"
+  | T_exp_basic T_listmember when is_prop term.typ -> "List.In"
+  | T_exp_basic T_listmember -> " \\in "
   | T_exp_basic T_listupdate -> "list_update_func"
   | T_exp_basic T_listrepeat -> "List.repeat"
   | T_exp_basic T_opttolist -> "option_to_list"
@@ -108,6 +109,7 @@ and string_of_term alias_set is_match (term : term) =
   | T_type_basic T_list -> "list"
   | T_type_basic T_opt -> "option"
   | T_type_basic T_anytype -> "Type"
+  | T_type_basic T_eqanytype -> "eqType"
   | T_type_basic T_prop -> "Prop"
   | T_ident id when StringSet.mem id alias_set -> string_of_type alias_set (Env.reduce_typealias !env_ref term.it)
   | T_ident id -> id
@@ -200,6 +202,7 @@ let rec string_of_premise alias_set (prem : premise) =
   | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term alias_set false) terms)
   | P_neg p -> parens ("~" ^ string_of_premise alias_set p)
   | P_else -> "True " ^ comment_parens ("Unsupported premise: otherwise") (* Will be removed by an else pass *)
+  | P_list_forall (_, p, []) -> string_of_premise alias_set p
   | P_list_forall (iterator, p, [(v, v_t), v_iter_term]) -> 
     let binder = string_of_binder alias_set (v, v_t) in
     let option_conversion = if iterator = I_option then "option_to_list " else "" in
@@ -220,7 +223,7 @@ let rec string_of_premise alias_set (prem : premise) =
     parens (option_conversion ^ string_of_term alias_set false v_iter_term) ^ " " ^ 
     parens (option_conversion ^ string_of_term alias_set false s_iter_term) ^ " " ^ 
     parens (option_conversion ^ string_of_term alias_set false k_iter_term)
-  | P_list_forall _ -> ("Unsupported premise: " ^ Print.string_of_premise prem)
+  | P_list_forall _ -> "True " ^ comment_parens ("Unsupported premise: " ^ Print.string_of_premise prem)
   | P_unsupported str -> "True " ^ comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body alias_set f =
