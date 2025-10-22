@@ -12,6 +12,6 @@
     naming
     undep
     typefamilyremoval
-    submono
+    deftorel
   )
 )
