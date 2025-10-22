@@ -427,7 +427,6 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
   match p.it with
   | IfPr exp -> 
     let typ = T_type_basic (if is_rel_prem then T_prop else T_bool) in
-    
     P_if ((transform_exp exp_type exp).it $@ typ)
   | ElsePr -> P_else
   | LetPr (exp1, exp2, _) -> 
@@ -572,7 +571,7 @@ let is_family_typ env t =
       | _ -> false
     )
   | _ -> false
-  
+
 
 let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_entry StringMap.t ref) (def : def) : mil_def list =
   (match def.it with
@@ -596,9 +595,9 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
         (* HACK - Need to deal with premises in the future. *)
         [AxiomD (id.it, List.map transform_param params, transform_type' NORMAL typ)]
       | _ -> 
-        [AxiomD (id.it, List.map transform_param params, transform_type' NORMAL typ)]
+        (* [AxiomD (id.it, List.map transform_param params, transform_type' NORMAL typ)] *)
         (* Normal function *)
-        (* let bs = List.map transform_param params in
+        let bs = List.map transform_param params in
         let rt = transform_type' NORMAL typ in
         let has_typ_fam = List.exists (fun p -> match p.it with
           | ExpP (_, typ) -> is_family_typ !env_ref typ
@@ -608,7 +607,7 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
           then [(List.map (fun (_, t) -> T_ident "_" $@ t) bs, F_term (T_default $@ rt))]
           else []
         in
-        [DefinitionD (transform_fun_id id, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)] *)
+        [DefinitionD (id.it, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)]
     )
   | RecD defs -> [MutualRecD (List.concat_map (transform_def partial_map wf_map) defs)]
   | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]

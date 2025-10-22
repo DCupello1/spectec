@@ -199,7 +199,7 @@ let rec string_of_premise alias_set (prem : premise) =
   | P_if term -> string_of_term alias_set false term
   | P_rule (id, terms) -> parens (id ^ Mil.Print.string_of_list_prefix " " " " (string_of_term alias_set false) terms)
   | P_neg p -> parens ("~" ^ string_of_premise alias_set p)
-  | P_else -> "otherwise" (* Will be removed by an else pass *)
+  | P_else -> "True " ^ comment_parens ("Unsupported premise: otherwise") (* Will be removed by an else pass *)
   | P_list_forall (iterator, p, [(v, v_t), v_iter_term]) -> 
     let binder = string_of_binder alias_set (v, v_t) in
     let option_conversion = if iterator = I_option then "option_to_list " else "" in
@@ -221,7 +221,7 @@ let rec string_of_premise alias_set (prem : premise) =
     parens (option_conversion ^ string_of_term alias_set false s_iter_term) ^ " " ^ 
     parens (option_conversion ^ string_of_term alias_set false k_iter_term)
   | P_list_forall _ -> ("Unsupported premise: " ^ Print.string_of_premise prem)
-  | P_unsupported str -> comment_parens ("Unsupported premise: " ^ str)
+  | P_unsupported str -> "True " ^ comment_parens ("Unsupported premise: " ^ str)
 
 let rec string_of_function_body alias_set f =
   match f with 

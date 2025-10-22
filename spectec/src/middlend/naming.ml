@@ -219,7 +219,8 @@ and transform_path env path =
 and transform_sym env s = 
   (match s.it with
   | VarG (id, args) -> VarG (id, List.map (transform_arg env) args)
-  | SeqG syms | AltG syms -> SeqG (List.map (transform_sym env) syms)
+  | SeqG syms -> SeqG (List.map (transform_sym env) syms)
+  | AltG syms -> AltG (List.map (transform_sym env) syms)
   | RangeG (syml, symu) -> RangeG (transform_sym env syml, transform_sym env symu)
   | IterG (sym, (iter, id_exp_pairs)) -> IterG (transform_sym env sym, (transform_iter env iter, 
       List.map (fun (id, exp) -> (transform_var_id env.il_env id, transform_exp env exp)) id_exp_pairs)

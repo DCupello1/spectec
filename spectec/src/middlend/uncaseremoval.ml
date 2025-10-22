@@ -124,7 +124,7 @@ and transform_exp p_env e =
   | ListE entries -> ListE (List.map t_func entries)
   | LiftE e1 -> LiftE (t_func e1)
   | MemE (e1, e2) -> MemE (t_func e1, t_func e2)
-  | LenE e1 -> LenE e1
+  | LenE e1 -> LenE (t_func e1)
   | CatE (e1, e2) -> CatE (t_func e1, t_func e2)
   | IdxE (e1, e2) -> IdxE (t_func e1, t_func e2)
   | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)
@@ -148,7 +148,8 @@ and transform_path p_env path =
 and transform_sym p_env s = 
   (match s.it with
   | VarG (id, args) -> VarG (id, List.map (transform_arg p_env) args)
-  | SeqG syms | AltG syms -> SeqG (List.map (transform_sym p_env) syms)
+  | SeqG syms -> SeqG (List.map (transform_sym p_env) syms)
+  | AltG syms -> AltG (List.map (transform_sym p_env) syms)
   | RangeG (syml, symu) -> RangeG (transform_sym p_env syml, transform_sym p_env symu)
   | IterG (sym, (iter, id_exp_pairs)) -> IterG (transform_sym p_env sym, (transform_iter p_env iter, 
       List.map (fun (id, exp) -> (id, transform_exp p_env exp)) id_exp_pairs)

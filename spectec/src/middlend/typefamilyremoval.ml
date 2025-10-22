@@ -458,7 +458,8 @@ and transform_path bind_map env p =
 and transform_sym bind_map env s = 
   (match s.it with
   | VarG (id, args) -> VarG (id, List.map (transform_arg bind_map env) args)
-  | SeqG syms | AltG syms -> SeqG (List.map (transform_sym bind_map env) syms)
+  | SeqG syms -> SeqG (List.map (transform_sym bind_map env) syms)
+  | AltG syms -> AltG (List.map (transform_sym bind_map env) syms)
   | RangeG (syml, symu) -> RangeG (transform_sym bind_map env syml, transform_sym bind_map env symu)
   | IterG (sym, (iter, id_exp_pairs)) -> IterG (transform_sym bind_map env sym, (transform_iter bind_map env iter, 
       List.map (fun (id, exp) -> (id, transform_exp bind_map env exp)) id_exp_pairs)

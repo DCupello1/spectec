@@ -127,7 +127,7 @@ let rec transform_fb prefix_map f =
     List.map (transform_premise prefix_map) ps)
   | F_if_else (t, f1, f2) -> F_if_else (transform_term prefix_map t, transform_fb prefix_map f1, transform_fb prefix_map f2)
   | F_let (t1, t2, fb) -> F_let (transform_term prefix_map t1, transform_term prefix_map t2, transform_fb prefix_map fb)
-| F_match t -> F_match (transform_term prefix_map t)
+  | F_match t -> F_match (transform_term prefix_map t)
   | F_default -> F_default
 
 let rename_inductive_binders at dep_binders binders = 
