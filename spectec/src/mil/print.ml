@@ -69,6 +69,8 @@ let string_of_basic_exp_term t =
   | T_opttolist -> "Option.to_list"
   | T_zipwith I_list -> "List.zipWith"
   | T_zipwith I_option -> "Option.zipWith"
+  | T_map3 I_list -> "List_map3"
+  | T_map3 I_option -> "Option_map3"
 
 let string_of_basic_type_term t =
   match t with

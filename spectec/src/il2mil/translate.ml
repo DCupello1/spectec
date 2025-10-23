@@ -1,6 +1,5 @@
 open Il.Ast
 open Il.Print
-open Il.Free
 open Mil.Ast
 open Mil.Utils
 open Util
@@ -236,23 +235,38 @@ and transform_exp exp_type (exp : exp) =
       (* Still considered a list type so no need to modify type *) 
       T_ident (var_id.it)
     | (List | List1 | ListN _ | Opt), [(v, v_exp)], _ -> 
-      let typ1 = transform_type' exp_type v_exp.note in
-      let res_typ_iter = (transform_type' exp_type exp.note) in
+      (* Exp type must be normal as variables can only be bool *)
+      let typ1 = transform_type' NORMAL v_exp.note in
+      let res_typ_iter = (transform_type' NORMAL exp.note) in
       let res_type = remove_iter_from_type res_typ_iter in
       let vartyp1 = remove_iter_from_type typ1 in
       let lambda_typ = T_arrowtype [vartyp1; res_type] in
       let map_typ = T_arrowtype [lambda_typ; typ1; res_typ_iter] in
       T_app (T_exp_basic (T_map (transform_iter iter)) $@ map_typ, [(T_lambda ([(v.it, vartyp1)], term1)) $@ lambda_typ; transform_exp exp_type v_exp])
     | (List | List1 | ListN _ | Opt), [(v, v_exp); (s, s_exp)], _ -> 
-      let typ1 = transform_type' exp_type v_exp.note in
-      let typ2 = transform_type' exp_type s_exp.note in
-      let res_typ_iter = (transform_type' exp_type exp.note) in
+      (* Exp type must be normal as variables can only be bool *)
+      let typ1 = transform_type' NORMAL v_exp.note in
+      let typ2 = transform_type' NORMAL s_exp.note in
+      let res_typ_iter = (transform_type' NORMAL exp.note) in
       let res_type = remove_iter_from_type res_typ_iter in
       let vartyp1 = remove_iter_from_type typ1 in
       let vartyp2 = remove_iter_from_type typ2 in
       let lambda_typ = T_arrowtype [vartyp1; vartyp2; res_type] in
       let zipwith_typ = T_arrowtype [lambda_typ; typ1; typ2; res_typ_iter] in
       T_app (T_exp_basic (T_zipwith (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(v.it, vartyp1); (s.it, vartyp2)], term1) $@ lambda_typ; transform_exp exp_type v_exp; transform_exp exp_type s_exp])
+    | (List | List1 | ListN _ | Opt), [(v, v_exp); (s, s_exp); (u, u_exp)], _ -> 
+      (* Exp type must be normal as variables can only be bool *)
+      let typ1 = transform_type' NORMAL v_exp.note in
+      let typ2 = transform_type' NORMAL s_exp.note in
+      let typ3 = transform_type' NORMAL u_exp.note in
+      let res_typ_iter = (transform_type' NORMAL exp.note) in
+      let res_type = remove_iter_from_type res_typ_iter in
+      let vartyp1 = remove_iter_from_type typ1 in
+      let vartyp2 = remove_iter_from_type typ2 in
+      let vartyp3 = remove_iter_from_type typ3 in
+      let lambda_typ = T_arrowtype [vartyp1; vartyp2; vartyp3; res_type] in
+      let zipwith_typ = T_arrowtype [lambda_typ; typ1; typ2; res_typ_iter] in
+      T_app (T_exp_basic (T_map3 (transform_iter iter)) $@ zipwith_typ, [T_lambda ([(v.it, vartyp1); (s.it, vartyp2); (u.it, vartyp3)], term1) $@ lambda_typ; transform_exp exp_type v_exp; transform_exp exp_type s_exp; transform_exp exp_type u_exp])
     | _ -> T_unsupported (Il.Print.string_of_exp exp)) $@ exp_typ
   | SubE (e, typ1, typ2) -> T_cast (transform_exp exp_type e, transform_type' exp_type typ1, transform_type' exp_type typ2) $@ exp_typ
   | CvtE (e, numtyp1, numtyp2) -> T_cast (transform_exp exp_type e, transform_numtyp numtyp1, transform_numtyp numtyp2) $@ exp_typ
@@ -367,7 +381,6 @@ and transform_path' (paths : path list) typ at n name is_extend end_term =
     | Some term -> term
     | None -> T_ident (var_prefix ^ string_of_int num) $@ typ
   ) in
-
   let new_name_typ = remove_iter_from_type (list_name n).typ in
   let new_name = var_prefix ^ string_of_int (n + 1) in 
   (* TODO fix typing of newly created terms *)
@@ -403,18 +416,34 @@ and transform_path' (paths : path list) typ at n name is_extend end_term =
     let lambda_typ = T_arrowtype [new_name_typ; new_typ] in
     T_app (T_exp_basic T_listupdate $@ anytype', 
       [list_name n; transform_exp NORMAL e; T_lambda ([new_name, new_name_typ], path_term) $@ lambda_typ])
-  | {it = DotP (_, a); note; _} :: ps -> 
+  | ({it = DotP _; note; _} as p) :: ps -> 
     let new_typ = transform_type' NORMAL note in
-    let (dot_paths, ps') = list_split is_dot ps in 
+    let (dot_paths, ps') = list_split is_dot (p :: ps) in
+    let (end_atom, dot_paths') = match List.rev dot_paths with
+      | {it = DotP (_, a'); _} :: ds -> (a', ds)
+      | _ -> assert false (* Impossible since it has p *)
+    in
     let projection_term = List.fold_right (fun p acc -> 
       match p.it with
       | DotP (_, a') -> 
         T_dotapp (([], transform_atom a'), acc) $@ transform_type' NORMAL p.note
       | _ -> error at "Should be a record access" (* Should not happen *)
-    ) dot_paths (list_name n) in
-    let new_term = T_dotapp (([], transform_atom a), projection_term) $@ new_typ in
-    let path_term = transform_path' ps' new_typ at n (Some new_term) is_extend end_term $@ new_typ in
-    T_record_update (projection_term, ([], transform_atom a), path_term)
+    )  dot_paths' (list_name n) in
+    let update_fields = String.concat ";" (List.map (fun p -> 
+      match p.it with
+      | DotP (_, a) -> transform_atom a
+      | _ -> error at "Should be a record access" 
+    ) dot_paths) in
+    let new_term = T_dotapp (([], transform_atom end_atom), projection_term) $@ new_typ in
+    if ps' = [] 
+      then (
+        let final_term = if is_extend then T_app_infix (T_exp_basic T_listconcat $@ anytype', new_term, end_term) $@ end_term.typ else end_term in
+        T_record_update ((list_name n), ([], update_fields), final_term)
+      )
+      else (
+        let path_term = transform_path' ps' new_typ at n (Some new_term) is_extend end_term $@ new_typ in
+        T_record_update ((list_name n), ([], update_fields), path_term)
+      )
   | ({it = SliceP (_, _e1, _e2); _} as p) :: _ps ->
     (* TODO - this is not entirely correct. Still unsure how to implement this as a term *)
     (* let new_typ = transform_type' NORMAL note in
@@ -440,7 +469,8 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
     P_if (T_app_infix (T_exp_basic T_eq $@ eqtyp, transform_exp exp_type exp1, transform_exp exp_type exp2) $@ T_type_basic T_bool)
   | IterPr (p', (iter, id_exp_pairs)) ->
     let iter_binds = List.map (fun (v, v_exp) ->
-      let v_mil_typ = transform_type' exp_type v_exp.note in
+      (* Exp type must be normal as variables can only be bool *)
+      let v_mil_typ = transform_type' NORMAL v_exp.note in
       (v.it, remove_iter_from_type v_mil_typ), transform_exp exp_type v_exp
     ) id_exp_pairs in 
     P_list_forall (transform_iter iter, transform_premise is_rel_prem p', iter_binds)
@@ -474,75 +504,6 @@ let transform_tf_inst (id : id) (i : inst) =
     | AliasT typ -> (Tfamily.constructor_name' id binds, ("x", transform_type' NORMAL typ))
     | _ -> error i.at "Family of variant or records should not exist" (* This should never occur *)
 
-(* Inactive for now - need to understand well function defs with pattern guards *)
-let _transform_clauses (clauses : clause list) : clause_entry list =
-  let rec get_ids exp =
-    match exp.it with
-    | VarE id -> [id]
-    | IterE (exp, _) -> get_ids exp
-    | TupE exps -> let result = List.map get_ids exps in
-      if List.exists List.is_empty result 
-        then [] 
-        else List.concat result
-    | _ -> []
-  in
-
-  let modify_let_prems free_vars prems = 
-    List.map (fun prem -> 
-      match prem.it with
-      | IfPr {it = CmpE(`EqOp, _, exp1, exp2); _} 
-        when not (List.is_empty (get_ids exp1)) && not (List.exists (fun id -> Set.mem id.it free_vars.varid) (get_ids exp1)) -> 
-          (LetPr (exp1, exp2, (free_exp exp1).varid |> Set.elements) $ prem.at)
-      | IfPr {it = CmpE(`EqOp, _, exp1, exp2); _}
-        when not (List.is_empty (get_ids exp2)) && not (List.exists (fun id -> Set.mem id.it free_vars.varid) (get_ids exp2)) ->
-          (LetPr (exp2, exp1, (free_exp exp2).varid |> Set.elements) $ prem.at)
-      | _ -> prem
-      ) prems
-  in
-
-  let bigAndExp starting_exp exps = 
-    List.fold_left (fun acc exp -> BinE (`AndOp, `BoolT, acc, exp) $$ exp.at % (BoolT $ exp.at)) starting_exp exps
-  in
-  
-  let encode_prems acc_term otherwise prems =
-    let rec go acc_bool acc_term otherwise prems =
-      match prems with
-      | [] -> (match acc_bool with
-          | [] -> acc_term
-          | e :: es -> F_if_else (transform_exp NORMAL (bigAndExp e es), acc_term, otherwise)
-        )
-      | {it = IfPr exp; _} :: ps -> go (exp :: acc_bool) acc_term otherwise ps
-      | {it = LetPr (exp1, exp2, _); _} :: ps -> go acc_bool (F_let (transform_exp NORMAL exp1, transform_exp NORMAL exp2, acc_term)) otherwise ps
-      | _ :: ps -> go acc_bool acc_term otherwise ps
-      in
-    go [] acc_term otherwise prems
-  in
-
-  let rec rearrange_clauses clauses = 
-    match clauses with
-    | [] -> []
-    | ({it = DefD(_, args, exp, prems); _} as clause) :: cs ->
-      let (same_args, rest) = list_split (fun c -> match c.it with
-        | DefD(_, args', _, _) -> Il.Eq.eq_list Il.Eq.eq_arg args args'
-      ) cs in
-      (match List.rev (clause :: same_args) with
-        | [] -> assert false (* Impossible to get to *)
-        | [_] -> 
-          transform_clause (Some (encode_prems (F_term (transform_exp NORMAL exp)) F_default (List.rev prems))) clause 
-        | {it = DefD(_, _, exp', _); _} :: rev_tail -> 
-          let starting_fb = F_term (transform_exp NORMAL exp') in
-          let fb = List.fold_left (fun acc clause' -> match clause'.it with
-            | DefD(_, _, exp'', prems'') -> encode_prems (F_term (transform_exp NORMAL exp'')) acc (List.rev prems'') 
-          ) starting_fb rev_tail in 
-          transform_clause (Some fb) clause
-      ) :: rearrange_clauses rest
-  in
-  
-  List.map (fun clause -> match clause.it with 
-    | DefD(binds, args, exp, prems) -> DefD(binds, args, exp, modify_let_prems (free_list free_arg args) prems) $ clause.at
-  ) clauses 
-  |> rearrange_clauses
-
 let needs_well_formed_predicate inst =
   match inst.it with
   | InstD (_, _, deftyp) -> (match deftyp.it with
@@ -552,7 +513,7 @@ let needs_well_formed_predicate inst =
     | AliasT _ -> false 
   )
   
-let _has_prems clause = 
+let has_prems clause = 
   match clause.it with
   | DefD (_, _, _, prems) -> prems <> []
 
@@ -596,9 +557,7 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
       | [], [clause] ->
         (* With one clause and no params - this is essentially a global variable *)
         [GlobalDeclarationD (id.it, transform_type' NORMAL typ, transform_clause None clause)]
-      (* | _ -> *)
-      | _, clauses when List.exists _has_prems clauses -> 
-        (* HACK - Need to deal with premises in the future. *)
+      | _, clauses when List.exists has_prems clauses -> 
         [AxiomD (id.it, List.map transform_param params, transform_type' NORMAL typ)]
       | _ -> 
         (* [AxiomD (id.it, List.map transform_param params, transform_type' NORMAL typ)] *)

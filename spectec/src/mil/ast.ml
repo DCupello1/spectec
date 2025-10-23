@@ -66,6 +66,7 @@ type basic_term =
   | T_opttolist
   | T_map of iterator
   | T_zipwith of iterator
+  | T_map3 of iterator
 
 and iterator =
   | I_option

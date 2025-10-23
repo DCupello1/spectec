@@ -93,6 +93,8 @@ and string_of_term alias_set is_match (term : term) =
   | T_exp_basic (T_map I_option) -> "option_map"
   | T_exp_basic (T_zipwith I_list) -> "list_zipWith"
   | T_exp_basic (T_zipwith I_option) -> "option_zipWith" 
+  | T_exp_basic (T_map3 I_list) -> "list_map3"
+  | T_exp_basic (T_map3 I_option) -> "option_map3"
   | T_exp_basic T_listmember when is_prop term.typ -> "List.In"
   | T_exp_basic T_listmember -> " \\in "
   | T_exp_basic T_listupdate -> "list_update_func"
@@ -465,6 +467,13 @@ let exported_string =
 	"\tend.\n\n" ^
   "Definition list_extend {α: Type} (l: list α) (y: α): list α :=\n" ^
   "\ty :: l.\n\n" ^
+  "Definition option_map3 {A B C D: Type} (f: A -> B -> C -> D) (x: option A) (y: option B) (z: option C): option D :=\n" ^ 
+	"\tmatch x, y, z with\n" ^
+	"\t\t| Some x, Some y, Some z => Some (f x y z)\n" ^ 
+	"\t\t| _, _, _ => None\n" ^
+	"\tend.\n\n" ^
+  "Definition list_map3 {A B C D: Type} (f : A -> B -> C -> D) (xs : list A) (ys : list B) (zs : list C) : list D :=\n" ^
+	"\tList.map (fun '(x, (y, z)) => f x y z) (List.combine xs (List.combine ys zs)).\n\n" ^
   "Inductive List_Forall3 {A B C: Type} (R : A -> B -> C -> Prop): list A -> list B -> list C -> Prop :=\n" ^
   "\t| Forall3_nil : List_Forall3 R nil nil nil\n" ^ 
   "\t| Forall3_cons : forall x y z l l' l'',\n"^
