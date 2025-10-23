@@ -507,14 +507,31 @@ and utilizes_rel_def_path env p =
   | SliceP (p, e1, e2) -> utilizes_rel_def_path env p || utilizes_rel_def env e1 || utilizes_rel_def env e2
   | DotP (p, _) -> utilizes_rel_def_path env p
 
+let collect_list_length_vars () : StringSet.t ref * (module Iter.Arg) =
+  let module Arg = 
+    struct
+      include Iter.Skip 
+      let acc = ref StringSet.empty
+      let visit_exp exp =
+        match exp.it with
+        | IterE (_, (ListN ({it = VarE id; _}, _), [_])) ->
+          acc := StringSet.add id.it !acc
+        | _ -> ()
+    end
+  in Arg.acc, (module Arg)
+
 let must_be_relation env id params clauses = 
+  let listn_set, (module Arg : Iter.Arg) = collect_list_length_vars () in
+  assert (!listn_set = StringSet.empty);
+  let module Acc = Iter.Make(Arg) in
   (* Current limitation of relations - can only have standard types. 
      No type parameters or higher order functions *)
   List.for_all is_exp_param params && 
   (* Limitation - functions used as def ids cannot be relations *)
   not (StringSet.mem id.it env.def_arg_set) && 
   List.exists (fun c -> match c.it with 
-  | DefD (_, args, exp, prems) -> 
+  | DefD (binds, args, exp, prems) -> 
+    Acc.args args;
     (* Can't have subtyping matching *)
     List.exists has_sub_exp_arg args || 
     (* Premises might not be decidable *)
@@ -525,7 +542,13 @@ let must_be_relation env id params clauses =
     fst (List.fold_left (fun (acc_bool, free_set) arg -> 
       let free_vars = Free.free_arg arg in
       (acc_bool || Free.inter free_vars free_set <> Free.empty, Free.union free_vars free_set)
-    ) (false, Free.empty) args) 
+    ) (false, Free.empty) args) ||
+    (* There are more binded variables than utilized in the arguments *)
+    let bounded_vars = Free.free_list Free.bound_bind binds in
+    let free_vars = Free.free_list Free.free_arg args in
+    Free.diff bounded_vars free_vars <> Free.empty || 
+    (* HACK - dealing with list of a specified length with relations instead of functions *)
+    !listn_set <> StringSet.empty
   ) clauses
 
 

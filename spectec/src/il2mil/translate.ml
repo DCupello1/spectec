@@ -369,7 +369,6 @@ and transform_list_path (p : path) =
 
 and transform_path_start' (p : path) name_term is_extend end_term = 
   let paths = List.rev (p :: transform_list_path p) in
-  print_endline (String.concat " " (List.map Il.Print.string_of_path paths));
   (transform_path' paths (name_term.typ) p.at 0 (Some name_term) is_extend end_term)
 
 and transform_path' (paths : path list) typ at n name is_extend end_term = 
@@ -494,7 +493,8 @@ let transform_rule (r : rule) =
 
 let transform_clause (fb : function_body option) (c : clause) =
   match c.it, fb with
-  | DefD (_binds, args, exp, _prems), None -> (List.map (transform_arg MATCH) args, F_term (transform_exp NORMAL exp))
+  | DefD (_binds, args, exp, _prems), None -> 
+    (List.map (transform_arg MATCH) args, F_term (transform_exp NORMAL exp))
   | DefD (_binds, args, _, _prems), Some fb -> (List.map (transform_arg MATCH) args, fb)
 
 let transform_tf_inst (id : id) (i : inst) =
@@ -540,7 +540,7 @@ let is_family_typ env t =
   | _ -> false
 
 
-let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_entry StringMap.t ref) (def : def) : mil_def list =
+let rec transform_def (def : def) : mil_def list =
   (match def.it with
   | TypD (id, _, [({it = InstD (binds, _, deftyp);_} as inst)]) 
       when Tfamily.check_normal_type_creation inst -> 
@@ -563,18 +563,9 @@ let rec transform_def (partial_map : string StringMap.t ref) (wf_map : Wf.wf_ent
         (* [AxiomD (id.it, List.map transform_param params, transform_type' NORMAL typ)] *)
         (* Normal function *)
         let bs = List.map transform_param params in
-        let rt = transform_type' NORMAL typ in
-        let has_typ_fam = List.exists (fun p -> match p.it with
-          | ExpP (_, typ) -> is_family_typ !env_ref typ
-          | _ -> false
-        ) params in 
-        let extra_clause = if has_typ_fam 
-          then [(List.map (fun (_, t) -> T_ident "_" $@ t) bs, F_term (T_default $@ rt))]
-          else []
-        in
-        [DefinitionD (id.it, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses @ extra_clause)]
+        [DefinitionD (id.it, bs, transform_type' NORMAL typ, List.map (transform_clause None) clauses)]
     )
-  | RecD defs -> [MutualRecD (List.concat_map (transform_def partial_map wf_map) defs)]
+  | RecD defs -> [MutualRecD (List.concat_map (transform_def) defs)]
   | HintD _ | GramD _ -> [UnsupportedD (string_of_def def)]
   ) |> List.map (fun d -> d $ def.at)
 
@@ -602,12 +593,8 @@ let is_not_hintdef (d : def) : bool =
   | _ -> true 
 
 let transform (reserved_ids : StringSet.t) (il : script) =
-  let partial_map = ref StringMap.empty in 
-  let wf_map = ref StringMap.empty in 
-
   reserved_ids_set := reserved_ids; 
   env_ref := Il.Env.env_of_script il;
-  List.iter (register_partial_type_hint_def partial_map) il;
   
   List.filter is_not_hintdef il |>
-  List.concat_map (transform_def partial_map wf_map)
+  List.concat_map (transform_def)
