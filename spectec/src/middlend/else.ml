@@ -25,13 +25,15 @@ open Il.Ast
 module StringMap = Map.Make(String)
 module StringSet = Set.Make(String)
 
+let env_ref = ref Il.Env.empty
+
 (* Brought from Apart.ml *)
 
 (* Looks at an expression of type list from the back and chops off all
    known _elements_, followed by the list of all list expressions.
    Returns it all in reverse order.
  *)
- let rec to_snoc_list (e : exp) : exp list * exp list = match e.it with
+let rec to_snoc_list (e : exp) : exp list * exp list = match e.it with
   | ListE es -> List.rev es, []
   | CatE (e1, e2) ->
     let tailelems2, listelems2 = to_snoc_list e2 in
@@ -43,6 +45,12 @@ module StringSet = Set.Make(String)
     else tailelems2, listelems2 @ [e1]
   | _ -> [], [e]
 
+(* Taking as input a exp of type list, return all of the known elements *)
+let rec get_known_elements (e : exp) : exp list = match e.it with
+  | ListE es -> es
+  | CatE (e1, e2) -> get_known_elements e1 @ get_known_elements e2
+  | _ -> []
+
 (* We assume the expressions to be of the same type; for ill-typed inputs
   no guarantees are made. *)
 let rec apart (e1 : exp) (e2: exp) : bool =
@@ -52,19 +60,45 @@ let rec apart (e1 : exp) (e2: exp) : bool =
   | NumE n1, NumE n2 -> not (n1 = n2)
   | BoolE b1, BoolE b2 -> not (b1 = b2)
   | TextE t1, TextE t2 -> not (t1 = t2)
-  | CaseE (a1, exp1), CaseE (a2, exp2) ->
-    not (a1 = a2) || apart exp1 exp2
+  | CaseE (m1, exp1), CaseE (m2, exp2) ->
+    not (m1 = m2) || apart exp1 exp2
   | TupE es1, TupE es2 when List.length es1 = List.length es2 ->
     List.exists2 apart es1 es2
   | (CatE _ | ListE _), (CatE _ | ListE _) ->
     list_exp_apart e1 e2
   | SubE (e1, _, _), SubE (e2, _, _) -> apart e1 e2
+  (* Check if the specific case exists in the subtype *)
+  | CaseE (m, _), SubE (_, {it = VarT (id, _); _}, _)
+  | SubE (_, {it = VarT (id, _); _}, _), CaseE (m, _) ->
+    begin match Il.Env.find_opt_typ !env_ref id with
+    | Some (_, insts) -> 
+      List.find_opt (fun inst -> match inst.it with
+      | InstD (_, _, {it = VariantT typcases; _}) ->
+        List.find_opt (fun (m', _, _) -> 
+          Il.Eq.eq_mixop m m'
+        ) typcases |> Option.is_some
+      | _ -> false
+      ) insts |> Option.is_none
+    | None -> false
+    end
   (* We do not know anything about variables and functions *)
   | _ , _ -> false (* conservative *)
-  
 
 (* Two list expressions are apart if either their manifest tail elements are apart *)
-and list_exp_apart e1 e2 = snoc_list_apart (to_snoc_list e1) (to_snoc_list e2)
+and list_exp_apart e1 e2 = 
+  let (tailelems1, listelems1), (tailelems2, listelems2) = (to_snoc_list e1), (to_snoc_list e2) in
+  snoc_list_apart (tailelems1, listelems1) (tailelems2, listelems2) ||
+  
+  (* Final attempt - check pairwise its known elements IF one of the lists is completely known *)
+  match listelems1, listelems2 with
+  | [], [] -> false (* Should have been covered by snoc_list_apart *)
+  | [], _ -> 
+    let k_e2 = get_known_elements e2 in
+    List.exists (fun e2' -> List.for_all (fun e1' -> apart e1' e2') tailelems1) k_e2
+  | _, [] ->
+    let k_e1 = get_known_elements e1 in
+    List.exists (fun e2' -> List.for_all (fun e1' -> apart e1' e2') tailelems2) k_e1
+  | _, _ -> false (* Can't tell *)
 
 and snoc_list_apart (tailelems1, listelems1) (tailelems2, listelems2) =
   match tailelems1, listelems1, tailelems2, listelems2 with
@@ -109,18 +143,15 @@ let replace_else aux_name lhs prem = match prem.it with
   | _ -> prem
 
 let unarize rule = match rule.it with 
-    | RuleD (rid, binds, _mixop, exp, prems) ->
-      let lhs = match exp.it with
-        | TupE [lhs; _] -> lhs
-        | _ -> error exp.at "expected manifest pair"
-      in
-      { rule with it = RuleD (rid, binds, unary_mixfix, lhs, prems) }
+  | RuleD (rid, binds, _mixop, exp, prems) ->
+    let lhs = match exp.it with
+      | TupE [lhs; _] -> lhs
+      | _ -> error exp.at "expected manifest pair"
+    in
+    { rule with it = RuleD (rid, binds, unary_mixfix, lhs, prems) }
 
 let not_apart lhs rule = match rule.it with
-    | RuleD (_, _, _, lhs2, _) -> 
-      (* HACK - I deactivated apart for now since it was giving some lhs that were actually not apart *)
-      let _a = apart lhs lhs2 in
-      Il.Eq.eq_exp lhs lhs2
+  | RuleD (_, _, _, lhs2, _) -> not (apart lhs lhs2)
 
 let rec go hint_map used_names at id mixop typ typ1 prev_rules : rule list -> def list = function
   | [] -> [ RelD (id, mixop, typ, List.rev prev_rules) $ at ]
@@ -142,6 +173,8 @@ let rec go hint_map used_names at id mixop typ typ1 prev_rules : rule list -> de
           |> List.map get_rule_id 
           |> StringSet.of_list 
         in 
+        if applicable_prev_rules = [] then (error id.at "Could not find any applicable rule") 
+        else
         [ RelD (aux_name, unary_mixfix, typ1, applicable_prev_rules) $ r.at ] @
         let extra_hintdef = match (StringMap.find_opt id.it hint_map) with
           | Some hints -> [ HintD (RelH (aux_name, hints) $ at) $ at ]
@@ -177,5 +210,6 @@ let collect_hints (hint_map : (hint list) StringMap.t ref) (def : def) : unit =
 
 let transform (defs : script) =
   let hint_map = ref StringMap.empty in
+  env_ref := Il.Env.env_of_script defs; 
   List.iter (collect_hints hint_map) defs;
   List.concat_map (t_def !hint_map) defs

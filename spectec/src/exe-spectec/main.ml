@@ -34,7 +34,7 @@ passers (--all-passes, some targets), we do _not_ want to use the order of
 flags on the command line.
 *)
 let _skip_passes = [ Unthe ]  (* Not clear how to extend them to indexed types *)
-let all_passes = [ Else; TypeFamilyRemoval; Totalize; Uncaseremoval; Undep; DefToRel; Sideconditions; Sub; Naming ]
+let all_passes = [ TypeFamilyRemoval; Undep; Totalize; Else; Uncaseremoval; DefToRel; Sideconditions; Sub; Naming ]
 
 type mil_pass =
   | MIL_Sub
