@@ -1,3 +1,47 @@
+(*
+This transformation separates indexed types into simple types and their corresponding
+wellformedness predicate. 
+
+This is achieved through the following steps:
+  * Create the wellformedness predicate as a relation that takes in the corresponding
+  type, and its dependent type parameters. 
+    * For variants, it creates a wellformedness case for each variant case. it supplies
+    the premises that the indexed type used to have.
+    * For structs/records, it creates a singular case where all premises of all fields
+    are checked.
+  * For definitions and relations, we collect terms that should have a wellformedness check 
+  and add it to the current premise list. This results in wellformedness predicates being
+  "bubbled up."
+  * Then finally, we traverse through the IL, removing any notion of indexed types.
+
+As an example,
+given the following variant indexed type:
+
+syntax foo(v : t) = 
+  | CASE{v2 : t}(v2 : t)
+  -- if v = v2
+
+where t is an arbitrary type, and v and v2 are terms of type t.
+
+Assume that type t needs a wellformedness check.
+
+This is transformed into: 
+
+syntax foo = 
+  | CASE{v2 : t}(v2 : t)
+
+;; ../specification/wasm-2.0/1-syntax.spectec:20.8-20.12
+relation wf_foo: `%%`(t, foo)
+  ;; ../specification/wasm-2.0/1-syntax.spectec:20.8-20.12
+  rule foo_case_0{v : t, v2 : t}:
+    `%%`(v, CASE_foo(v2))
+    -- wf_t: `%`(v)
+    -- if (v = v2)
+
+This pass requires the typefamilyremoval pass to be ran first, as it ensures that type families are
+transformed correctly.
+*)
+
 open Il.Ast
 open Util.Source
 open Util.Error
@@ -387,7 +431,6 @@ let get_extra_prems env binds exp prems =
   let bind_prems = (List.filter_map get_exp_typ binds_filtered) |> List.concat_map (get_wf_pred env) in
   bind_prems @ more_prems
     
-
 let transform_rule env rule = 
   (match rule.it with
   | RuleD (id, binds, m, exp, prems) -> 
