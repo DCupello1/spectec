@@ -1,6 +1,8 @@
 open Il.Ast
 open Util.Source
 open Util.Error
+open Il
+open Util
 
 module StringSet = Set.Make(String)
 
@@ -14,16 +16,19 @@ let empty_env = {
   il_env = Il.Env.empty
 }
 
-let _var_name = "var_x" 
 let wf_pred_prefix = "wf_"
 let rule_prefix = "case_"
+
+(* flag that deactivates adding wellformedness predicates to relations *)
+let deactivate_wfness = false
 
 let error at msg = error at "Undep error" msg
 
 let rec split3concat = function
     [] -> ([], [], [])
   | (x,y, z)::l ->
-      let (rx, ry, rz) = split3concat l in (x @ rx, y @ ry, z @ rz)
+    let (rx, ry, rz) = split3concat l in 
+    (x @ rx, y @ ry, z @ rz)
 
 let remove_last_char s =
   if not (String.ends_with ~suffix:"*" s || String.ends_with ~suffix:"?" s) then s else  
@@ -49,6 +54,62 @@ let is_type_bind bind =
   match bind.it with
   | TypB _ -> true
   | _ -> false
+
+let filter_iter_binds exp iter_binds = 
+  let free_vars = (Free.free_exp exp).varid in
+  (List.fold_left (fun (free_set, acc) (iter, id_exp_pairs) -> 
+    let new_id_exp_pairs = List.filter (fun (id, _) -> 
+      Free.Set.mem id.it free_set
+    ) id_exp_pairs in
+    if new_id_exp_pairs = [] then (free_set, acc) else 
+    let iter_vars = List.fold_left (fun acc (_, e) ->
+      Free.Set.union acc (Free.free_exp e).varid  
+    ) Free.Set.empty new_id_exp_pairs in 
+    let new_set = Free.Set.union iter_vars free_set in
+    (new_set, (iter, new_id_exp_pairs) :: acc)
+  ) (free_vars, []) iter_binds) 
+  |> snd |> List.rev
+
+let rec collect_userdef_exp iterexps e = 
+  match e.it with
+  | CaseE _ | StrE _ -> [((e, e.note), filter_iter_binds e iterexps)]
+  | CallE (_, args) -> List.concat_map (collect_userdef_arg iterexps) args
+  | UnE (_, _, e1) | CvtE (e1, _, _) | LiftE e1 | TheE e1 | OptE (Some e1) 
+  | ProjE (e1, _) | UncaseE (e1, _)
+  | LenE e1 | DotE (e1, _)
+  | SubE (e1, _, _) -> collect_userdef_exp iterexps e1
+  | BinE (_, _, e1, e2) | CmpE (_, _, e1, e2)
+  | CompE (e1, e2) | MemE (e1, e2)
+  | CatE (e1, e2) | IdxE (e1, e2) -> collect_userdef_exp iterexps e1 @ collect_userdef_exp iterexps e2
+  | TupE exps | ListE exps -> List.concat_map (collect_userdef_exp iterexps) exps
+  | SliceE (e1, e2, e3) -> collect_userdef_exp iterexps e1 @ collect_userdef_exp iterexps e2 @ collect_userdef_exp iterexps e3
+  | UpdE (e1, p, e2) 
+  | ExtE (e1, p, e2) -> collect_userdef_exp iterexps e1 @ collect_userdef_path iterexps p @ collect_userdef_exp iterexps e2
+  | IterE (e1, ((_, id_exp_pairs) as iterexp)) -> 
+    collect_userdef_exp (iterexp :: iterexps) e1 @ 
+    List.concat_map (fun (_, exp) -> collect_userdef_exp iterexps exp) id_exp_pairs
+  | _ -> []
+
+and collect_userdef_arg iterexps a =
+  match a.it with
+  | ExpA exp -> collect_userdef_exp iterexps exp
+  | _ -> (* TODO - possibly need to go through all types of args *) 
+    []
+
+and collect_userdef_prem iterexps p =
+  match p.it with
+  | IfPr e | RulePr (_, _, e) -> collect_userdef_exp iterexps e
+  | LetPr (e1, e2, _) -> collect_userdef_exp iterexps e1 @ collect_userdef_exp iterexps e2
+  | IterPr (p', ((_, id_exp_pairs) as iterexp)) -> collect_userdef_prem (iterexp :: iterexps) p' @
+    List.concat_map (fun (_, exp) -> collect_userdef_exp iterexps exp) id_exp_pairs
+  | _ -> [] 
+
+and collect_userdef_path iterexps p =
+  match p.it with
+  | RootP -> []
+  | IdxP (p, e) -> collect_userdef_path iterexps p @ collect_userdef_exp iterexps e
+  | SliceP (p, e1, e2) -> collect_userdef_path iterexps p @ collect_userdef_exp iterexps e1 @ collect_userdef_exp iterexps e2
+  | DotP (p, _) -> collect_userdef_path iterexps p
 
 let rec transform_iter env i =
   match i with 
@@ -88,6 +149,9 @@ and transform_exp env e =
   | UpdE (e1, p, e2) -> UpdE (t_func e1, transform_path env p, t_func e2)
   | ExtE (e1, p, e2) -> ExtE (t_func e1, transform_path env p, t_func e2)
   | CallE (id, args) -> CallE (id, List.map (transform_arg env) args)
+    (* HACK - Change IterE of option with no iteration variable into a OptE *)
+  | IterE (e1, (Opt, [])) -> 
+    OptE (Some (t_func e1)) 
   | IterE (e1, (iter, id_exp_pairs)) -> IterE (t_func e1, (transform_iter env iter, List.map (fun (id, exp) -> (id, t_func exp)) id_exp_pairs))
   | CvtE (e1, nt1, nt2) -> CvtE (t_func e1, nt1, nt2)
   | SubE (e1, t1, t2) -> SubE (t_func e1, transform_typ env t1, transform_typ env t2)
@@ -222,23 +286,24 @@ let rec non_empty_var e =
   | TupE exps -> List.exists non_empty_var exps
   | _ -> false
 
+let get_exp_typ b = 
+  match b.it with
+  | ExpB (id, typ) -> Some (VarE id $$ id.at % typ, typ)
+  | _ -> None
+  
 let create_well_formed_predicate id env inst = 
-  let get_exp_typ b = 
-    match b.it with
-    | ExpB (id, typ) -> Some (VarE id $$ id.at % typ, typ)
-    | _ -> None
-  in
   let at = id.at in 
   let user_typ = VarT(id, []) $ at in
-  match inst.it with
-  (* Variant well formedness predicate creation *)
-  | InstD (binds, _args, {it = VariantT typcases; _}) -> 
-    let pairs_without_names, dep_exp_typ_pairs = List.split (List.filter_map (fun b -> match b.it with 
+  let new_mixop pairs = [] :: List.init (List.length pairs + 1) (fun _ -> []) in
+  let create_pairs binds = List.split (List.filter_map (fun b -> match b.it with 
       | ExpB (id', typ) -> Some ((VarE ("_" $ id'.at) $$ id'.at % typ, typ), (VarE id' $$ id'.at % typ, typ))
       | _ -> None
     ) binds) in
-    let tupt = TupT (pairs_without_names @ [(VarE ("_" $ at) $$ at % user_typ, user_typ)]) $ at in
-    let new_mixop = [] :: List.init (List.length dep_exp_typ_pairs + 1) (fun _ -> []) in
+  let tupt pairs = TupT (pairs @ [(VarE ("_" $ at) $$ at % user_typ, user_typ)]) $ at in
+  match inst.it with
+  (* Variant well formedness predicate creation *)
+  | InstD (binds, _args, {it = VariantT typcases; _}) -> 
+    let pairs_without_names, dep_exp_typ_pairs = create_pairs binds in
     let rules = List.mapi (fun i (m, (case_binds, case_typ, prems), _) ->
       let exp_typ_pairs = match case_typ.it with
         | TupT tups -> tups
@@ -248,10 +313,10 @@ let create_well_formed_predicate id env inst =
       let new_binds = case_binds @ extra_binds in 
       let exp = TupE (List.map fst t_pairs) $$ at % (TupT t_pairs $ at) in 
       let case_exp = CaseE (m, exp) $$ at % user_typ in
-      let tuple_exp = TupE (List.map fst dep_exp_typ_pairs @ [case_exp]) $$ at % tupt in
+      let tuple_exp = TupE (List.map fst dep_exp_typ_pairs @ [case_exp]) $$ at % tupt pairs_without_names in
       let extra_prems = List.filter_map get_exp_typ new_binds |> List.concat_map (get_wf_pred env) in
       RuleD (id.it ^ "_" ^ rule_prefix ^ Int.to_string i $ at, 
-        List.map (transform_bind env) (binds @ new_binds), new_mixop, 
+        List.map (transform_bind env) (binds @ new_binds), new_mixop dep_exp_typ_pairs, 
         transform_exp env tuple_exp, 
         List.map (transform_prem env) (extra_prems @ prems)
       ) $ at
@@ -261,18 +326,13 @@ let create_well_formed_predicate id env inst =
       | RuleD (_, _, _, _, prems) -> prems = []   
     ) rules in
     if has_no_prems then None else 
-    let relation = RelD (wf_pred_prefix ^ id.it $ id.at, new_mixop, tupt, rules) $ at in 
+    let relation = RelD (wf_pred_prefix ^ id.it $ id.at, new_mixop dep_exp_typ_pairs, tupt pairs_without_names, rules) $ at in 
     bind_wf_set env id.it;
     Some relation
 
   (* Struct/Record well formedness predicate creation *)
   | InstD (binds, _args, {it = StructT typfields; _}) -> 
-    let pairs_without_names, dep_exp_typ_pairs = List.split (List.filter_map (fun b -> match b.it with 
-      | ExpB (id', typ) -> Some ((VarE ("_" $ id'.at) $$ id'.at % typ, typ), (VarE id' $$ id'.at % typ, typ))
-      | _ -> None
-    ) binds) in
-    let new_mixop = [] :: List.init (List.length dep_exp_typ_pairs + 1) (fun _ -> []) in
-    let tupt = TupT (pairs_without_names @ [(VarE ("_" $ at) $$ at % user_typ, user_typ)]) $ at in
+    let pairs_without_names, dep_exp_typ_pairs = create_pairs binds in
     let atoms = List.map (fun (a, _, _) -> a) typfields in
     let is_wrapped, pairs, rule_prems = split3concat (List.map (fun (_, (_, t, prems), _) ->
       let tups, wrapped = match t.it with 
@@ -291,32 +351,64 @@ let create_well_formed_predicate id env inst =
       if wrapped then (a, tupe) else 
       (a, e)
     ) atoms (List.combine pairs' is_wrapped)) $$ at % user_typ in 
-    let tupe = TupE (List.map fst dep_exp_typ_pairs @ [str_exp]) $$ at % tupt in
-    let rule = RuleD (id.it ^ "_" ^ rule_prefix $ id.at, List.map (transform_bind env) (binds @ rule_binds), new_mixop, tupe, List.map (transform_prem env) (new_prems)) $ at in
+    let tupe = TupE (List.map fst dep_exp_typ_pairs @ [str_exp]) $$ at % tupt pairs_without_names in
+    let rule = RuleD (id.it ^ "_" ^ rule_prefix $ id.at, 
+      List.map (transform_bind env) (binds @ rule_binds), 
+      new_mixop dep_exp_typ_pairs, 
+      tupe, 
+      List.map (transform_prem env) (new_prems)) $ at 
+    in
   
     if new_prems = [] then None else 
-    let relation = RelD (wf_pred_prefix ^ id.it $ id.at, new_mixop, tupt, [rule]) $ at in 
+    let relation = RelD (wf_pred_prefix ^ id.it $ id.at, new_mixop dep_exp_typ_pairs, tupt pairs_without_names, [rule]) $ at in 
     bind_wf_set env id.it;
     Some relation
   | _ -> None
 
+let get_extra_prems env binds exp prems = 
+  if deactivate_wfness then [] else 
+  let wf_terms = collect_userdef_exp [] exp @ List.concat_map (collect_userdef_prem []) prems in
+  let unique_terms = Util.Lib.List.nub (fun ((e1, _t1), iterexp1) ((e2, _t2), iterexp2) -> 
+    Il.Eq.eq_exp e1 e2 && Il.Eq.eq_list Il.Eq.eq_iterexp iterexp1 iterexp2
+  ) wf_terms in
+  
+  let more_prems = List.concat_map (fun (pair, iterexps) -> 
+    List.map (fun prem' -> List.fold_left (fun acc iterexp ->
+      IterPr (acc, iterexp) $ acc.at   
+    ) prem' iterexps) (get_wf_pred env pair) 
+  ) unique_terms in
+
+  (* Leverage the fact that the wellformed predicates are "bubbled up" and remove unnecessary wf preds*)
+  let free_vars = (Free.free_list Free.free_prem more_prems).varid in
+  let binds_filtered = Lib.List.filter_not (fun b -> match b.it with 
+    | ExpB (id, _) -> Free.Set.mem id.it free_vars
+    | _ -> true
+  ) binds in
+  let bind_prems = (List.filter_map get_exp_typ binds_filtered) |> List.concat_map (get_wf_pred env) in
+  bind_prems @ more_prems
+    
+
 let transform_rule env rule = 
   (match rule.it with
-  | RuleD (id, binds, m, exp, prems) -> RuleD (id, 
-    List.map (transform_bind env) binds, 
-    m, 
-    transform_exp env exp, 
-    List.map (transform_prem env) prems
-  )
+  | RuleD (id, binds, m, exp, prems) -> 
+    let extra_prems = get_extra_prems env binds exp prems in 
+    RuleD (id, 
+      List.map (transform_bind env) binds, 
+      m, 
+      transform_exp env exp, 
+      List.map (transform_prem env) (extra_prems @ prems) 
+    )
   ) $ rule.at
 
 let transform_clause env clause =
   (match clause.it with 
-  | DefD (binds, args, exp, prems) -> DefD (List.map (transform_bind env) binds, 
-    List.map (transform_arg env) args,
-    transform_exp env exp, 
-    List.map (transform_prem env) prems
-  )
+  | DefD (binds, args, exp, prems) -> 
+    let extra_prems = get_extra_prems env binds exp prems in 
+    DefD (List.map (transform_bind env) binds, 
+      List.map (transform_arg env) args,
+      transform_exp env exp, 
+      List.map (transform_prem env) (extra_prems @ prems)
+    )
   ) $ clause.at
 
 let transform_prod env prod = 
@@ -325,8 +417,7 @@ let transform_prod env prod =
     transform_sym env sym,
     transform_exp env exp,
     List.map (transform_prem env) prems
-  )
-  ) $ prod.at
+  )) $ prod.at
 
 let is_not_exp_param param =
   match param.it with
@@ -354,7 +445,6 @@ let rec transform_def env def =
   | RecD defs -> 
     if List.exists (needs_wfness env) defs 
       then List.iter (fun d -> bind_wf_set env (get_def_id d).it) defs; 
-
     let defs', wf_relations = List.map (transform_def env) defs |> List.split in
     let rec_defs = RecD defs' $ def.at in
     if List.concat wf_relations = [] then (rec_defs, []) else

@@ -473,7 +473,7 @@ let rec transform_premise (is_rel_prem : bool) (p : prem) =
       (v.it, remove_iter_from_type v_mil_typ), transform_exp exp_type v_exp
     ) id_exp_pairs in 
     P_list_forall (transform_iter iter, transform_premise is_rel_prem p', iter_binds)
-  | RulePr (id, _mixop, exp) -> P_rule (id.it, transform_tuple_exp (transform_exp exp_type) exp)
+  | RulePr (id, _mixop, exp) -> P_rule (id.it, transform_tuple_exp (transform_exp NORMAL) exp)
   | NegPr p' -> P_neg (transform_premise is_rel_prem p')
 
 let transform_deftyp (id : id) (binds : bind list) (deftyp : deftyp) =
