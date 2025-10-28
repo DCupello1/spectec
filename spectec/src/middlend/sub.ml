@@ -94,11 +94,6 @@ let register_alias (env : env) (id : id) params (id2 : id) args =
 
 let injection_name (sub : id) (sup : id) = sup.it ^ "_" ^ sub.it $ no_region
 
-let var_of_typ typ = match typ.it with
-  | VarT (id, args) -> Some (id, args)
-  | NumT _ -> None
-  | _ -> error typ.at ("Non-variable or number type expression not supported `" ^ Il.Print.string_of_typ typ ^ "`")
-
 (* Step 1 and 4: Collect SubE occurrences, and replace with function *)
 
 (* The main transformation case *)
@@ -108,14 +103,21 @@ let rec t_exp env exp =
   | SubE (e, sub_ty, sup_ty) ->
 (
 (* Printf.eprintf "[sub @ %s] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty); *)
-    begin match var_of_typ sub_ty, var_of_typ sup_ty with
-    | Some (sub, args_sub), Some (sup, args_sup) ->
+    begin match sub_ty.it, sup_ty.it with
+    | VarT (sub, args_sub), VarT (sup, args_sup) ->
       if env.pairs_mutable then
         env.pairs <- S.add (sub, sup) env.pairs;
       { exp' with it = CallE (injection_name sub sup, args_sub @ args_sup @ [ExpA (t_exp env e) $ e.at])}
+    | NumT _, NumT _ -> exp'
+    | TupT ts, TupT ts' when List.length ts = List.length ts' ->
+      TupE (List.mapi (fun idx ((_, t), (_, t')) ->
+        let proj_exp = ProjE (e, idx) $$ e.at % t in
+        if Il.Eq.eq_typ t t' then proj_exp else
+        t_exp env (SubE (proj_exp, t, t') $$ exp.at % t')
+      ) (List.combine ts ts')) $$ exp.at % sup_ty
     | _, _ ->
 (* Printf.eprintf "[sub @ %s REMAINS] %s  <:  %s\n%!" (string_of_region exp'.at) (Il.Print.string_of_typ sub_ty) (Il.Print.string_of_typ sup_ty); *)
-     exp'
+      error sub_ty.at ("Non-variable or number type expression not supported `" ^ Il.Print.string_of_typ sub_ty ^ "`")
     end
 )
   | _ -> exp'

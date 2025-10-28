@@ -195,7 +195,9 @@ and transform_exp env e =
   | CallE (id, args) -> CallE (id, List.map (transform_arg env) args)
     (* HACK - Change IterE of option with no iteration variable into a OptE *)
   | IterE (e1, (Opt, [])) -> 
-    OptE (Some (t_func e1)) 
+    OptE (Some (t_func e1))
+  | IterE (e1, (List, [])) | IterE (e1, (List1, [])) ->
+    ListE [t_func e1]
   | IterE (e1, (iter, id_exp_pairs)) -> IterE (t_func e1, (transform_iter env iter, List.map (fun (id, exp) -> (id, t_func exp)) id_exp_pairs))
   | CvtE (e1, nt1, nt2) -> CvtE (t_func e1, nt1, nt2)
   | SubE (e1, t1, t2) -> SubE (t_func e1, transform_typ env t1, transform_typ env t2)
