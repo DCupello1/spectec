@@ -83,10 +83,16 @@ let rec collect_fcalls_exp iter_binds env e =
   | SliceE (e1, e2, e3) -> collect_fcalls_exp iter_binds env e1 @ collect_fcalls_exp iter_binds env e2 @ collect_fcalls_exp iter_binds env e3
   | UpdE (e1, p, e2) 
   | ExtE (e1, p, e2) -> collect_fcalls_exp iter_binds env e1 @ collect_fcalls_path iter_binds env p @ collect_fcalls_exp iter_binds env e2
-  | IterE (e1,( (_, id_exp_pairs) as iterexp)) -> 
-    collect_fcalls_exp (iterexp :: iter_binds) env e1 @ List.concat_map (fun (_, exp) -> collect_fcalls_exp iter_binds env exp) id_exp_pairs
+  | IterE (e1,( (iter, id_exp_pairs) as iterexp)) -> 
+    collect_fcalls_exp (iterexp :: iter_binds) env e1 @ collect_fcalls_iter (iterexp :: iter_binds) env iter @
+    List.concat_map (fun (_, exp) -> collect_fcalls_exp iter_binds env exp) id_exp_pairs
   | _ -> []
 
+and collect_fcalls_iter iter_binds env i = 
+  match i with
+  | ListN (e1, _) -> collect_fcalls_exp iter_binds env e1
+  | _ -> []
+    
 and collect_fcalls_arg iter_binds env a =
   match a.it with
   | ExpA exp -> collect_fcalls_exp iter_binds env exp
@@ -130,8 +136,7 @@ let create_call_map fcalls binds =
     Eq.eq_id id id' &&
     Eq.eq_list Eq.eq_arg args args' &&
     Eq.eq_list Eq.eq_iterexp iterexps iterexps'
-    ) fcalls 
-  in
+  ) fcalls in
   let ids = List.map get_bind_id binds in
   let ids', new_binds, new_prems = List.fold_left (fun acc fcall -> 
     let ids', binds', prems = acc in
@@ -178,10 +183,10 @@ and transform_exp call_map env e: (exp * (id * typ * int) list) =
     let e1', iter_ids = t_func e1 in 
     CaseE (m, e1'), iter_ids
   | StrE fields -> 
-    let fields, iter_ids = List.split (List.map (fun (a, e1) -> 
+    let fields', iter_ids = List.split (List.map (fun (a, e1) -> 
       let e1', iter_ids = t_func e1 in
       (a, e1'), iter_ids) fields) in
-    StrE fields, List.concat iter_ids
+    StrE fields', List.concat iter_ids
   | UnE (unop, optyp, e1) -> 
     let e1', iter_ids = t_func e1 in 
     UnE (unop, optyp, e1'), iter_ids
@@ -278,7 +283,8 @@ and transform_exp call_map env e: (exp * (id * typ * int) list) =
       Some ((id, iter_e'), iter_ids)
       ) id_exp_pairs) 
     in
-    IterE (e1', (iter, new_id_exp_pairs @ id_exp_pairs_filtered)), new_iter_ids @ List.concat more_iter_ids
+    IterE (e1', (transform_iter call_map env iter, new_id_exp_pairs @ id_exp_pairs_filtered)), 
+      new_iter_ids @ List.concat more_iter_ids
   | CvtE (e1, nt1, nt2) -> 
     let e1', iter_ids = t_func e1 in
     CvtE (e1', nt1, nt2), iter_ids
@@ -399,7 +405,8 @@ let rec transform_prem call_map env prem =
       let iter_e' , iter_ids = transform_exp call_map env iter_e in
       Some ((id, iter_e'), iter_ids)
       ) id_exp_pairs) in
-    IterPr (prem1', (iter, new_id_exp_pairs @ id_exp_pairs_filtered)), new_iter_ids @ List.concat more_iter_ids
+    IterPr (prem1', (transform_iter call_map env iter, new_id_exp_pairs @ id_exp_pairs_filtered)), 
+      new_iter_ids @ List.concat more_iter_ids
   | NegPr p -> 
     let p', iter_ids = transform_prem call_map env p in
     NegPr p', iter_ids
@@ -603,7 +610,7 @@ let rec transform_def (env : env) def =
   | d -> d
   ) $ def.at
 
-let collect_def_args : StringSet.t ref * (module Iter.Arg) =
+let collect_def_args (): StringSet.t ref * (module Iter.Arg) =
   let module Arg = 
     struct
       include Iter.Skip 
@@ -618,7 +625,7 @@ let collect_def_args : StringSet.t ref * (module Iter.Arg) =
 let transform (il : script): script =
   let env = empty_env in 
   env.env <- Il.Env.env_of_script il;
-  let acc, (module Arg : Iter.Arg) = collect_def_args in
+  let acc, (module Arg : Iter.Arg) = collect_def_args () in
   let module Acc = Iter.Make(Arg) in
   List.iter Acc.def il;
   env.def_arg_set <- !acc;
