@@ -304,7 +304,7 @@ let () =
     Al.Valid.valid al;
     *)
     
-    let mil =
+    let _mil =
       if !print_mil_f || (!target = Rocq)
       then (
         log "Translating to MIL...";
@@ -416,9 +416,9 @@ let () =
     | Rocq ->
       log "Rocq Generation...";
       (match !odsts with
-      | [] -> print_endline (Backend_rocq.Print.string_of_script mil)
+      | [] -> print_endline (Backend_rocq.Print.string_of_script il)
       | [odst] -> 
-        let coq_code = Backend_rocq.Print.string_of_script mil in
+        let coq_code = Backend_rocq.Print.string_of_script il in
         let oc = Out_channel.open_text odst in
         Fun.protect (fun () -> Out_channel.output_string oc coq_code)
           ~finally:(fun () -> Out_channel.close oc)

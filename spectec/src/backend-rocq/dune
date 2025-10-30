@@ -1,5 +1,5 @@
 (library
   (name backend_rocq)
-  (libraries mil)
+  (libraries il mil)
   (modules print utils)
 )
