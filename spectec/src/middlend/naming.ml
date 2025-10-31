@@ -11,6 +11,7 @@ let error at msg = Util.Error.error at "naming" msg
 
 type env = {
   prefix_map : (string list) StringMap.t;
+  mutable atom_str_set : StringSet.t;
   il_env : Il.Env.t;
 }
 
@@ -30,13 +31,18 @@ let (let*) = Option.bind
 let make_prefix = "mk_"
 let var_prefix = "v_"
 let fun_prefix = "fun_"
-let res_prefix = "res_"
+let res_prefix = "r_"
 
-type id_type = VAR | USERDEF | FUNCDEF
+type id_type = 
+  | VAR         (* Variables *)
+  | USERDEF     (* Types, type constructors and relations *)
+  | FUNCDEF     (* function definitions *)
+
 let empty_info: region * Xl.Atom.info = (no_region, {def = ""; case = ""})
 
 (* Id transformation *)
-let transform_id' env (id_type : id_type) (s : text) = 
+let rec transform_id' (env : env) (id_type : id_type) (s : text) = 
+  let t_func = transform_id' env id_type in 
   let change_id s' = 
     String.map (function
      | '.' -> '_'
@@ -49,11 +55,20 @@ let transform_id' env (id_type : id_type) (s : text) =
   in
   let s' = change_id s in
   match id_type with
-  | VAR when Il.Env.mem_typ env (s' $ no_region) || Il.Env.Set.mem s' reserved_ids -> var_prefix ^ s'
-  | FUNCDEF when Il.Env.mem_typ env (s' $ no_region) 
-    || Il.Env.mem_rel env (s' $ no_region) 
-    || Il.Env.Set.mem s reserved_ids -> fun_prefix ^ s' 
-  | USERDEF when Il.Env.Set.mem s reserved_ids -> res_prefix ^ s'
+  (* Leave naming hole as is *)
+  | _ when s' = "_" -> s' 
+  | VAR when Il.Env.mem_typ env.il_env (s' $ no_region) 
+    || Il.Env.mem_rel env.il_env (s' $ no_region) 
+    || Il.Env.mem_def env.il_env (s' $ no_region) 
+    || StringSet.mem s' env.atom_str_set
+    || Il.Env.Set.mem s' reserved_ids -> t_func (var_prefix ^ s')
+  | FUNCDEF when Il.Env.mem_typ env.il_env (s' $ no_region) 
+    || Il.Env.mem_rel env.il_env (s' $ no_region) 
+    || Il.Env.Set.mem s reserved_ids 
+    || StringSet.mem s' env.atom_str_set -> t_func (fun_prefix ^ s')
+  | USERDEF when Il.Env.Set.mem s reserved_ids -> t_func (res_prefix ^ s')
+  (* Checking whether an id is an int - if so, put a reserved prefix *)
+  | _ when Option.is_some (int_of_string_opt s') -> t_func (res_prefix ^ s')
   | _ -> s'
 
 let transform_var_id env id = transform_id' env VAR id.it $ id.at
@@ -74,6 +89,14 @@ let transform_atom env typ_id a =
   match a.it with
   | Atom s -> Atom (transform_user_def_id env (s $ a.at)).it $$ a.at % a.note
   | _ -> Atom (make_prefix ^ typ_id) $$ a.at % a.note
+
+let add_atom env a = 
+  match a.it with
+  | Atom s -> env.atom_str_set <- StringSet.add s (env.atom_str_set)
+  | _ -> ()
+
+let add_mixop env m = 
+  List.iter (List.iter (add_atom env)) m 
 
 let transform_mixop env typ_id (m : mixop) = 
   let m' = List.map (fun inner_m -> List.filter is_atomid inner_m) m in
@@ -124,7 +147,10 @@ let rec transform_iter env i =
 
 and transform_typ env t = 
   (match t.it with
-  | VarT (id, args) -> VarT (transform_user_def_id env.il_env id, List.map (transform_arg env) args)
+  | VarT (id, []) when not (Env.mem_typ env.il_env id) -> 
+    (* Type parameter - treat it as such *)
+    VarT (transform_var_id env id, [])
+  | VarT (id, args) -> VarT (transform_user_def_id env id, List.map (transform_arg env) args)
   | TupT exp_typ_pairs -> TupT (List.map (fun (e, t) -> (transform_exp env e, transform_typ env t)) exp_typ_pairs)
   | IterT (typ, iter) -> IterT (transform_typ env typ, transform_iter env iter)
   | typ -> typ
@@ -135,57 +161,57 @@ and apply_prefix_mixop env m name at =
   let* idx = List.find_index (check_inst_mixop m) insts in 
   let* prefixes = StringMap.find_opt name env.prefix_map in
   let* prefix = List.nth_opt prefixes idx in 
-  Some (prepend_mixop prefix m |> transform_mixop env.il_env name)  
+  Some (prepend_mixop prefix m |> transform_mixop env name)  
 
 and apply_prefix_fields env fields name at =
   let* (_, insts) = Env.find_opt_typ env.il_env (name $ at) in
   let* idx = List.find_index (check_inst_fields fields) insts in 
   let* prefixes = StringMap.find_opt name env.prefix_map in
   let* prefix = List.nth_opt prefixes idx in
-  Some (StrE (List.map (fun (a, e1) -> (prepend_atom prefix a |> transform_atom env.il_env name, transform_exp env e1)) fields))
+  Some (StrE (List.map (fun (a, e1) -> (prepend_atom prefix a |> transform_atom env name, transform_exp env e1)) fields))
 
 and apply_prefix_atom env a name at =
   let* (_, insts) = Env.find_opt_typ env.il_env (name $ at) in
   let* idx = List.find_index (check_inst_atom a) insts in 
   let* prefixes = StringMap.find_opt name env.prefix_map in
   let* prefix = List.nth_opt prefixes idx in
-  Some (prepend_atom prefix a |> transform_atom env.il_env name)
+  Some (prepend_atom prefix a |> transform_atom env name)
 
 and transform_exp env e = 
   let t_func = transform_exp env in
   (match e.it with
   (* Improve naming of variables and functions *)
-  | VarE id -> VarE (transform_var_id env.il_env id)
-  | CallE (id, args) -> CallE (transform_fun_id env.il_env id, List.map (transform_arg env) args)
+  | VarE id -> VarE (transform_var_id env id)
+  | CallE (id, args) -> CallE (transform_fun_id env id, List.map (transform_arg env) args)
 
   (* Apply prefixes to corresponding expressions*)
   | CaseE (m, e1) -> 
     let id = Print.string_of_typ_name (Eval.reduce_typ env.il_env e.note) in
-    let t_m = transform_mixop env.il_env id m in
+    let t_m = transform_mixop env id m in
     let m' = Option.value (apply_prefix_mixop env m id e.at) ~default:t_m in
     CaseE(m', t_func e1)
 
   | StrE fields -> 
     let id = Print.string_of_typ_name (Eval.reduce_typ env.il_env e.note) in
-    let t_fields = List.map (fun (a, e1) -> (transform_atom env.il_env id a, t_func e1)) fields in
+    let t_fields = List.map (fun (a, e1) -> (transform_atom env id a, t_func e1)) fields in
     let exp = StrE t_fields in
     Option.value (apply_prefix_fields env t_fields id e.at) ~default:exp
 
   | UncaseE (e1, m) -> 
     let id = Print.string_of_typ_name (Eval.reduce_typ env.il_env e.note) in
-    let t_m = transform_mixop env.il_env id m in
+    let t_m = transform_mixop env id m in
     let m' = Option.value (apply_prefix_mixop env m id e.at) ~default:t_m in
     UncaseE (t_func e1, m')
   
   | DotE (e1, a) -> 
     let id = Print.string_of_typ_name (Eval.reduce_typ env.il_env e1.note) in
-    let t_a = transform_atom env.il_env id a in
+    let t_a = transform_atom env id a in
     let a' = Option.value (apply_prefix_atom env a id e.at) ~default:t_a in
     DotE (t_func e1, a')
   
   (* Special case for iteration naming - just use the variable it is iterating on *)
   | IterE (e, ((_, [(_, {it = VarE id''; _})]) as iterexp)) when check_iteration_naming e iterexp -> 
-    VarE (transform_var_id env.il_env id'')
+    VarE (transform_var_id env id'')
   
   (* Boilerplate Traversal *)
   | UnE (unop, optyp, e1) -> UnE (unop, optyp, t_func e1)
@@ -205,7 +231,7 @@ and transform_exp env e =
   | SliceE (e1, e2, e3) -> SliceE (t_func e1, t_func e2, t_func e3)
   | UpdE (e1, p, e2) -> UpdE (t_func e1, transform_path env p, t_func e2)
   | ExtE (e1, p, e2) -> ExtE (t_func e1, transform_path env p, t_func e2)
-  | IterE (e1, (iter, id_exp_pairs)) -> IterE (t_func e1, (transform_iter env iter, List.map (fun (id', exp) -> (transform_var_id env.il_env id', t_func exp)) id_exp_pairs))
+  | IterE (e1, (iter, id_exp_pairs)) -> IterE (t_func e1, (transform_iter env iter, List.map (fun (id', exp) -> (transform_var_id env id', t_func exp)) id_exp_pairs))
   | CvtE (e1, nt1, nt2) -> CvtE (t_func e1, nt1, nt2)
   | SubE (e1, t1, t2) -> SubE (t_func e1, transform_typ env t1, transform_typ env t2)
   | exp -> exp
@@ -218,7 +244,7 @@ and transform_path env path =
   | SliceP (p, e1, e2) -> SliceP (transform_path env p, transform_exp env e1, transform_exp env e2)
   | DotP (p, a) -> 
     let id = Print.string_of_typ_name (Eval.reduce_typ env.il_env p.note) in
-    let t_a = transform_atom env.il_env id a in
+    let t_a = transform_atom env id a in
     let a' = Option.value (apply_prefix_atom env a id path.at) ~default:t_a in
     DotP (transform_path env p, a')
   ) $$ path.at % (transform_typ env path.note)
@@ -230,7 +256,7 @@ and transform_sym env s =
   | AltG syms -> AltG (List.map (transform_sym env) syms)
   | RangeG (syml, symu) -> RangeG (transform_sym env syml, transform_sym env symu)
   | IterG (sym, (iter, id_exp_pairs)) -> IterG (transform_sym env sym, (transform_iter env iter, 
-      List.map (fun (id, exp) -> (transform_var_id env.il_env id, transform_exp env exp)) id_exp_pairs)
+      List.map (fun (id, exp) -> (transform_var_id env id, transform_exp env exp)) id_exp_pairs)
     )
   | AttrG (e, sym) -> AttrG (transform_exp env e, transform_sym env sym)
   | sym -> sym 
@@ -240,34 +266,34 @@ and transform_arg env a =
   (match a.it with
   | ExpA exp -> ExpA (transform_exp env exp)
   | TypA typ -> TypA (transform_typ env typ)
-  | DefA id -> DefA (transform_fun_id env.il_env id)
+  | DefA id -> DefA (transform_fun_id env id)
   | GramA sym -> GramA (transform_sym env sym)
   ) $ a.at
 
 and transform_bind env b =
   (match b.it with
-  | ExpB (id, typ) -> ExpB (transform_var_id env.il_env id, transform_typ env typ)
-  | TypB id -> TypB (transform_var_id env.il_env id)
-  | DefB (id, params, typ) -> DefB (transform_fun_id env.il_env id, List.map (transform_param env) params, transform_typ env typ)
+  | ExpB (id, typ) -> ExpB (transform_var_id env id, transform_typ env typ)
+  | TypB id -> TypB (transform_var_id env id)
+  | DefB (id, params, typ) -> DefB (transform_fun_id env id, List.map (transform_param env) params, transform_typ env typ)
   | GramB (id, params, typ) -> GramB (id, List.map (transform_param env) params, transform_typ env typ)
   ) $ b.at 
   
 and transform_param env p =
   (match p.it with
-  | ExpP (id, typ) -> ExpP (transform_var_id env.il_env id, transform_typ env typ)
-  | TypP id -> TypP (transform_var_id env.il_env id)
+  | ExpP (id, typ) -> ExpP (transform_var_id env id, transform_typ env typ)
+  | TypP id -> TypP (transform_var_id env id)
   | DefP (id, params, typ) -> DefP (id, List.map (transform_param env) params, transform_typ env typ)
   | GramP (id, typ) -> GramP (id, transform_typ env typ)
   ) $ p.at 
 
 let rec transform_prem env prem = 
   (match prem.it with
-  | RulePr (id, m, e) -> RulePr (transform_user_def_id env.il_env id, m, transform_exp env e)
+  | RulePr (id, m, e) -> RulePr (transform_user_def_id env id, m, transform_exp env e)
   | IfPr e -> IfPr (transform_exp env e)
   | LetPr (e1, e2, ids) -> LetPr (transform_exp env e1, transform_exp env e2, ids)
   | ElsePr -> ElsePr
   | IterPr (prem1, (iter, id_exp_pairs)) -> IterPr (transform_prem env prem1, 
-      (transform_iter env iter, List.map (fun (id, exp) -> (transform_var_id env.il_env id, transform_exp env exp)) id_exp_pairs)
+      (transform_iter env iter, List.map (fun (id, exp) -> (transform_var_id env id, transform_exp env exp)) id_exp_pairs)
     )
   | NegPr p -> NegPr (transform_prem env p)
   ) $ prem.at
@@ -278,12 +304,16 @@ let transform_inst env id prefix inst =
     (match deftyp.it with 
     | AliasT typ -> AliasT (transform_typ env typ)
     | StructT typfields -> StructT (List.map (fun (a, (c_binds, typ, prems), hints) ->
-        (prepend_atom prefix a |> transform_atom env.il_env id.it, 
+        let atom = prepend_atom prefix a |> transform_atom env id.it in
+        add_atom env atom;
+        (atom, 
         (List.map (transform_bind env) c_binds, transform_typ env typ, List.map (transform_prem env) prems), hints)  
       ) typfields)
     | VariantT typcases -> 
       VariantT (List.map (fun (m, (c_binds, typ, prems), hints) -> 
-        (prepend_mixop prefix m |> transform_mixop env.il_env id.it, 
+        let mixop = prepend_mixop prefix m |> transform_mixop env id.it in
+        add_mixop env mixop;
+        (mixop, 
         (List.map (transform_bind env) c_binds, transform_typ env typ, List.map (transform_prem env) prems), hints)  
       ) typcases)
     ) $ deftyp.at
@@ -293,7 +323,7 @@ let transform_inst env id prefix inst =
 let transform_rule env rel_id prefix rule = 
   (match rule.it with
   | RuleD (id, binds, m, exp, prems) -> 
-    RuleD (transform_rule_id env.il_env prefix id rel_id $ id.at, 
+    RuleD (transform_rule_id env prefix id rel_id $ id.at, 
     List.map (transform_bind env) binds, 
     m, 
     transform_exp env exp, 
@@ -330,15 +360,15 @@ let rec transform_def env def =
     let insts_length = List.length insts in
     if (prefix_length > insts_length) then error def.at "Too many prefixes" else
     let extra_prefixes = List.init (insts_length - prefix_length) (fun _ -> "") in
-    TypD (transform_user_def_id env.il_env id, List.map (transform_param env) params, List.map2 (transform_inst env id) (prefixes @ extra_prefixes) insts)
+    TypD (transform_user_def_id env id, List.map (transform_param env) params, List.map2 (transform_inst env id) (prefixes @ extra_prefixes) insts)
   | RelD (id, m, typ, rules) -> 
     let prefix = (match (StringMap.find_opt id.it env.prefix_map) with
     | Some [s] -> s
     | None -> ""
     | _ -> error def.at "Too many prefixes"
     ) in
-    RelD (transform_user_def_id env.il_env id, m, transform_typ env typ, List.map (transform_rule env id prefix) rules)
-  | DecD (id, params, typ, clauses) -> DecD (transform_fun_id env.il_env id, List.map (transform_param env) params |> Utils.improve_ids_params, transform_typ env typ, List.map (transform_clause env) clauses)
+    RelD (transform_user_def_id env id, m, transform_typ env typ, List.map (transform_rule env id prefix) rules)
+  | DecD (id, params, typ, clauses) -> DecD (transform_fun_id env id, List.map (transform_param env) params |> Utils.improve_ids_params, transform_typ env typ, List.map (transform_clause env) clauses)
   | GramD (id, params, typ, prods) -> GramD (id, List.map (transform_param env) params, transform_typ env typ, List.map (transform_prod env) prods)
   | RecD defs -> RecD (List.map (transform_def env) defs)
   | HintD hintdef -> HintD hintdef
@@ -376,6 +406,7 @@ let create_prefix_map (il : script) =
   !map
 
 let create_env il = {
+  atom_str_set = StringSet.empty;
   prefix_map = create_prefix_map il;
   il_env = Env.env_of_script il
 }
